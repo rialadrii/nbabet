@@ -201,10 +201,13 @@ elif opcion == "⚔️ Analizar Partido":
             
             st.write("---")
             
-            # Función auxiliar con FORMATO DECIMAL y CENTRADO FUERTE
+            # --- FUNCIÓN CORREGIDA PARA EVITAR KeyError ---
             def estilo_tabla(dataframe, col_color, col_trend):
+                # Detectamos qué columnas existen realmente en la tabla que nos pasan
+                cols_disponibles = [c for c in ['pts', 'reb', 'ast', 'min'] if c in dataframe.columns]
+                
                 return dataframe.style\
-                    .format("{:.1f}", subset=['pts', 'reb', 'ast', 'min'])\
+                    .format("{:.1f}", subset=cols_disponibles)\
                     .background_gradient(subset=[col_color], cmap='YlOrBr' if col_color=='reb' else ('Greens' if col_color=='pts' else 'Blues'))\
                     .set_properties(**{'text-align': 'center'})\
                     .set_table_styles([
