@@ -81,7 +81,9 @@ def load_data():
 # ==========================================
 # INTERFAZ PRINCIPAL
 # ==========================================
-st.title("🏀 NBA Pro Analyzer (Mobile)")
+
+# --- CAMBIO: TÍTULO CENTRADO CON HTML ---
+st.markdown("<h1 style='text-align: center;'>🏀 NBA Pro Analyzer (Mobile)</h1>", unsafe_allow_html=True)
 
 # --- BARRA LATERAL (MENU) ---
 st.sidebar.header("Menú de Control")
@@ -93,9 +95,9 @@ df = load_data()
 if opcion == "🏠 Inicio":
     st.info("Bienvenido. Usa el menú de la izquierda para navegar.")
     
-    # --- CAMBIO SOLICITADO: FIRMA ---
+    # --- CAMBIO: FIRMA CENTRADA ---
     st.markdown("---")
-    st.markdown("### 👨‍💻 CREADO POR RIALADRI")
+    st.markdown("<h3 style='text-align: center;'>👨‍💻 CREADO POR RIALADRI</h3>", unsafe_allow_html=True)
     st.markdown("---")
     
     if df.empty:
@@ -143,11 +145,6 @@ elif opcion == "👤 Analizar Jugador":
                 h2h = player_data[player_data['matchup'].str.contains(rival, case=False)]
                 if not h2h.empty:
                     st.dataframe(h2h[['game_date', 'matchup', 'min', 'pts', 'reb', 'ast']], hide_index=True)
-                    
-                    # Chequeo rápido de partidos no jugados contra este rival
-                    fechas_rival = df[df['matchup'].str.contains(rival, case=False)]['game_date'].unique()
-                    fechas_jugador = h2h['game_date'].unique()
-                    # (Lógica simplificada para jugador individual)
 
 # --- PÁGINA: PARTIDO ---
 elif opcion == "⚔️ Analizar Partido":
@@ -177,7 +174,6 @@ elif opcion == "⚔️ Analizar Partido":
             }).reset_index()
             
             st.write("---")
-            # --- CAMBIO SOLICITADO: TEXTO HEADER ---
             st.subheader("🔥 Top Reboteadores")
             reb_df = stats.sort_values('reb', ascending=False).head(15)
             st.dataframe(reb_df[['player_name', 'team_abbreviation', 'reb', 'min', 'pts']].style.background_gradient(subset=['reb'], cmap='YlOrBr'), hide_index=True)
@@ -190,12 +186,11 @@ elif opcion == "⚔️ Analizar Partido":
             ast_df = stats.sort_values('ast', ascending=False).head(15)
             st.dataframe(ast_df[['player_name', 'team_abbreviation', 'ast', 'min', 'pts']].style.background_gradient(subset=['ast'], cmap='Blues'), hide_index=True)
             
-            # --- CAMBIO SOLICITADO: RECUPERAR SECCIÓN BAJAS (DNP) ---
+            # --- SECCIÓN BAJAS (DNP) ---
             st.write("---")
             st.subheader("📉 Bajas Clave (DNP) en estos partidos")
             st.info("Jugadores habituales (+12 min media) que no jugaron en los enfrentamientos recientes:")
             
-            # 1. Identificar jugadores clave en estos equipos
             avg_mins = recent_players.groupby(['player_name', 'team_abbreviation'])['min'].mean()
             key_players = avg_mins[avg_mins > 12.0].index.tolist()
             
@@ -203,12 +198,10 @@ elif opcion == "⚔️ Analizar Partido":
             
             for date in last_dates:
                 date_str = date.strftime('%d/%m/%Y')
-                # Jugadores que SÍ jugaron ese día
                 played_on_date = recent_players[recent_players['game_date'] == date]['player_name'].unique()
                 
                 missing_in_game = []
                 for p_name, p_team in key_players:
-                    # Verificar si el equipo de ese jugador jugó ese día
                     team_played_match = not recent_players[(recent_players['game_date'] == date) & (recent_players['team_abbreviation'] == p_team)].empty
                     
                     if team_played_match and (p_name not in played_on_date):
