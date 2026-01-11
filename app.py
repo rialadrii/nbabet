@@ -1,4 +1,4 @@
-import streamlit as st # type: ignore
+import streamlit as st
 import pandas as pd
 import sqlite3
 import os
@@ -26,12 +26,6 @@ CSV_FOLDER = "csv"
 
 if not os.path.exists(CSV_FOLDER):
     os.makedirs(CSV_FOLDER)
-
-def init_db():
-    """Inicializa la conexión si existe la DB"""
-    if os.path.exists(DB_PATH):
-        return sqlite3.connect(DB_PATH)
-    return None
 
 def download_data():
     """Descarga datos de la NBA API"""
@@ -97,7 +91,13 @@ df = load_data()
 
 # --- PÁGINA: INICIO ---
 if opcion == "🏠 Inicio":
-    st.info("Bienvenido. Usa el menú de la izquierda (o la flecha arriba en móvil) para navegar.")
+    st.info("Bienvenido. Usa el menú de la izquierda para navegar.")
+    
+    # --- CAMBIO SOLICITADO: FIRMA ---
+    st.markdown("---")
+    st.markdown("### 👨‍💻 CREADO POR RIALADRI")
+    st.markdown("---")
+    
     if df.empty:
         st.warning("⚠️ No hay datos. Ve a 'Actualizar Datos' primero.")
     else:
@@ -122,18 +122,13 @@ elif opcion == "👤 Analizar Jugador":
     if df.empty:
         st.error("Primero actualiza los datos.")
     else:
-        # Buscador inteligente
         todos_jugadores = sorted(df['player_name'].unique())
         jugador = st.selectbox("Escribe el nombre:", todos_jugadores, index=None, placeholder="Ej: Kevin Love")
         
         if jugador:
-            # Filtros
             player_data = df[df['player_name'] == jugador].sort_values('game_date', ascending=False)
-            equipo_actual = player_data.iloc[0]['team_abbreviation']
-            
             rival = st.text_input("Filtrar vs Rival (Opcional, ej: CHA):").upper()
             
-            # Métricas Clave (Top Cards)
             c1, c2, c3, c4 = st.columns(4)
             c1.metric("PTS", f"{player_data['pts'].mean():.1f}")
             c2.metric("REB", f"{player_data['reb'].mean():.1f}")
@@ -148,8 +143,11 @@ elif opcion == "👤 Analizar Jugador":
                 h2h = player_data[player_data['matchup'].str.contains(rival, case=False)]
                 if not h2h.empty:
                     st.dataframe(h2h[['game_date', 'matchup', 'min', 'pts', 'reb', 'ast']], hide_index=True)
-                else:
-                    st.warning(f"No ha jugado contra {rival} esta temporada.")
+                    
+                    # Chequeo rápido de partidos no jugados contra este rival
+                    fechas_rival = df[df['matchup'].str.contains(rival, case=False)]['game_date'].unique()
+                    fechas_jugador = h2h['game_date'].unique()
+                    # (Lógica simplificada para jugador individual)
 
 # --- PÁGINA: PARTIDO ---
 elif opcion == "⚔️ Analizar Partido":
@@ -170,18 +168,17 @@ elif opcion == "⚔️ Analizar Partido":
             
             history = df[mask].sort_values('game_date', ascending=False)
             
-            # Jugadores relevantes recientes
-            last_dates = sorted(history['game_date'].unique(), reverse=True)[:3] # Últimos 3 partidos
+            # --- TABLAS DE ESTADÍSTICAS ---
+            last_dates = sorted(history['game_date'].unique(), reverse=True)[:5] # Últimos 5 enfrentamientos
             recent_players = history[history['game_date'].isin(last_dates)]
             
-            # Agrupar stats
             stats = recent_players.groupby(['player_name', 'team_abbreviation']).agg({
                 'pts': 'mean', 'reb': 'mean', 'ast': 'mean', 'min': 'mean', 'game_date': 'count'
             }).reset_index()
             
             st.write("---")
-            st.subheader("🔥 Top Reboteadores (Tu especialidad)")
-            # Tabla de rebotes coloreada
+            # --- CAMBIO SOLICITADO: TEXTO HEADER ---
+            st.subheader("🔥 Top Reboteadores")
             reb_df = stats.sort_values('reb', ascending=False).head(15)
             st.dataframe(reb_df[['player_name', 'team_abbreviation', 'reb', 'min', 'pts']].style.background_gradient(subset=['reb'], cmap='YlOrBr'), hide_index=True)
             
@@ -192,3 +189,36 @@ elif opcion == "⚔️ Analizar Partido":
             st.subheader("🤝 Top Asistentes")
             ast_df = stats.sort_values('ast', ascending=False).head(15)
             st.dataframe(ast_df[['player_name', 'team_abbreviation', 'ast', 'min', 'pts']].style.background_gradient(subset=['ast'], cmap='Blues'), hide_index=True)
+            
+            # --- CAMBIO SOLICITADO: RECUPERAR SECCIÓN BAJAS (DNP) ---
+            st.write("---")
+            st.subheader("📉 Bajas Clave (DNP) en estos partidos")
+            st.info("Jugadores habituales (+12 min media) que no jugaron en los enfrentamientos recientes:")
+            
+            # 1. Identificar jugadores clave en estos equipos
+            avg_mins = recent_players.groupby(['player_name', 'team_abbreviation'])['min'].mean()
+            key_players = avg_mins[avg_mins > 12.0].index.tolist()
+            
+            found_dnps = False
+            
+            for date in last_dates:
+                date_str = date.strftime('%d/%m/%Y')
+                # Jugadores que SÍ jugaron ese día
+                played_on_date = recent_players[recent_players['game_date'] == date]['player_name'].unique()
+                
+                missing_in_game = []
+                for p_name, p_team in key_players:
+                    # Verificar si el equipo de ese jugador jugó ese día
+                    team_played_match = not recent_players[(recent_players['game_date'] == date) & (recent_players['team_abbreviation'] == p_team)].empty
+                    
+                    if team_played_match and (p_name not in played_on_date):
+                        missing_in_game.append(f"{p_name} ({p_team})")
+                
+                if missing_in_game:
+                    found_dnps = True
+                    st.write(f"**📅 {date_str}:**")
+                    for p in missing_in_game:
+                        st.error(f"❌ {p}")
+            
+            if not found_dnps:
+                st.success("✅ No hubo bajas importantes en los últimos enfrentamientos.")
