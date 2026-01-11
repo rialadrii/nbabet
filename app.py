@@ -10,7 +10,7 @@ from nba_api.stats.endpoints import leaguegamelog
 # ==========================================
 st.set_page_config(page_title="NBA Analyzer Pro", page_icon="🏀", layout="wide")
 
-# --- CSS PARA MODO OSCURO Y TARJETAS ---
+# --- CSS MEJORADO: MODO OSCURO + CENTRADO DE TABLAS ---
 st.markdown("""
     <style>
     /* Estilo para las tarjetas de métricas */
@@ -21,11 +21,16 @@ st.markdown("""
         border-radius: 10px;
         color: white;
     }
-    /* Ajuste para tablas en móvil */
-    div[data-testid="stDataFrame"] {width: 100%;}
-    
-    /* Centrar títulos */
+    /* Centrar títulos de la página */
     h1, h2, h3 { text-align: center; }
+    
+    /* TRUCO CSS: FORZAR CENTRADO EN TABLAS STREAMLIT */
+    .stDataFrame th {
+        text-align: center !important;
+    }
+    .stDataFrame td {
+        text-align: center !important;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -147,13 +152,20 @@ elif opcion == "👤 Analizar Jugador":
             c4.metric("MIN", f"{player_data['min'].mean():.1f}")
             
             st.subheader("Últimos 5 Partidos")
-            st.dataframe(player_data[['game_date', 'matchup', 'min', 'pts', 'reb', 'ast']].head(5), hide_index=True)
+            # Centramos la tabla de jugador individual también
+            st.dataframe(
+                player_data[['game_date', 'matchup', 'min', 'pts', 'reb', 'ast']].head(5).style.set_properties(**{'text-align': 'center'}), 
+                hide_index=True
+            )
             
             if rival:
                 st.subheader(f"Historial vs {rival}")
                 h2h = player_data[player_data['matchup'].str.contains(rival, case=False)]
                 if not h2h.empty:
-                    st.dataframe(h2h[['game_date', 'matchup', 'min', 'pts', 'reb', 'ast']], hide_index=True)
+                    st.dataframe(
+                        h2h[['game_date', 'matchup', 'min', 'pts', 'reb', 'ast']].style.set_properties(**{'text-align': 'center'}), 
+                        hide_index=True
+                    )
 
 # --- PÁGINA: PARTIDO ---
 elif opcion == "⚔️ Analizar Partido":
@@ -174,49 +186,55 @@ elif opcion == "⚔️ Analizar Partido":
             
             history = df[mask].sort_values('game_date', ascending=False)
             
-            # --- LÓGICA DE AGREGACIÓN CON TRENDS ---
+            # --- LÓGICA DE AGREGACIÓN CON TRENDS Y GP ---
             last_dates = sorted(history['game_date'].unique(), reverse=True)[:5] # Últimos 5 enfrentamientos
+            total_games_matchup = len(last_dates) # Cuántos partidos estamos analizando (puede ser 1, 2, 3...)
+            
             recent_players = history[history['game_date'].isin(last_dates)]
             
-            # Aquí creamos las columnas de "TREND" (ej: 22/15/10)
             stats = recent_players.groupby(['player_name', 'team_abbreviation']).agg(
                 pts=('pts', 'mean'),
                 reb=('reb', 'mean'),
                 ast=('ast', 'mean'),
                 min=('min', 'mean'),
-                gp=('game_date', 'count'),
-                # Funciones lambda para concatenar los resultados
+                gp=('game_date', 'count'), # Partidos jugados
                 trend_pts=('pts', lambda x: '/'.join(x.astype(int).astype(str))),
                 trend_reb=('reb', lambda x: '/'.join(x.astype(int).astype(str))),
                 trend_ast=('ast', lambda x: '/'.join(x.astype(int).astype(str)))
             ).reset_index()
             
+            # --- NUEVA COLUMNA: GP FORMATO "3/5" ---
+            stats['GP'] = stats['gp'].astype(str) + "/" + str(total_games_matchup)
+            
             st.write("---")
+            
+            # Función auxiliar para aplicar estilos (Centrado + Colores)
+            def estilo_tabla(dataframe, col_color, col_trend):
+                return dataframe.style\
+                    .background_gradient(subset=[col_color], cmap='YlOrBr' if col_color=='reb' else ('Greens' if col_color=='pts' else 'Blues'))\
+                    .set_properties(**{'text-align': 'center'})
             
             # REBOTEADORES
             st.subheader("🔥 Top Reboteadores")
             reb_df = stats.sort_values('reb', ascending=False).head(15)
-            # Mostramos la columna 'trend_reb'
             st.dataframe(
-                reb_df[['player_name', 'team_abbreviation', 'reb', 'trend_reb', 'min']].style.background_gradient(subset=['reb'], cmap='YlOrBr'), 
+                estilo_tabla(reb_df[['player_name', 'team_abbreviation', 'GP', 'reb', col_trend := 'trend_reb', 'min']], 'reb', col_trend),
                 hide_index=True
             )
             
             # ANOTADORES
             st.subheader("🎯 Top Anotadores")
             pts_df = stats.sort_values('pts', ascending=False).head(15)
-            # Mostramos la columna 'trend_pts'
             st.dataframe(
-                pts_df[['player_name', 'team_abbreviation', 'pts', 'trend_pts', 'min']].style.background_gradient(subset=['pts'], cmap='Greens'), 
+                estilo_tabla(pts_df[['player_name', 'team_abbreviation', 'GP', 'pts', col_trend := 'trend_pts', 'min']], 'pts', col_trend),
                 hide_index=True
             )
             
             # ASISTENTES
             st.subheader("🤝 Top Asistentes")
             ast_df = stats.sort_values('ast', ascending=False).head(15)
-            # Mostramos la columna 'trend_ast'
             st.dataframe(
-                ast_df[['player_name', 'team_abbreviation', 'ast', 'trend_ast', 'min']].style.background_gradient(subset=['ast'], cmap='Blues'), 
+                estilo_tabla(ast_df[['player_name', 'team_abbreviation', 'GP', 'ast', col_trend := 'trend_ast', 'min']], 'ast', col_trend),
                 hide_index=True
             )
             
