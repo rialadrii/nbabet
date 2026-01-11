@@ -10,11 +10,22 @@ from nba_api.stats.endpoints import leaguegamelog
 # ==========================================
 st.set_page_config(page_title="NBA Analyzer Pro", page_icon="🏀", layout="wide")
 
-# Estilos CSS para móvil
+# --- CSS PARA MODO OSCURO Y TARJETAS ---
 st.markdown("""
     <style>
-    .stMetric {background-color: #f0f2f6; padding: 10px; border-radius: 10px;}
+    /* Estilo para las tarjetas de métricas */
+    div[data-testid="stMetric"] {
+        background-color: #262730;
+        border: 1px solid #464b5f;
+        padding: 10px;
+        border-radius: 10px;
+        color: white;
+    }
+    /* Ajuste para tablas en móvil */
     div[data-testid="stDataFrame"] {width: 100%;}
+    
+    /* Centrar títulos */
+    h1, h2, h3 { text-align: center; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -82,7 +93,6 @@ def load_data():
 # INTERFAZ PRINCIPAL
 # ==========================================
 
-# --- CAMBIO: TÍTULO CENTRADO CON HTML ---
 st.markdown("<h1 style='text-align: center;'>🏀 NBA Pro Analyzer (Mobile)</h1>", unsafe_allow_html=True)
 
 # --- BARRA LATERAL (MENU) ---
@@ -95,7 +105,6 @@ df = load_data()
 if opcion == "🏠 Inicio":
     st.info("Bienvenido. Usa el menú de la izquierda para navegar.")
     
-    # --- CAMBIO: FIRMA CENTRADA ---
     st.markdown("---")
     st.markdown("<h3 style='text-align: center;'>👨‍💻 CREADO POR RIALADRI</h3>", unsafe_allow_html=True)
     st.markdown("---")
@@ -165,31 +174,56 @@ elif opcion == "⚔️ Analizar Partido":
             
             history = df[mask].sort_values('game_date', ascending=False)
             
-            # --- TABLAS DE ESTADÍSTICAS ---
+            # --- LÓGICA DE AGREGACIÓN CON TRENDS ---
             last_dates = sorted(history['game_date'].unique(), reverse=True)[:5] # Últimos 5 enfrentamientos
             recent_players = history[history['game_date'].isin(last_dates)]
             
-            stats = recent_players.groupby(['player_name', 'team_abbreviation']).agg({
-                'pts': 'mean', 'reb': 'mean', 'ast': 'mean', 'min': 'mean', 'game_date': 'count'
-            }).reset_index()
+            # Aquí creamos las columnas de "TREND" (ej: 22/15/10)
+            stats = recent_players.groupby(['player_name', 'team_abbreviation']).agg(
+                pts=('pts', 'mean'),
+                reb=('reb', 'mean'),
+                ast=('ast', 'mean'),
+                min=('min', 'mean'),
+                gp=('game_date', 'count'),
+                # Funciones lambda para concatenar los resultados
+                trend_pts=('pts', lambda x: '/'.join(x.astype(int).astype(str))),
+                trend_reb=('reb', lambda x: '/'.join(x.astype(int).astype(str))),
+                trend_ast=('ast', lambda x: '/'.join(x.astype(int).astype(str)))
+            ).reset_index()
             
             st.write("---")
+            
+            # REBOTEADORES
             st.subheader("🔥 Top Reboteadores")
             reb_df = stats.sort_values('reb', ascending=False).head(15)
-            st.dataframe(reb_df[['player_name', 'team_abbreviation', 'reb', 'min', 'pts']].style.background_gradient(subset=['reb'], cmap='YlOrBr'), hide_index=True)
+            # Mostramos la columna 'trend_reb'
+            st.dataframe(
+                reb_df[['player_name', 'team_abbreviation', 'reb', 'trend_reb', 'min']].style.background_gradient(subset=['reb'], cmap='YlOrBr'), 
+                hide_index=True
+            )
             
+            # ANOTADORES
             st.subheader("🎯 Top Anotadores")
             pts_df = stats.sort_values('pts', ascending=False).head(15)
-            st.dataframe(pts_df[['player_name', 'team_abbreviation', 'pts', 'min', 'reb']].style.background_gradient(subset=['pts'], cmap='Greens'), hide_index=True)
+            # Mostramos la columna 'trend_pts'
+            st.dataframe(
+                pts_df[['player_name', 'team_abbreviation', 'pts', 'trend_pts', 'min']].style.background_gradient(subset=['pts'], cmap='Greens'), 
+                hide_index=True
+            )
             
+            # ASISTENTES
             st.subheader("🤝 Top Asistentes")
             ast_df = stats.sort_values('ast', ascending=False).head(15)
-            st.dataframe(ast_df[['player_name', 'team_abbreviation', 'ast', 'min', 'pts']].style.background_gradient(subset=['ast'], cmap='Blues'), hide_index=True)
+            # Mostramos la columna 'trend_ast'
+            st.dataframe(
+                ast_df[['player_name', 'team_abbreviation', 'ast', 'trend_ast', 'min']].style.background_gradient(subset=['ast'], cmap='Blues'), 
+                hide_index=True
+            )
             
             # --- SECCIÓN BAJAS (DNP) ---
             st.write("---")
-            st.subheader("📉 Bajas Clave (DNP) en estos partidos")
-            st.info("Jugadores habituales (+12 min media) que no jugaron en los enfrentamientos recientes:")
+            st.subheader("📉 Bajas Clave (DNP)")
+            st.info("Jugadores (+12 min media) ausentes en duelos recientes:")
             
             avg_mins = recent_players.groupby(['player_name', 'team_abbreviation'])['min'].mean()
             key_players = avg_mins[avg_mins > 12.0].index.tolist()
