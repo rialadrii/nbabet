@@ -39,7 +39,7 @@ st.markdown("""
         text-align: center !important; 
         padding: 10px;
         border-bottom: 2px solid #464b5f;
-        text-transform: uppercase; /* Todo en mayúsculas */
+        text-transform: uppercase;
     }
     td {
         text-align: center !important; 
@@ -120,13 +120,14 @@ opcion = st.sidebar.radio("Selecciona modo:", ["🏠 Inicio", "👤 Analizar Jug
 
 df = load_data()
 
-# --- FUNCION PARA MOSTRAR TABLA TRADUCIDA ---
+# --- FUNCION CORREGIDA PARA OCULTAR INDICE ---
 def mostrar_tabla_bonita(df_raw, col_principal_espanol):
-    # Generar HTML sin el índice (index=False)
+    # .hide(axis="index") es la CLAVE para borrar la columna de la izquierda
     html = df_raw.style\
         .format("{:.1f}", subset=[c for c in df_raw.columns if c in ['PTS', 'REB', 'AST', 'MIN']])\
         .background_gradient(subset=[col_principal_espanol], cmap='YlOrBr' if 'REB' in col_principal_espanol else ('Greens' if 'PTS' in col_principal_espanol else 'Blues'))\
-        .to_html(index=False, classes="custom-table") # <--- AQUÍ SE QUITA LA TABLA DE LA IZQUIERDA
+        .hide(axis="index")\
+        .to_html(classes="custom-table")
     
     st.markdown(f"<div class='table-wrapper'>{html}</div>", unsafe_allow_html=True)
 
@@ -172,11 +173,14 @@ elif opcion == "👤 Analizar Jugador":
             
             st.subheader("Últimos 5 Partidos")
             
-            # Tabla traducida
             view = player_data[['game_date', 'matchup', 'min', 'pts', 'reb', 'ast']].head(5).copy()
-            view.columns = ['FECHA', 'PARTIDO', 'MIN', 'PTS', 'REB', 'AST'] # Traducción
+            view.columns = ['FECHA', 'PARTIDO', 'MIN', 'PTS', 'REB', 'AST']
             
-            html = view.style.format("{:.1f}", subset=['MIN', 'PTS', 'REB', 'AST']).to_html(index=False)
+            # Aplicamos .hide(axis="index") aquí también
+            html = view.style\
+                .format("{:.1f}", subset=['MIN', 'PTS', 'REB', 'AST'])\
+                .hide(axis="index")\
+                .to_html()
             st.markdown(f"<div class='table-wrapper'>{html}</div>", unsafe_allow_html=True)
             
             if rival:
@@ -185,7 +189,11 @@ elif opcion == "👤 Analizar Jugador":
                 if not h2h.empty:
                     view_h2h = h2h[['game_date', 'matchup', 'min', 'pts', 'reb', 'ast']].copy()
                     view_h2h.columns = ['FECHA', 'PARTIDO', 'MIN', 'PTS', 'REB', 'AST']
-                    html_h2h = view_h2h.style.format("{:.1f}", subset=['MIN', 'PTS', 'REB', 'AST']).to_html(index=False)
+                    
+                    html_h2h = view_h2h.style\
+                        .format("{:.1f}", subset=['MIN', 'PTS', 'REB', 'AST'])\
+                        .hide(axis="index")\
+                        .to_html()
                     st.markdown(f"<div class='table-wrapper'>{html_h2h}</div>", unsafe_allow_html=True)
 
 elif opcion == "⚔️ Analizar Partido":
@@ -223,22 +231,21 @@ elif opcion == "⚔️ Analizar Partido":
             
             st.write("---")
             
-            # REBOTEADORES (TRADUCIDO)
+            # REBOTEADORES
             st.subheader("🔥 Top Reboteadores")
             reb_df = stats.sort_values('reb', ascending=False).head(15).copy()
-            # Seleccionamos y renombramos
             reb_final = reb_df[['player_name', 'team_abbreviation', 'GP', 'reb', 'trend_reb', 'min']]
             reb_final.columns = ['JUGADOR', 'EQUIPO', 'PJ', 'REB', 'RACHA', 'MIN']
             mostrar_tabla_bonita(reb_final, 'REB')
             
-            # ANOTADORES (TRADUCIDO)
+            # ANOTADORES
             st.subheader("🎯 Top Anotadores")
             pts_df = stats.sort_values('pts', ascending=False).head(15).copy()
             pts_final = pts_df[['player_name', 'team_abbreviation', 'GP', 'pts', 'trend_pts', 'min']]
             pts_final.columns = ['JUGADOR', 'EQUIPO', 'PJ', 'PTS', 'RACHA', 'MIN']
             mostrar_tabla_bonita(pts_final, 'PTS')
             
-            # ASISTENTES (TRADUCIDO)
+            # ASISTENTES
             st.subheader("🤝 Top Asistentes")
             ast_df = stats.sort_values('ast', ascending=False).head(15).copy()
             ast_final = ast_df[['player_name', 'team_abbreviation', 'GP', 'ast', 'trend_ast', 'min']]
