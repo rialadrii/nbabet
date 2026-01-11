@@ -10,7 +10,7 @@ from nba_api.stats.endpoints import leaguegamelog
 # ==========================================
 st.set_page_config(page_title="NBA Analyzer Pro", page_icon="🏀", layout="wide")
 
-# --- CSS MEJORADO: MODO OSCURO + CENTRADO DE TABLAS ---
+# --- CSS MEJORADO: MODO OSCURO + CENTRADO ---
 st.markdown("""
     <style>
     /* Estilo para las tarjetas de métricas */
@@ -24,13 +24,8 @@ st.markdown("""
     /* Centrar títulos de la página */
     h1, h2, h3 { text-align: center; }
     
-    /* TRUCO CSS: FORZAR CENTRADO EN TABLAS STREAMLIT */
-    .stDataFrame th {
-        text-align: center !important;
-    }
-    .stDataFrame td {
-        text-align: center !important;
-    }
+    /* Intentar forzar centrado en celdas de tabla */
+    .stDataFrame { text-align: center !important; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -152,9 +147,11 @@ elif opcion == "👤 Analizar Jugador":
             c4.metric("MIN", f"{player_data['min'].mean():.1f}")
             
             st.subheader("Últimos 5 Partidos")
-            # Centramos la tabla de jugador individual también
+            
+            # Formateamos tabla individual para quitar decimales extra
+            tabla_individual = player_data[['game_date', 'matchup', 'min', 'pts', 'reb', 'ast']].head(5)
             st.dataframe(
-                player_data[['game_date', 'matchup', 'min', 'pts', 'reb', 'ast']].head(5).style.set_properties(**{'text-align': 'center'}), 
+                tabla_individual.style.format("{:.1f}", subset=['min', 'pts', 'reb', 'ast']).set_properties(**{'text-align': 'center'}), 
                 hide_index=True
             )
             
@@ -163,7 +160,7 @@ elif opcion == "👤 Analizar Jugador":
                 h2h = player_data[player_data['matchup'].str.contains(rival, case=False)]
                 if not h2h.empty:
                     st.dataframe(
-                        h2h[['game_date', 'matchup', 'min', 'pts', 'reb', 'ast']].style.set_properties(**{'text-align': 'center'}), 
+                        h2h[['game_date', 'matchup', 'min', 'pts', 'reb', 'ast']].style.format("{:.1f}", subset=['min', 'pts', 'reb', 'ast']).set_properties(**{'text-align': 'center'}), 
                         hide_index=True
                     )
 
@@ -180,15 +177,12 @@ elif opcion == "⚔️ Analizar Partido":
         t2 = col2.selectbox("Equipo Visitante", equipos, index=None)
         
         if t1 and t2:
-            # Filtrar partidos entre ellos
             mask = ((df['team_abbreviation'] == t1) & (df['matchup'].str.contains(t2))) | \
                    ((df['team_abbreviation'] == t2) & (df['matchup'].str.contains(t1)))
             
             history = df[mask].sort_values('game_date', ascending=False)
-            
-            # --- LÓGICA DE AGREGACIÓN CON TRENDS Y GP ---
-            last_dates = sorted(history['game_date'].unique(), reverse=True)[:5] # Últimos 5 enfrentamientos
-            total_games_matchup = len(last_dates) # Cuántos partidos estamos analizando (puede ser 1, 2, 3...)
+            last_dates = sorted(history['game_date'].unique(), reverse=True)[:5]
+            total_games_matchup = len(last_dates)
             
             recent_players = history[history['game_date'].isin(last_dates)]
             
@@ -197,28 +191,32 @@ elif opcion == "⚔️ Analizar Partido":
                 reb=('reb', 'mean'),
                 ast=('ast', 'mean'),
                 min=('min', 'mean'),
-                gp=('game_date', 'count'), # Partidos jugados
+                gp=('game_date', 'count'),
                 trend_pts=('pts', lambda x: '/'.join(x.astype(int).astype(str))),
                 trend_reb=('reb', lambda x: '/'.join(x.astype(int).astype(str))),
                 trend_ast=('ast', lambda x: '/'.join(x.astype(int).astype(str)))
             ).reset_index()
             
-            # --- NUEVA COLUMNA: GP FORMATO "3/5" ---
             stats['GP'] = stats['gp'].astype(str) + "/" + str(total_games_matchup)
             
             st.write("---")
             
-            # Función auxiliar para aplicar estilos (Centrado + Colores)
+            # Función auxiliar con FORMATO DECIMAL y CENTRADO FUERTE
             def estilo_tabla(dataframe, col_color, col_trend):
                 return dataframe.style\
+                    .format("{:.1f}", subset=['pts', 'reb', 'ast', 'min'])\
                     .background_gradient(subset=[col_color], cmap='YlOrBr' if col_color=='reb' else ('Greens' if col_color=='pts' else 'Blues'))\
-                    .set_properties(**{'text-align': 'center'})
+                    .set_properties(**{'text-align': 'center'})\
+                    .set_table_styles([
+                        {'selector': 'th', 'props': [('text-align', 'center')]},
+                        {'selector': 'td', 'props': [('text-align', 'center')]}
+                    ])
             
             # REBOTEADORES
             st.subheader("🔥 Top Reboteadores")
             reb_df = stats.sort_values('reb', ascending=False).head(15)
             st.dataframe(
-                estilo_tabla(reb_df[['player_name', 'team_abbreviation', 'GP', 'reb', col_trend := 'trend_reb', 'min']], 'reb', col_trend),
+                estilo_tabla(reb_df[['player_name', 'team_abbreviation', 'GP', 'reb', 'trend_reb', 'min']], 'reb', 'trend_reb'),
                 hide_index=True
             )
             
@@ -226,7 +224,7 @@ elif opcion == "⚔️ Analizar Partido":
             st.subheader("🎯 Top Anotadores")
             pts_df = stats.sort_values('pts', ascending=False).head(15)
             st.dataframe(
-                estilo_tabla(pts_df[['player_name', 'team_abbreviation', 'GP', 'pts', col_trend := 'trend_pts', 'min']], 'pts', col_trend),
+                estilo_tabla(pts_df[['player_name', 'team_abbreviation', 'GP', 'pts', 'trend_pts', 'min']], 'pts', 'trend_pts'),
                 hide_index=True
             )
             
@@ -234,7 +232,7 @@ elif opcion == "⚔️ Analizar Partido":
             st.subheader("🤝 Top Asistentes")
             ast_df = stats.sort_values('ast', ascending=False).head(15)
             st.dataframe(
-                estilo_tabla(ast_df[['player_name', 'team_abbreviation', 'GP', 'ast', col_trend := 'trend_ast', 'min']], 'ast', col_trend),
+                estilo_tabla(ast_df[['player_name', 'team_abbreviation', 'GP', 'ast', 'trend_ast', 'min']], 'ast', 'trend_ast'),
                 hide_index=True
             )
             
