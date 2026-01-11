@@ -10,7 +10,7 @@ from nba_api.stats.endpoints import leaguegamelog
 # ==========================================
 st.set_page_config(page_title="NBA Analyzer Pro", page_icon="🏀", layout="wide")
 
-# --- CSS FUERTE: MODO OSCURO + CENTRADO HTML ---
+# --- CSS: MODO OSCURO + CENTRADO ---
 st.markdown("""
     <style>
     /* Estilo para las tarjetas de métricas */
@@ -24,29 +24,29 @@ st.markdown("""
     /* Centrar títulos */
     h1, h2, h3 { text-align: center; }
     
-    /* ESTILOS PARA LAS TABLAS HTML (Centrado forzoso) */
+    /* ESTILOS TABLA HTML */
     table {
         width: 100%;
         border-collapse: collapse;
         margin-bottom: 20px;
-        color: white; /* Texto blanco */
+        color: white; 
         font-family: sans-serif;
     }
     th {
         background-color: #31333F;
         color: white;
         font-weight: bold;
-        text-align: center !important; /* CENTRADO CABECERAS */
+        text-align: center !important; 
         padding: 10px;
         border-bottom: 2px solid #464b5f;
+        text-transform: uppercase; /* Todo en mayúsculas */
     }
     td {
-        text-align: center !important; /* CENTRADO CELDAS */
+        text-align: center !important; 
         padding: 8px;
         border-bottom: 1px solid #464b5f;
         font-size: 14px;
     }
-    /* Scroll horizontal en móvil si la tabla es muy ancha */
     div.table-wrapper {
         overflow-x: auto;
     }
@@ -63,7 +63,6 @@ if not os.path.exists(CSV_FOLDER):
     os.makedirs(CSV_FOLDER)
 
 def download_data():
-    """Descarga datos de la NBA API"""
     progress_text = "Descargando datos de la NBA (2024-2026)... Por favor espera."
     my_bar = st.progress(0, text=progress_text)
     
@@ -88,9 +87,7 @@ def download_data():
         df_clean = full_df[cols_final].copy()
         df_clean.columns = df_clean.columns.str.lower()
         
-        # Guardar CSV y SQL
         df_clean.to_csv(f'{CSV_FOLDER}/player_stats.csv', index=False)
-        
         conn = sqlite3.connect(DB_PATH)
         df_clean.to_sql('player', conn, if_exists='replace', index=False)
         conn.close()
@@ -102,7 +99,6 @@ def download_data():
     return False
 
 def load_data():
-    """Carga los datos en memoria para análisis"""
     csv_path = f"{CSV_FOLDER}/player_stats.csv"
     if os.path.exists(csv_path):
         df = pd.read_csv(csv_path)
@@ -119,16 +115,23 @@ def load_data():
 
 st.markdown("<h1 style='text-align: center;'>🏀 NBA Pro Analyzer (Mobile)</h1>", unsafe_allow_html=True)
 
-# --- BARRA LATERAL (MENU) ---
 st.sidebar.header("Menú de Control")
 opcion = st.sidebar.radio("Selecciona modo:", ["🏠 Inicio", "👤 Analizar Jugador", "⚔️ Analizar Partido", "🔄 Actualizar Datos"])
 
 df = load_data()
 
-# --- PÁGINA: INICIO ---
+# --- FUNCION PARA MOSTRAR TABLA TRADUCIDA ---
+def mostrar_tabla_bonita(df_raw, col_principal_espanol):
+    # Generar HTML sin el índice (index=False)
+    html = df_raw.style\
+        .format("{:.1f}", subset=[c for c in df_raw.columns if c in ['PTS', 'REB', 'AST', 'MIN']])\
+        .background_gradient(subset=[col_principal_espanol], cmap='YlOrBr' if 'REB' in col_principal_espanol else ('Greens' if 'PTS' in col_principal_espanol else 'Blues'))\
+        .to_html(index=False, classes="custom-table") # <--- AQUÍ SE QUITA LA TABLA DE LA IZQUIERDA
+    
+    st.markdown(f"<div class='table-wrapper'>{html}</div>", unsafe_allow_html=True)
+
 if opcion == "🏠 Inicio":
     st.info("Bienvenido. Usa el menú de la izquierda para navegar.")
-    
     st.markdown("---")
     st.markdown("<h3 style='text-align: center;'>👨‍💻 CREADO POR RIALADRI</h3>", unsafe_allow_html=True)
     st.markdown("---")
@@ -139,10 +142,9 @@ if opcion == "🏠 Inicio":
         st.write(f"Datos cargados: **{len(df)}** registros.")
         st.write("Última actualización: ", df['game_date'].max().strftime('%d/%m/%Y') if not df.empty else "N/A")
 
-# --- PÁGINA: ACTUALIZAR ---
 elif opcion == "🔄 Actualizar Datos":
     st.write("### 🔄 Sincronización con NBA API")
-    st.write("Pulsa el botón para bajar las estadísticas más recientes de 2024-2026.")
+    st.write("Pulsa el botón para bajar las estadísticas más recientes.")
     if st.button("Descargar y Actualizar Ahora"):
         with st.spinner("Conectando con servidores NBA..."):
             success = download_data()
@@ -150,10 +152,8 @@ elif opcion == "🔄 Actualizar Datos":
                 st.success("¡Base de datos regenerada! Ya puedes analizar.")
                 st.rerun()
 
-# --- PÁGINA: JUGADOR ---
 elif opcion == "👤 Analizar Jugador":
     st.header("👤 Buscador de Jugadores")
-    
     if df.empty:
         st.error("Primero actualiza los datos.")
     else:
@@ -172,25 +172,24 @@ elif opcion == "👤 Analizar Jugador":
             
             st.subheader("Últimos 5 Partidos")
             
-            # Tabla Individual en HTML
-            tabla_html = player_data[['game_date', 'matchup', 'min', 'pts', 'reb', 'ast']].head(5)\
-                .style.format("{:.1f}", subset=['min', 'pts', 'reb', 'ast'])\
-                .to_html(index=False)
-            st.markdown(f"<div class='table-wrapper'>{tabla_html}</div>", unsafe_allow_html=True)
+            # Tabla traducida
+            view = player_data[['game_date', 'matchup', 'min', 'pts', 'reb', 'ast']].head(5).copy()
+            view.columns = ['FECHA', 'PARTIDO', 'MIN', 'PTS', 'REB', 'AST'] # Traducción
+            
+            html = view.style.format("{:.1f}", subset=['MIN', 'PTS', 'REB', 'AST']).to_html(index=False)
+            st.markdown(f"<div class='table-wrapper'>{html}</div>", unsafe_allow_html=True)
             
             if rival:
                 st.subheader(f"Historial vs {rival}")
                 h2h = player_data[player_data['matchup'].str.contains(rival, case=False)]
                 if not h2h.empty:
-                    tabla_h2h = h2h[['game_date', 'matchup', 'min', 'pts', 'reb', 'ast']]\
-                        .style.format("{:.1f}", subset=['min', 'pts', 'reb', 'ast'])\
-                        .to_html(index=False)
-                    st.markdown(f"<div class='table-wrapper'>{tabla_h2h}</div>", unsafe_allow_html=True)
+                    view_h2h = h2h[['game_date', 'matchup', 'min', 'pts', 'reb', 'ast']].copy()
+                    view_h2h.columns = ['FECHA', 'PARTIDO', 'MIN', 'PTS', 'REB', 'AST']
+                    html_h2h = view_h2h.style.format("{:.1f}", subset=['MIN', 'PTS', 'REB', 'AST']).to_html(index=False)
+                    st.markdown(f"<div class='table-wrapper'>{html_h2h}</div>", unsafe_allow_html=True)
 
-# --- PÁGINA: PARTIDO ---
 elif opcion == "⚔️ Analizar Partido":
     st.header("⚔️ Análisis de Choque")
-    
     if df.empty:
         st.error("Datos no disponibles.")
     else:
@@ -224,62 +223,43 @@ elif opcion == "⚔️ Analizar Partido":
             
             st.write("---")
             
-            # --- FUNCIÓN NUEVA: RENDER HTML PURO (Centrado Perfecto) ---
-            def mostrar_tabla_html(dataframe, col_color):
-                # Columnas disponibles
-                cols_format = [c for c in ['pts', 'reb', 'ast', 'min'] if c in dataframe.columns]
-                
-                # Generamos el HTML con estilos incrustados
-                html = dataframe.style\
-                    .format("{:.1f}", subset=cols_format)\
-                    .background_gradient(subset=[col_color], cmap='YlOrBr' if col_color=='reb' else ('Greens' if col_color=='pts' else 'Blues'))\
-                    .to_html(index=False, classes="custom-table")
-                
-                # Lo pintamos como Markdown (HTML inseguro permitido)
-                st.markdown(f"<div class='table-wrapper'>{html}</div>", unsafe_allow_html=True)
-            
-            # REBOTEADORES
+            # REBOTEADORES (TRADUCIDO)
             st.subheader("🔥 Top Reboteadores")
-            reb_df = stats.sort_values('reb', ascending=False).head(15)
-            mostrar_tabla_html(
-                reb_df[['player_name', 'team_abbreviation', 'GP', 'reb', 'trend_reb', 'min']], 
-                'reb'
-            )
+            reb_df = stats.sort_values('reb', ascending=False).head(15).copy()
+            # Seleccionamos y renombramos
+            reb_final = reb_df[['player_name', 'team_abbreviation', 'GP', 'reb', 'trend_reb', 'min']]
+            reb_final.columns = ['JUGADOR', 'EQUIPO', 'PJ', 'REB', 'RACHA', 'MIN']
+            mostrar_tabla_bonita(reb_final, 'REB')
             
-            # ANOTADORES
+            # ANOTADORES (TRADUCIDO)
             st.subheader("🎯 Top Anotadores")
-            pts_df = stats.sort_values('pts', ascending=False).head(15)
-            mostrar_tabla_html(
-                pts_df[['player_name', 'team_abbreviation', 'GP', 'pts', 'trend_pts', 'min']], 
-                'pts'
-            )
+            pts_df = stats.sort_values('pts', ascending=False).head(15).copy()
+            pts_final = pts_df[['player_name', 'team_abbreviation', 'GP', 'pts', 'trend_pts', 'min']]
+            pts_final.columns = ['JUGADOR', 'EQUIPO', 'PJ', 'PTS', 'RACHA', 'MIN']
+            mostrar_tabla_bonita(pts_final, 'PTS')
             
-            # ASISTENTES
+            # ASISTENTES (TRADUCIDO)
             st.subheader("🤝 Top Asistentes")
-            ast_df = stats.sort_values('ast', ascending=False).head(15)
-            mostrar_tabla_html(
-                ast_df[['player_name', 'team_abbreviation', 'GP', 'ast', 'trend_ast', 'min']], 
-                'ast'
-            )
+            ast_df = stats.sort_values('ast', ascending=False).head(15).copy()
+            ast_final = ast_df[['player_name', 'team_abbreviation', 'GP', 'ast', 'trend_ast', 'min']]
+            ast_final.columns = ['JUGADOR', 'EQUIPO', 'PJ', 'AST', 'RACHA', 'MIN']
+            mostrar_tabla_bonita(ast_final, 'AST')
             
-            # --- SECCIÓN BAJAS (DNP) ---
+            # --- SECCIÓN BAJAS ---
             st.write("---")
             st.subheader("📉 Bajas Clave (DNP)")
             st.info("Jugadores (+12 min media) ausentes en duelos recientes:")
             
             avg_mins = recent_players.groupby(['player_name', 'team_abbreviation'])['min'].mean()
             key_players = avg_mins[avg_mins > 12.0].index.tolist()
-            
             found_dnps = False
             
             for date in last_dates:
                 date_str = date.strftime('%d/%m/%Y')
                 played_on_date = recent_players[recent_players['game_date'] == date]['player_name'].unique()
-                
                 missing_in_game = []
                 for p_name, p_team in key_players:
                     team_played_match = not recent_players[(recent_players['game_date'] == date) & (recent_players['team_abbreviation'] == p_team)].empty
-                    
                     if team_played_match and (p_name not in played_on_date):
                         missing_in_game.append(f"{p_name} ({p_team})")
                 
