@@ -10,7 +10,7 @@ from nba_api.stats.endpoints import leaguegamelog
 # ==========================================
 st.set_page_config(page_title="NBA Analyzer Pro", page_icon="🏀", layout="wide")
 
-# --- CSS MEJORADO: MODO OSCURO + CENTRADO ---
+# --- CSS FUERTE: MODO OSCURO + CENTRADO HTML ---
 st.markdown("""
     <style>
     /* Estilo para las tarjetas de métricas */
@@ -21,11 +21,35 @@ st.markdown("""
         border-radius: 10px;
         color: white;
     }
-    /* Centrar títulos de la página */
+    /* Centrar títulos */
     h1, h2, h3 { text-align: center; }
     
-    /* Intentar forzar centrado en celdas de tabla */
-    .stDataFrame { text-align: center !important; }
+    /* ESTILOS PARA LAS TABLAS HTML (Centrado forzoso) */
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 20px;
+        color: white; /* Texto blanco */
+        font-family: sans-serif;
+    }
+    th {
+        background-color: #31333F;
+        color: white;
+        font-weight: bold;
+        text-align: center !important; /* CENTRADO CABECERAS */
+        padding: 10px;
+        border-bottom: 2px solid #464b5f;
+    }
+    td {
+        text-align: center !important; /* CENTRADO CELDAS */
+        padding: 8px;
+        border-bottom: 1px solid #464b5f;
+        font-size: 14px;
+    }
+    /* Scroll horizontal en móvil si la tabla es muy ancha */
+    div.table-wrapper {
+        overflow-x: auto;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -148,21 +172,20 @@ elif opcion == "👤 Analizar Jugador":
             
             st.subheader("Últimos 5 Partidos")
             
-            # Formateamos tabla individual para quitar decimales extra
-            tabla_individual = player_data[['game_date', 'matchup', 'min', 'pts', 'reb', 'ast']].head(5)
-            st.dataframe(
-                tabla_individual.style.format("{:.1f}", subset=['min', 'pts', 'reb', 'ast']).set_properties(**{'text-align': 'center'}), 
-                hide_index=True
-            )
+            # Tabla Individual en HTML
+            tabla_html = player_data[['game_date', 'matchup', 'min', 'pts', 'reb', 'ast']].head(5)\
+                .style.format("{:.1f}", subset=['min', 'pts', 'reb', 'ast'])\
+                .to_html(index=False)
+            st.markdown(f"<div class='table-wrapper'>{tabla_html}</div>", unsafe_allow_html=True)
             
             if rival:
                 st.subheader(f"Historial vs {rival}")
                 h2h = player_data[player_data['matchup'].str.contains(rival, case=False)]
                 if not h2h.empty:
-                    st.dataframe(
-                        h2h[['game_date', 'matchup', 'min', 'pts', 'reb', 'ast']].style.format("{:.1f}", subset=['min', 'pts', 'reb', 'ast']).set_properties(**{'text-align': 'center'}), 
-                        hide_index=True
-                    )
+                    tabla_h2h = h2h[['game_date', 'matchup', 'min', 'pts', 'reb', 'ast']]\
+                        .style.format("{:.1f}", subset=['min', 'pts', 'reb', 'ast'])\
+                        .to_html(index=False)
+                    st.markdown(f"<div class='table-wrapper'>{tabla_h2h}</div>", unsafe_allow_html=True)
 
 # --- PÁGINA: PARTIDO ---
 elif opcion == "⚔️ Analizar Partido":
@@ -201,42 +224,42 @@ elif opcion == "⚔️ Analizar Partido":
             
             st.write("---")
             
-            # --- FUNCIÓN CORREGIDA PARA EVITAR KeyError ---
-            def estilo_tabla(dataframe, col_color, col_trend):
-                # Detectamos qué columnas existen realmente en la tabla que nos pasan
-                cols_disponibles = [c for c in ['pts', 'reb', 'ast', 'min'] if c in dataframe.columns]
+            # --- FUNCIÓN NUEVA: RENDER HTML PURO (Centrado Perfecto) ---
+            def mostrar_tabla_html(dataframe, col_color):
+                # Columnas disponibles
+                cols_format = [c for c in ['pts', 'reb', 'ast', 'min'] if c in dataframe.columns]
                 
-                return dataframe.style\
-                    .format("{:.1f}", subset=cols_disponibles)\
+                # Generamos el HTML con estilos incrustados
+                html = dataframe.style\
+                    .format("{:.1f}", subset=cols_format)\
                     .background_gradient(subset=[col_color], cmap='YlOrBr' if col_color=='reb' else ('Greens' if col_color=='pts' else 'Blues'))\
-                    .set_properties(**{'text-align': 'center'})\
-                    .set_table_styles([
-                        {'selector': 'th', 'props': [('text-align', 'center')]},
-                        {'selector': 'td', 'props': [('text-align', 'center')]}
-                    ])
+                    .to_html(index=False, classes="custom-table")
+                
+                # Lo pintamos como Markdown (HTML inseguro permitido)
+                st.markdown(f"<div class='table-wrapper'>{html}</div>", unsafe_allow_html=True)
             
             # REBOTEADORES
             st.subheader("🔥 Top Reboteadores")
             reb_df = stats.sort_values('reb', ascending=False).head(15)
-            st.dataframe(
-                estilo_tabla(reb_df[['player_name', 'team_abbreviation', 'GP', 'reb', 'trend_reb', 'min']], 'reb', 'trend_reb'),
-                hide_index=True
+            mostrar_tabla_html(
+                reb_df[['player_name', 'team_abbreviation', 'GP', 'reb', 'trend_reb', 'min']], 
+                'reb'
             )
             
             # ANOTADORES
             st.subheader("🎯 Top Anotadores")
             pts_df = stats.sort_values('pts', ascending=False).head(15)
-            st.dataframe(
-                estilo_tabla(pts_df[['player_name', 'team_abbreviation', 'GP', 'pts', 'trend_pts', 'min']], 'pts', 'trend_pts'),
-                hide_index=True
+            mostrar_tabla_html(
+                pts_df[['player_name', 'team_abbreviation', 'GP', 'pts', 'trend_pts', 'min']], 
+                'pts'
             )
             
             # ASISTENTES
             st.subheader("🤝 Top Asistentes")
             ast_df = stats.sort_values('ast', ascending=False).head(15)
-            st.dataframe(
-                estilo_tabla(ast_df[['player_name', 'team_abbreviation', 'GP', 'ast', 'trend_ast', 'min']], 'ast', 'trend_ast'),
-                hide_index=True
+            mostrar_tabla_html(
+                ast_df[['player_name', 'team_abbreviation', 'GP', 'ast', 'trend_ast', 'min']], 
+                'ast'
             )
             
             # --- SECCIÓN BAJAS (DNP) ---
