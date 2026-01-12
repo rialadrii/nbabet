@@ -21,7 +21,6 @@ st.markdown("""
         border-radius: 10px;
         color: white;
     }
-    /* Centrar títulos */
     h1, h2, h3 { text-align: center; }
     
     /* ESTILOS TABLA HTML */
@@ -69,34 +68,33 @@ st.markdown("""
     /* ESTILO TICKET PARLAY */
     .parlay-box {
         background-color: #1e1e1e;
-        border: 2px dashed #ffd700;
+        border: 1px solid #444;
         border-radius: 15px;
-        padding: 20px;
-        margin-top: 20px;
+        padding: 15px;
+        margin-bottom: 20px;
         text-align: center;
-        max-width: 600px;
-        margin-left: auto;
-        margin-right: auto;
     }
     .parlay-header {
-        font-size: 24px;
+        font-size: 20px;
         font-weight: bold;
         margin-bottom: 15px;
         text-transform: uppercase;
         letter-spacing: 1px;
+        border-bottom: 1px solid #444;
+        padding-bottom: 10px;
     }
     .parlay-leg {
         background-color: #2d2d2d;
         margin: 10px 0;
-        padding: 12px;
+        padding: 10px;
         border-radius: 8px;
         display: flex;
         justify-content: space-between;
         align-items: center;
         box-shadow: 0 2px 5px rgba(0,0,0,0.3);
     }
-    .leg-player { font-weight: bold; color: white; font-size: 15px; text-align: left; }
-    .leg-bet { font-weight: bold; font-size: 18px; text-align: right; }
+    .leg-player { font-weight: bold; color: white; font-size: 14px; text-align: left; }
+    .leg-val { font-weight: bold; font-size: 18px; text-align: right; }
     .leg-stat { color: #aaaaaa; font-size: 11px; display: block; margin-top: 4px; text-align: right; }
     </style>
     """, unsafe_allow_html=True)
@@ -175,7 +173,7 @@ if not df.empty:
 
 # --- FUNCION PARA MOSTRAR TABLA LIMPIA ---
 def mostrar_tabla_bonita(df_raw, col_principal_espanol):
-    cols_fmt = [c for c in df_raw.columns if c in ['PTS', 'REB', 'AST']] # MIN ahora es string, no se formatea como float
+    cols_fmt = [c for c in df_raw.columns if c in ['PTS', 'REB', 'AST']] 
     
     html = df_raw.style\
         .format("{:.1f}", subset=cols_fmt)\
@@ -187,8 +185,6 @@ def mostrar_tabla_bonita(df_raw, col_principal_espanol):
 
 if opcion == "🏠 Inicio":
     st.info("Bienvenido. Usa el menú de la izquierda para navegar.")
-    st.markdown("---")
-    st.markdown("<h3 style='text-align: center;'>👨‍💻 CREADO POR RIALADRI</h3>", unsafe_allow_html=True)
     st.markdown("---")
     
     if df.empty:
@@ -276,7 +272,7 @@ elif opcion == "⚔️ Analizar Partido":
             
             recent_players = history[history['game_date'].isin(last_dates)].sort_values('game_date', ascending=False)
             
-            # AGREGACIÓN (Incluyendo Racha de Minutos)
+            # AGREGACIÓN
             stats = recent_players.groupby(['player_name', 'team_abbreviation']).agg(
                 pts=('pts', 'mean'),
                 reb=('reb', 'mean'),
@@ -284,7 +280,7 @@ elif opcion == "⚔️ Analizar Partido":
                 trend_pts=('pts', lambda x: '/'.join(x.astype(int).astype(str))),
                 trend_reb=('reb', lambda x: '/'.join(x.astype(int).astype(str))),
                 trend_ast=('ast', lambda x: '/'.join(x.astype(int).astype(str))),
-                trend_min=('min', lambda x: '/'.join(x.astype(int).astype(str))), # MINUTOS RACHA
+                trend_min=('min', lambda x: '/'.join(x.astype(int).astype(str))),
                 gp=('game_date', 'count')
             ).reset_index()
 
@@ -314,7 +310,7 @@ elif opcion == "⚔️ Analizar Partido":
 
             st.write("---")
             
-            # TABLAS PRINCIPALES (Ahora la columna MIN es la RACHA DE MINUTOS)
+            # TABLAS PRINCIPALES
             st.subheader("🔥 Top Reboteadores")
             reb_df = stats.sort_values('reb', ascending=False).head(15).copy()
             reb_final = reb_df[['player_name', 'team_abbreviation', 'STATUS_HTML', 'reb', 'trend_reb', 'trend_min']]
@@ -369,7 +365,7 @@ elif opcion == "⚔️ Analizar Partido":
 
             # --- DETECCIÓN DE PATRONES ---
             st.write("---")
-            st.subheader("🕵️ Detección de Patrones (Impacto REAL y Agrupado)")
+            st.subheader("🕵️ Detección de Patrones")
             
             global_means = df.groupby('player_name')[['pts', 'reb', 'ast']].mean()
             star_scorers = global_means[global_means['pts'] > 18].index.tolist()
@@ -424,19 +420,24 @@ elif opcion == "⚔️ Analizar Partido":
                 html_pat = df_patterns.style.hide(axis="index").to_html(classes="custom-table")
                 st.markdown(f"<div class='table-wrapper'>{html_pat}</div>", unsafe_allow_html=True)
             else:
-                st.write("No se detectaron impactos significativos por bajas en estos partidos.")
+                st.write("No se detectaron impactos significativos por bajas.")
 
-            # --- GENERADOR DE PARLAY (SMART FLOOR) ---
+            # --- GENERADOR DE PARLAY (DUAL: SAFE vs RISKY) ---
             st.write("---")
-            st.subheader("🎲 IA Parlay Generator (Smart Floor)")
-            st.info("Algoritmo Inteligente: Descarta el peor partido (Outlier) si hay historial suficiente para evitar cuotas 1.01.")
-
+            st.subheader("🎲 GENERADOR DE PARLAY (Dual Strategy)")
+            
             min_games_needed = max(3, int(len(last_dates) * 0.6))
             candidates = stats[stats['gp'] >= min_games_needed].copy()
             
-            legs_pts = []
-            legs_reb = []
-            legs_ast = []
+            # Listas para opción CONSERVADORA
+            safe_legs_pts = []
+            safe_legs_reb = []
+            safe_legs_ast = []
+
+            # Listas para opción ARRIESGADA
+            risky_legs_pts = []
+            risky_legs_reb = []
+            risky_legs_ast = []
 
             for _, row in candidates.iterrows():
                 p_name = row['player_name']
@@ -445,14 +446,11 @@ elif opcion == "⚔️ Analizar Partido":
                 logs = recent_players[(recent_players['player_name'] == p_name) & (recent_players['team_abbreviation'] == p_team)]
                 if logs.empty: continue
                 
-                # --- ALGORITMO SMART FLOOR ---
-                # Si jugó 4 o más partidos, eliminamos el peor (outlier) para calcular el suelo
-                # Ejemplo Vucevic: [5, 8, 10, 16, 17] -> Eliminamos 5 -> Smart Min = 8
-                
                 pts_vals = sorted(logs['pts'].tolist())
                 reb_vals = sorted(logs['reb'].tolist())
                 ast_vals = sorted(logs['ast'].tolist())
                 
+                # --- CALCULO SAFE (SUELO) ---
                 if len(pts_vals) >= 4: smart_min_pts = pts_vals[1] 
                 else: smart_min_pts = pts_vals[0]
 
@@ -462,49 +460,52 @@ elif opcion == "⚔️ Analizar Partido":
                 if len(ast_vals) >= 4: smart_min_ast = ast_vals[1]
                 else: smart_min_ast = ast_vals[0]
                 
-                # FILTROS DE VALOR (Betting Value)
+                # --- CALCULO RISKY (MEDIA) ---
+                avg_pts = row['pts']
+                avg_reb = row['reb']
+                avg_ast = row['ast']
+
+                # LOGICA SAFE
                 if smart_min_pts >= 12: 
-                    legs_pts.append({
-                        'player': p_name,
-                        'val': int(smart_min_pts),
-                        'avg': row['pts'],
-                        'desc': f"Smart Floor: {int(smart_min_pts)} (Ignorando peor partido)" if len(pts_vals)>=4 else f"Min H2H: {int(smart_min_pts)}"
-                    })
-                
+                    safe_legs_pts.append({'player': p_name, 'val': int(smart_min_pts), 'score': avg_pts, 'desc': f"Suelo vs Rival"})
                 if smart_min_reb >= 6: 
-                    legs_reb.append({
-                        'player': p_name,
-                        'val': int(smart_min_reb),
-                        'avg': row['reb'],
-                        'desc': f"Smart Floor: {int(smart_min_reb)}" if len(reb_vals)>=4 else f"Min H2H: {int(smart_min_reb)}"
-                    })
-                    
+                    safe_legs_reb.append({'player': p_name, 'val': int(smart_min_reb), 'score': avg_reb, 'desc': f"Suelo vs Rival"})
                 if smart_min_ast >= 4: 
-                    legs_ast.append({
-                        'player': p_name,
-                        'val': int(smart_min_ast),
-                        'avg': row['ast'],
-                        'desc': f"Smart Floor: {int(smart_min_ast)}" if len(ast_vals)>=4 else f"Min H2H: {int(smart_min_ast)}"
-                    })
+                    safe_legs_ast.append({'player': p_name, 'val': int(smart_min_ast), 'score': avg_ast, 'desc': f"Suelo vs Rival"})
 
-            legs_pts.sort(key=lambda x: x['avg'], reverse=True)
-            legs_reb.sort(key=lambda x: x['avg'], reverse=True)
-            legs_ast.sort(key=lambda x: x['avg'], reverse=True)
+                # LOGICA RISKY (La media debe ser notablemente superior al suelo)
+                if avg_pts >= 15 and avg_pts > (smart_min_pts + 3):
+                    risky_legs_pts.append({'player': p_name, 'val': int(avg_pts), 'score': avg_pts, 'desc': f"Media vs Rival (Alto Valor)"})
+                
+                if avg_reb >= 8 and avg_reb > (smart_min_reb + 1.5):
+                    risky_legs_reb.append({'player': p_name, 'val': int(avg_reb), 'score': avg_reb, 'desc': f"Media vs Rival (Alto Valor)"})
 
-            def render_ticket(title, legs, icon, color_border):
+                if avg_ast >= 6 and avg_ast > (smart_min_ast + 1.5):
+                    risky_legs_ast.append({'player': p_name, 'val': int(avg_ast), 'score': avg_ast, 'desc': f"Media vs Rival (Alto Valor)"})
+
+            # Ordenar
+            for l in [safe_legs_pts, safe_legs_reb, safe_legs_ast, risky_legs_pts, risky_legs_reb, risky_legs_ast]:
+                l.sort(key=lambda x: x['score'], reverse=True)
+
+            def render_ticket(title, legs, icon, color_border, css_class):
                 final_legs = legs[:5] 
-                if not final_legs: return ""
+                if not final_legs: return f"<div class='{css_class}' style='border:1px solid {color_border};'><div class='parlay-header' style='color:{color_border};'>{title}</div><div style='color:#888;'>Sin opciones claras</div></div>"
                 html_legs = ""
                 for leg in final_legs:
-                    html_legs += f"<div class='parlay-leg' style='border-left: 5px solid {color_border};'><div class='leg-player'>{icon} {leg['player']}</div><div class='leg-info'><div class='leg-bet'>+{leg['val']}</div><div class='leg-stat'>{leg['desc']}</div></div></div>"
-                return f"<div class='parlay-box'><div class='parlay-header' style='color:{color_border};'>{title}</div>{html_legs}</div>"
+                    html_legs += f"<div class='parlay-leg' style='border-left: 5px solid {color_border};'><div class='leg-player'>{icon} {leg['player']}</div><div class='leg-info'><div class='leg-val'>+{leg['val']}</div><div class='leg-stat'>{leg['desc']}</div></div></div>"
+                return f"<div class='{css_class}' style='border:1px solid {color_border};'><div class='parlay-header' style='color:{color_border};'>{title}</div>{html_legs}</div>"
 
-            if legs_pts:
-                st.markdown(render_ticket("ANOTADORES (PTS)", legs_pts, "🏀", "#4caf50"), unsafe_allow_html=True)
-            if legs_reb:
-                st.markdown(render_ticket("REBOTEADORES (REB)", legs_reb, "🖐", "#ff9800"), unsafe_allow_html=True)
-            if legs_ast:
-                st.markdown(render_ticket("ASISTENTES (AST)", legs_ast, "🎁", "#2196f3"), unsafe_allow_html=True)
+            # COLUMNAS PARA COMPARAR
+            col_safe, col_risky = st.columns(2)
+            
+            with col_safe:
+                st.markdown("### 🛡️ CONSERVADOR")
+                st.markdown(render_ticket("PTS (Seguro)", safe_legs_pts, "🏀", "#4caf50", "parlay-box"), unsafe_allow_html=True)
+                if safe_legs_reb: st.markdown(render_ticket("REB (Seguro)", safe_legs_reb, "🖐", "#4caf50", "parlay-box"), unsafe_allow_html=True)
+                if safe_legs_ast: st.markdown(render_ticket("AST (Seguro)", safe_legs_ast, "🎁", "#4caf50", "parlay-box"), unsafe_allow_html=True)
 
-            if not (legs_pts or legs_reb or legs_ast):
-                st.warning("No hay suficientes datos de VALOR (líneas decentes) para generar tickets hoy.")
+            with col_risky:
+                st.markdown("### 🚀 ARRIESGADO")
+                st.markdown(render_ticket("PTS (High Value)", risky_legs_pts, "🏀", "#ff5252", "parlay-box"), unsafe_allow_html=True)
+                if risky_legs_reb: st.markdown(render_ticket("REB (High Value)", risky_legs_reb, "🖐", "#ff5252", "parlay-box"), unsafe_allow_html=True)
+                if risky_legs_ast: st.markdown(render_ticket("AST (High Value)", risky_legs_ast, "🎁", "#ff5252", "parlay-box"), unsafe_allow_html=True)
