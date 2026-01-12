@@ -281,7 +281,7 @@ elif opcion == "⚔️ Analizar Partido":
                 trend_pts=('pts', lambda x: '/'.join(x.astype(int).astype(str))),
                 trend_reb=('reb', lambda x: '/'.join(x.astype(int).astype(str))),
                 trend_ast=('ast', lambda x: '/'.join(x.astype(int).astype(str))),
-                gp=('game_date', 'count') # Necesario para el Parlay
+                gp=('game_date', 'count')
             ).reset_index()
 
             # Status visual
@@ -447,13 +447,11 @@ elif opcion == "⚔️ Analizar Partido":
             else:
                 st.write("No se detectaron impactos significativos por bajas en estos partidos.")
 
-            # --- NUEVA SECCIÓN: GENERADOR DE PARLAY ---
+            # --- GENERADOR DE PARLAY (CORREGIDO Y AMPLIADO) ---
             st.write("---")
             st.subheader("🎲 IA Parlay Generator (Alta Probabilidad)")
-            st.info("Basado en 'Suelos Seguros': Estadísticas que se han cumplido en TODOS los últimos enfrentamientos H2H analizados.")
+            st.info("Top 5 predicciones más seguras basadas en mínimos históricos H2H.")
 
-            # Lógica del Parlay
-            # 1. Filtramos jugadores que hayan jugado al menos 3 partidos en el historial (o el 70% si son pocos)
             min_games_needed = max(3, int(len(last_dates) * 0.6))
             candidates = stats[stats['gp'] >= min_games_needed].copy()
             
@@ -463,23 +461,13 @@ elif opcion == "⚔️ Analizar Partido":
                 p_name = row['player_name']
                 p_team = row['team_abbreviation']
                 
-                # Obtenemos los logs crudos de este jugador en estos partidos
                 logs = recent_players[(recent_players['player_name'] == p_name) & (recent_players['team_abbreviation'] == p_team)]
-                
                 if logs.empty: continue
                 
-                # Buscamos el MÍNIMO (El suelo) en estos enfrentamientos
                 min_pts = logs['pts'].min()
                 min_reb = logs['reb'].min()
                 min_ast = logs['ast'].min()
                 
-                # Criterios para sugerir (No sugerir "Más de 2 puntos")
-                # PTS > 10, REB > 4, AST > 2
-                
-                # Margen de seguridad: Sugerimos un poco menos del mínimo real para asegurar
-                # Ejemplo: Si el mínimo fue 22, sugerimos +20.
-                
-                # Puntos
                 if min_pts >= 10:
                     safe_line = int(min_pts - 1)
                     parlay_legs.append({
@@ -490,7 +478,6 @@ elif opcion == "⚔️ Analizar Partido":
                         'desc': f"Más de {safe_line} Puntos (Mínimo H2H: {int(min_pts)})"
                     })
                 
-                # Rebotes
                 if min_reb >= 5:
                     safe_line = int(min_reb - 1)
                     parlay_legs.append({
@@ -501,7 +488,6 @@ elif opcion == "⚔️ Analizar Partido":
                         'desc': f"Más de {safe_line} Rebotes (Mínimo H2H: {int(min_reb)})"
                     })
                     
-                # Asistencias
                 if min_ast >= 4:
                     safe_line = int(min_ast - 1)
                     parlay_legs.append({
@@ -512,15 +498,9 @@ elif opcion == "⚔️ Analizar Partido":
                         'desc': f"Más de {safe_line} Asistencias (Mínimo H2H: {int(min_ast)})"
                     })
 
-            # Seleccionamos los 3 mejores (Priorizamos Puntos altos o stats sólidas)
-            # Ordenamos por valor relativo a la magnitud (un rebote vale mas que un punto en dificultad)
-            # Simple heuristic: Sort by value descending is bad comparing pts to ast.
-            # We assume order of addition is random, lets shuffle or pick top stars.
-            
-            # Ordenar por "Media" descendente suele traer a las estrellas arriba
+            # Ordenamos y seleccionamos 5 únicos
             parlay_legs.sort(key=lambda x: x['avg'], reverse=True)
             
-            # Filtramos para no repetir jugador si es posible
             final_ticket = []
             used_players = set()
             
@@ -528,20 +508,15 @@ elif opcion == "⚔️ Analizar Partido":
                 if leg['player'] not in used_players:
                     final_ticket.append(leg)
                     used_players.add(leg['player'])
-                if len(final_ticket) >= 3:
+                if len(final_ticket) >= 5: # AHORA SON 5 PICKS
                     break
             
             if final_ticket:
                 legs_html = ""
                 for leg in final_ticket:
                     icon = "🏀" if leg['type']=='PTS' else ("🖐" if leg['type']=='REB' else "🎁")
-                    legs_html += f"""
-                    <div class='parlay-leg'>
-                        <div class='leg-player'>{icon} {leg['player']}</div>
-                        <div class='leg-bet'>+{leg['val']} {leg['type']}</div>
-                        <div class='leg-stat'>{leg['desc']}</div>
-                    </div>
-                    """
+                    # HTML compactado sin indentación extra para evitar errores de renderizado
+                    legs_html += f"<div class='parlay-leg'><div class='leg-player'>{icon} {leg['player']}</div><div class='leg-bet'>+{leg['val']} {leg['type']}</div><div class='leg-stat'>{leg['desc']}</div></div>"
                 
                 st.markdown(f"""
                 <div class='parlay-box'>
