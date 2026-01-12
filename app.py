@@ -184,7 +184,6 @@ def load_data():
 # INTERFAZ PRINCIPAL
 # ==========================================
 
-# TÍTULO PRINCIPAL (Con la nueva fuente y emojis)
 st.markdown("<h1>🏀 NBA Pro Analyzer 🏀</h1>", unsafe_allow_html=True)
 
 st.sidebar.header("Menú de Control")
@@ -236,7 +235,6 @@ elif opcion == "👤 Analizar Jugador":
     if df.empty:
         st.error("Primero actualiza los datos.")
     else:
-        # Listas para los desplegables
         todos_jugadores = sorted(df['player_name'].unique())
         todos_equipos = sorted(df['team_abbreviation'].unique())
 
@@ -245,7 +243,6 @@ elif opcion == "👤 Analizar Jugador":
         if jugador:
             player_data = df[df['player_name'] == jugador].sort_values('game_date', ascending=False)
             
-            # Selectbox para rival
             rival = st.selectbox("Filtrar vs Rival (Opcional):", todos_equipos, index=None, placeholder="Selecciona equipo rival...")
             
             c1, c2, c3, c4 = st.columns(4)
@@ -304,10 +301,27 @@ elif opcion == "⚔️ Analizar Partido":
             
             df_games = pd.DataFrame(games_summary)
             mostrar_tabla_bonita(df_games, None)
+
+            # --- NUEVA SECCIÓN: ESTADÍSTICAS DE EQUIPO ---
+            # Agrupamos por Partido y Equipo para sumar los puntos totales
+            # (Como el dataframe es de jugadores, la suma de sus puntos = Puntos del Equipo)
+            team_totals = history.groupby(['game_date', 'team_abbreviation'])[['pts', 'reb', 'ast']].sum().reset_index()
+            # Calculamos la media por equipo
+            team_avgs = team_totals.groupby('team_abbreviation')[['pts', 'reb', 'ast']].mean().reset_index()
+            
+            # Filtramos solo para los dos equipos seleccionados (por seguridad)
+            team_avgs = team_avgs[team_avgs['team_abbreviation'].isin([t1, t2])]
+            
+            if not team_avgs.empty:
+                st.write("---")
+                st.subheader("📊 Estadísticas Medias de Equipo (H2H)")
+                # Renombrar columnas para la visualización
+                team_avgs.columns = ['EQUIPO', 'PTS', 'REB', 'AST']
+                mostrar_tabla_bonita(team_avgs, 'PTS')
             
             recent_players = history[history['game_date'].isin(last_dates)].sort_values('game_date', ascending=False)
             
-            # AGREGACIÓN
+            # AGREGACIÓN JUGADORES
             stats = recent_players.groupby(['player_name', 'team_abbreviation']).agg(
                 pts=('pts', 'mean'),
                 reb=('reb', 'mean'),
@@ -525,7 +539,7 @@ elif opcion == "⚔️ Analizar Partido":
                 if smart_min_ast >= 4: 
                     safe_legs_ast.append({'player': p_name, 'val': int(smart_min_ast), 'score': avg_ast, 'desc': f"Suelo vs Rival"})
 
-                # LOGICA RISKY (Modificada a +1 para ser un poco más flexible y que salgan más picks)
+                # LOGICA RISKY (Modificada a +1 para ser un poco más flexible)
                 if avg_pts >= 15 and avg_pts > (smart_min_pts + 1.0):
                     risky_legs_pts.append({'player': p_name, 'val': int(avg_pts), 'score': avg_pts, 'desc': f"Media vs Rival (Alto Valor)"})
                 
