@@ -57,6 +57,10 @@ st.markdown("""
     .status-missed { color: #ff5252; font-weight: bold; font-size: 16px; }
     .status-date { font-size: 10px; color: #aaaaaa; display: block; }
     .status-cell { display: inline-block; margin: 0 4px; text-align: center; }
+
+    /* Estilos para la tabla de BAJAS */
+    .dnp-full { color: #4caf50; font-weight: bold; }
+    .dnp-missing { color: #ff5252; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -228,6 +232,7 @@ elif opcion == "⚔️ Analizar Partido":
             
             recent_players = history[history['game_date'].isin(last_dates)].sort_values('game_date', ascending=False)
             
+            # Agregamos stats promedio
             stats = recent_players.groupby(['player_name', 'team_abbreviation']).agg(
                 pts=('pts', 'mean'),
                 reb=('reb', 'mean'),
@@ -238,6 +243,7 @@ elif opcion == "⚔️ Analizar Partido":
                 trend_ast=('ast', lambda x: '/'.join(x.astype(int).astype(str)))
             ).reset_index()
 
+            # Lógica STATUS visual
             status_list = []
             for idx, row in stats.iterrows():
                 p_name = row['player_name']
@@ -278,40 +284,52 @@ elif opcion == "⚔️ Analizar Partido":
             
             # --- SECCIÓN BAJAS ---
             st.write("---")
-            st.subheader("📉 Bajas Clave (DNP)")
+            st.subheader("🏥 Historial de Bajas (Por Equipo)")
             
             avg_mins = recent_players.groupby(['player_name', 'team_abbreviation'])['min'].mean()
-            key_players_list = avg_mins[avg_mins > 12.0].index.tolist()
-            found_dnps = False
+            key_players_list = avg_mins[avg_mins > 12.0].index.tolist() 
             
+            dnp_table_data = []
+
             for date in last_dates:
                 date_str = date.strftime('%d/%m/%Y')
                 played_on_date = recent_players[recent_players['game_date'] == date]['player_name'].unique()
-                missing_in_game = []
-                for p_name, p_team in key_players_list:
-                    team_played_match = not recent_players[(recent_players['game_date'] == date) & (recent_players['team_abbreviation'] == p_team)].empty
-                    if team_played_match and (p_name not in played_on_date):
-                        missing_in_game.append(f"{p_name} ({p_team})")
+                missing_t1 = []
+                missing_t2 = []
                 
-                if missing_in_game:
-                    found_dnps = True
-                    st.write(f"**📅 {date_str}:**")
-                    for p in missing_in_game:
-                        st.error(f"❌ {p}")
-            
-            if not found_dnps:
-                st.success("✅ No hubo bajas importantes en los últimos enfrentamientos.")
+                for p_name, p_team in key_players_list:
+                    team_played = not recent_players[(recent_players['game_date'] == date) & (recent_players['team_abbreviation'] == p_team)].empty
+                    if team_played and (p_name not in played_on_date):
+                        if p_team == t1:
+                            missing_t1.append(p_name)
+                        elif p_team == t2:
+                            missing_t2.append(p_name)
+                
+                cell_t1 = f"<span class='dnp-missing'>{', '.join(missing_t1)}</span>" if missing_t1 else "<span class='dnp-full'>✅ Completo</span>"
+                cell_t2 = f"<span class='dnp-missing'>{', '.join(missing_t2)}</span>" if missing_t2 else "<span class='dnp-full'>✅ Completo</span>"
 
-            # --- NUEVA SECCIÓN: DETECCIÓN DE PATRONES (TABLA) ---
+                dnp_table_data.append({'FECHA': date_str, f'BAJAS {t1}': cell_t1, f'BAJAS {t2}': cell_t2})
+            
+            if dnp_table_data:
+                df_dnp = pd.DataFrame(dnp_table_data)
+                html_dnp = df_dnp.style.hide(axis="index").to_html(classes="custom-table")
+                st.markdown(f"<div class='table-wrapper'>{html_dnp}</div>", unsafe_allow_html=True)
+            else:
+                st.success("✅ No hubo bajas importantes.")
+
+            # --- DETECCIÓN DE PATRONES REFINADA ---
             st.write("---")
-            st.subheader("🕵️ Detección de Patrones (Impacto de Bajas)")
+            st.subheader("🕵️ Detección de Patrones (Impacto REAL de Bajas)")
+            st.info("Solo se muestran aumentos significativos cuando falta una estrella CLAVE en esa estadística.")
 
-            top_scorers = stats.sort_values('pts', ascending=False).head(4)['player_name'].tolist()
-            top_rebounders = stats.sort_values('reb', ascending=False).head(4)['player_name'].tolist()
-            top_assisters = stats.sort_values('ast', ascending=False).head(4)['player_name'].tolist()
-            all_stars = list(set(top_scorers + top_rebounders + top_assisters))
+            # Identificar Estrellas POR CATEGORÍA
+            # Filtro: Jugadores con buenas medias
+            star_scorers = stats[stats['pts'] > 18]['player_name'].tolist()
+            star_rebounders = stats[stats['reb'] > 7]['player_name'].tolist()
+            star_assisters = stats[stats['ast'] > 5]['player_name'].tolist()
             
-            patterns_data = [] # Lista para la tabla
+            all_stars = list(set(star_scorers + star_rebounders + star_assisters))
+            patterns_data = []
 
             for date in last_dates:
                 roster_day = recent_players[recent_players['game_date'] == date]
@@ -319,43 +337,54 @@ elif opcion == "⚔️ Analizar Partido":
                 teams_active = roster_day['team_abbreviation'].unique()
                 
                 for star in all_stars:
-                    star_team = stats[stats['player_name'] == star]['team_abbreviation'].values[0]
+                    # Datos de la estrella
+                    star_stats = stats[stats['player_name'] == star].iloc[0]
+                    star_team = star_stats['team_abbreviation']
+                    
+                    # Si la estrella pertenece a un equipo que jugó y NO estuvo presente
                     if (star_team in teams_active) and (star not in players_present):
+                        
                         teammates = roster_day[roster_day['team_abbreviation'] == star_team]
-                        best_diff_pts, beneficiary_pts = -1, None
-                        best_diff_reb, beneficiary_reb = -1, None
-                        best_diff_ast, beneficiary_ast = -1, None
+                        
+                        best_pts_diff, beneficiary_pts = -1, None
+                        best_reb_diff, beneficiary_reb = -1, None
+                        best_ast_diff, beneficiary_ast = -1, None
                         
                         for _, row in teammates.iterrows():
                             p_name = row['player_name']
                             avg_p = stats[stats['player_name'] == p_name].iloc[0]
+                            
                             diff_pts = row['pts'] - avg_p['pts']
                             diff_reb = row['reb'] - avg_p['reb']
                             diff_ast = row['ast'] - avg_p['ast']
                             
-                            if diff_pts > 5 and diff_pts > best_diff_pts:
-                                best_diff_pts = diff_pts
-                                beneficiary_pts = f"🏀 {p_name} (+{int(diff_pts)} PTS)"
-                            if diff_reb > 3 and diff_reb > best_diff_reb:
-                                best_diff_reb = diff_reb
-                                beneficiary_reb = f"🖐 {p_name} (+{int(diff_reb)} REB)"
-                            if diff_ast > 3 and diff_ast > best_diff_ast:
-                                best_diff_ast = diff_ast
-                                beneficiary_ast = f"🎁 {p_name} (+{int(diff_ast)} AST)"
+                            # LOGICA ESTRICTA DE PATRONES:
+                            
+                            # 1. PUNTOS: La estrella debe ser anotadora (>18) Y el beneficiario debe anotar mucho (>15) y mejorar mucho (+8)
+                            if star in star_scorers:
+                                if row['pts'] >= 15 and diff_pts >= 8 and diff_pts > best_pts_diff:
+                                    best_pts_diff = diff_pts
+                                    beneficiary_pts = f"🏀 {p_name} (+{int(diff_pts)} PTS)"
+                            
+                            # 2. REBOTES: La estrella debe ser reboteadora (>7) Y el beneficiario coger muchos (>7) y mejorar (+4)
+                            if star in star_rebounders:
+                                if row['reb'] >= 7 and diff_reb >= 4 and diff_reb > best_reb_diff:
+                                    best_reb_diff = diff_reb
+                                    beneficiary_reb = f"🖐 {p_name} (+{int(diff_reb)} REB)"
+                                    
+                            # 3. ASISTENCIAS: La estrella debe ser asistente (>5) Y el beneficiario dar muchas (>5) y mejorar (+4)
+                            if star in star_assisters:
+                                if row['ast'] >= 5 and diff_ast >= 4 and diff_ast > best_ast_diff:
+                                    best_ast_diff = diff_ast
+                                    beneficiary_ast = f"🎁 {p_name} (+{int(diff_ast)} AST)"
                         
                         date_str = date.strftime('%d/%m')
-                        
-                        # Agregamos filas a la tabla
-                        if beneficiary_pts:
-                            patterns_data.append({'FECHA': date_str, 'BAJA': star, 'IMPACTO': beneficiary_pts})
-                        if beneficiary_reb:
-                            patterns_data.append({'FECHA': date_str, 'BAJA': star, 'IMPACTO': beneficiary_reb})
-                        if beneficiary_ast:
-                            patterns_data.append({'FECHA': date_str, 'BAJA': star, 'IMPACTO': beneficiary_ast})
+                        if beneficiary_pts: patterns_data.append({'FECHA': date_str, 'BAJA': star, 'IMPACTO': beneficiary_pts})
+                        if beneficiary_reb: patterns_data.append({'FECHA': date_str, 'BAJA': star, 'IMPACTO': beneficiary_reb})
+                        if beneficiary_ast: patterns_data.append({'FECHA': date_str, 'BAJA': star, 'IMPACTO': beneficiary_ast})
 
             if patterns_data:
                 df_patterns = pd.DataFrame(patterns_data)
-                # Mostramos la tabla limpia
                 mostrar_tabla_bonita(df_patterns, None)
             else:
-                st.write("No se detectaron patrones claros de 'beneficiarios' por bajas en estos partidos.")
+                st.write("No se detectaron impactos significativos por bajas en estos partidos.")
