@@ -74,27 +74,31 @@ st.markdown("""
         padding: 20px;
         margin-top: 20px;
         text-align: center;
+        max-width: 600px; /* Centrado en PC */
+        margin-left: auto;
+        margin-right: auto;
     }
     .parlay-header {
-        color: #ffd700;
         font-size: 24px;
         font-weight: bold;
         margin-bottom: 15px;
         text-transform: uppercase;
+        letter-spacing: 1px;
     }
     .parlay-leg {
         background-color: #2d2d2d;
         margin: 10px 0;
-        padding: 10px;
+        padding: 12px;
         border-radius: 8px;
         display: flex;
         justify-content: space-between;
         align-items: center;
-        border-left: 5px solid #4caf50;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.3);
     }
-    .leg-player { font-weight: bold; color: white; font-size: 16px; }
-    .leg-bet { color: #4caf50; font-weight: bold; font-size: 18px; }
-    .leg-stat { color: #aaaaaa; font-size: 12px; }
+    .leg-player { font-weight: bold; color: white; font-size: 15px; text-align: left; }
+    .leg-bet { font-weight: bold; font-size: 18px; text-align: right; }
+    .leg-stat { color: #aaaaaa; font-size: 11px; display: block; margin-top: 4px; text-align: right; }
+    .leg-info { text-align: right; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -272,7 +276,6 @@ elif opcion == "⚔️ Analizar Partido":
             
             recent_players = history[history['game_date'].isin(last_dates)].sort_values('game_date', ascending=False)
             
-            # Stats promedio (H2H)
             stats = recent_players.groupby(['player_name', 'team_abbreviation']).agg(
                 pts=('pts', 'mean'),
                 reb=('reb', 'mean'),
@@ -284,7 +287,6 @@ elif opcion == "⚔️ Analizar Partido":
                 gp=('game_date', 'count')
             ).reset_index()
 
-            # Status visual
             status_list = []
             for idx, row in stats.iterrows():
                 p_name = row['player_name']
@@ -310,7 +312,6 @@ elif opcion == "⚔️ Analizar Partido":
             stats['STATUS_HTML'] = status_list
 
             st.write("---")
-            
             st.subheader("🔥 Top Reboteadores")
             reb_df = stats.sort_values('reb', ascending=False).head(15).copy()
             reb_final = reb_df[['player_name', 'team_abbreviation', 'STATUS_HTML', 'reb', 'trend_reb', 'min']]
@@ -447,15 +448,18 @@ elif opcion == "⚔️ Analizar Partido":
             else:
                 st.write("No se detectaron impactos significativos por bajas en estos partidos.")
 
-            # --- GENERADOR DE PARLAY (CORREGIDO Y AMPLIADO) ---
+            # --- GENERADOR DE PARLAY (3 TICKETS DE 5 PICKS) ---
             st.write("---")
-            st.subheader("🎲 IA Parlay Generator (Alta Probabilidad)")
-            st.info("Top 5 predicciones más seguras basadas en mínimos históricos H2H.")
+            st.subheader("🎲 IA Parlay Generator (3 Tickets)")
+            st.info("Predicciones de seguridad (Suelos) basadas en mínimos históricos H2H.")
 
             min_games_needed = max(3, int(len(last_dates) * 0.6))
             candidates = stats[stats['gp'] >= min_games_needed].copy()
             
-            parlay_legs = []
+            # Listas separadas
+            legs_pts = []
+            legs_reb = []
+            legs_ast = []
 
             for _, row in candidates.iterrows():
                 p_name = row['player_name']
@@ -468,62 +472,62 @@ elif opcion == "⚔️ Analizar Partido":
                 min_reb = logs['reb'].min()
                 min_ast = logs['ast'].min()
                 
+                # PTS
                 if min_pts >= 10:
                     safe_line = int(min_pts - 1)
-                    parlay_legs.append({
+                    legs_pts.append({
                         'player': p_name,
-                        'type': 'PTS',
                         'val': safe_line,
                         'avg': row['pts'],
-                        'desc': f"Más de {safe_line} Puntos (Mínimo H2H: {int(min_pts)})"
+                        'desc': f"Mínimo H2H: {int(min_pts)}"
                     })
                 
-                if min_reb >= 5:
+                # REB
+                if min_reb >= 4:
                     safe_line = int(min_reb - 1)
-                    parlay_legs.append({
+                    legs_reb.append({
                         'player': p_name,
-                        'type': 'REB',
                         'val': safe_line,
                         'avg': row['reb'],
-                        'desc': f"Más de {safe_line} Rebotes (Mínimo H2H: {int(min_reb)})"
+                        'desc': f"Mínimo H2H: {int(min_reb)}"
                     })
                     
-                if min_ast >= 4:
+                # AST
+                if min_ast >= 3:
                     safe_line = int(min_ast - 1)
-                    parlay_legs.append({
+                    legs_ast.append({
                         'player': p_name,
-                        'type': 'AST',
                         'val': safe_line,
                         'avg': row['ast'],
-                        'desc': f"Más de {safe_line} Asistencias (Mínimo H2H: {int(min_ast)})"
+                        'desc': f"Mínimo H2H: {int(min_ast)}"
                     })
 
-            # Ordenamos y seleccionamos 5 únicos
-            parlay_legs.sort(key=lambda x: x['avg'], reverse=True)
-            
-            final_ticket = []
-            used_players = set()
-            
-            for leg in parlay_legs:
-                if leg['player'] not in used_players:
-                    final_ticket.append(leg)
-                    used_players.add(leg['player'])
-                if len(final_ticket) >= 5: # AHORA SON 5 PICKS
-                    break
-            
-            if final_ticket:
-                legs_html = ""
-                for leg in final_ticket:
-                    icon = "🏀" if leg['type']=='PTS' else ("🖐" if leg['type']=='REB' else "🎁")
-                    # HTML compactado sin indentación extra para evitar errores de renderizado
-                    legs_html += f"<div class='parlay-leg'><div class='leg-player'>{icon} {leg['player']}</div><div class='leg-bet'>+{leg['val']} {leg['type']}</div><div class='leg-stat'>{leg['desc']}</div></div>"
+            # Ordenar por calidad (Media más alta)
+            legs_pts.sort(key=lambda x: x['avg'], reverse=True)
+            legs_reb.sort(key=lambda x: x['avg'], reverse=True)
+            legs_ast.sort(key=lambda x: x['avg'], reverse=True)
+
+            # Función para renderizar tickets
+            def render_ticket(title, legs, icon, color_border):
+                final_legs = legs[:5] # Top 5
+                if not final_legs: return ""
                 
-                st.markdown(f"""
-                <div class='parlay-box'>
-                    <div class='parlay-header'>🎟️ TICKET RECOMENDADO</div>
-                    {legs_html}
-                    <div style='color: #888; font-size: 12px; margin-top: 10px;'>*Basado estrictamente en mínimos históricos vs este rival. Apuesta con responsabilidad.</div>
-                </div>
-                """, unsafe_allow_html=True)
-            else:
-                st.info("No hay suficientes datos consistentes en el historial para generar un parlay seguro.")
+                html_legs = ""
+                for leg in final_legs:
+                    # HTML en una sola línea para evitar errores de markdown
+                    html_legs += f"<div class='parlay-leg' style='border-left: 5px solid {color_border};'><div class='leg-player'>{icon} {leg['player']}</div><div class='leg-info'><div class='leg-bet'>+{leg['val']}</div><div class='leg-stat'>{leg['desc']}</div></div></div>"
+                
+                return f"<div class='parlay-box'><div class='parlay-header' style='color:{color_border};'>{title}</div>{html_legs}</div>"
+
+            # Renderizar los 3 tickets
+            if legs_pts:
+                st.markdown(render_ticket("ANOTADORES (PTS)", legs_pts, "🏀", "#4caf50"), unsafe_allow_html=True)
+            
+            if legs_reb:
+                st.markdown(render_ticket("REBOTEADORES (REB)", legs_reb, "🖐", "#ff9800"), unsafe_allow_html=True)
+                
+            if legs_ast:
+                st.markdown(render_ticket("ASISTENTES (AST)", legs_ast, "🎁", "#2196f3"), unsafe_allow_html=True)
+
+            if not (legs_pts or legs_reb or legs_ast):
+                st.warning("No hay suficientes datos consistentes para generar tickets seguros hoy.")
