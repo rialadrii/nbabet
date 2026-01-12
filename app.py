@@ -46,10 +46,17 @@ st.markdown("""
         padding: 8px;
         border-bottom: 1px solid #464b5f;
         font-size: 14px;
+        vertical-align: middle;
     }
     div.table-wrapper {
         overflow-x: auto;
     }
+    
+    /* Estilos específicos para STATUS */
+    .status-played { color: #4caf50; font-weight: bold; font-size: 16px; }
+    .status-missed { color: #ff5252; font-weight: bold; font-size: 16px; }
+    .status-date { font-size: 10px; color: #aaaaaa; display: block; }
+    .status-cell { display: inline-block; margin: 0 4px; text-align: center; }
     
     /* Estilo para Patrones */
     .pattern-box {
@@ -136,8 +143,11 @@ df = load_data()
 
 # --- FUNCION PARA MOSTRAR TABLA LIMPIA ---
 def mostrar_tabla_bonita(df_raw, col_principal_espanol):
+    # Detectar qué columnas existen para el formato
+    cols_fmt = [c for c in df_raw.columns if c in ['PTS', 'REB', 'AST', 'MIN']]
+    
     html = df_raw.style\
-        .format("{:.1f}", subset=[c for c in df_raw.columns if c in ['PTS', 'REB', 'AST', 'MIN']])\
+        .format("{:.1f}", subset=cols_fmt)\
         .background_gradient(subset=[col_principal_espanol] if col_principal_espanol else None, cmap='YlOrBr' if col_principal_espanol=='REB' else ('Greens' if col_principal_espanol=='PTS' else ('Blues' if col_principal_espanol=='AST' else None)))\
         .hide(axis="index")\
         .to_html(classes="custom-table")
@@ -189,7 +199,6 @@ elif opcion == "👤 Analizar Jugador":
             view = player_data[['game_date', 'matchup', 'min', 'pts', 'reb', 'ast']].head(5).copy()
             view.columns = ['FECHA', 'PARTIDO', 'MIN', 'PTS', 'REB', 'AST']
             view['FECHA'] = view['FECHA'].dt.strftime('%d/%m/%Y') 
-            
             mostrar_tabla_bonita(view, None)
             
             if rival:
@@ -217,10 +226,9 @@ elif opcion == "⚔️ Analizar Partido":
             
             history = df[mask].sort_values('game_date', ascending=False)
             last_dates = sorted(history['game_date'].unique(), reverse=True)[:5]
-            total_games_matchup = len(last_dates)
             
             st.write("---")
-            st.subheader("📅 Partidos Analizados (Orden de la Racha)")
+            st.subheader("📅 Partidos Analizados")
             
             games_summary = []
             for date in last_dates:
@@ -232,146 +240,117 @@ elif opcion == "⚔️ Analizar Partido":
             
             df_games = pd.DataFrame(games_summary)
             mostrar_tabla_bonita(df_games, None)
-            st.info("💡 NOTA: Los números en la columna 'RACHA' siguen este orden (el primero es el más reciente).")
             
+            # --- PREPARACIÓN DE STATUS VISUAL ---
             recent_players = history[history['game_date'].isin(last_dates)].sort_values('game_date', ascending=False)
             
+            # Agregamos primero las stats numéricas
             stats = recent_players.groupby(['player_name', 'team_abbreviation']).agg(
                 pts=('pts', 'mean'),
                 reb=('reb', 'mean'),
                 ast=('ast', 'mean'),
                 min=('min', 'mean'),
-                gp=('game_date', 'count'),
                 trend_pts=('pts', lambda x: '/'.join(x.astype(int).astype(str))),
                 trend_reb=('reb', lambda x: '/'.join(x.astype(int).astype(str))),
                 trend_ast=('ast', lambda x: '/'.join(x.astype(int).astype(str)))
             ).reset_index()
+
+            # --- GENERADOR DE HTML PARA "STATUS" ---
+            # Para cada jugador, construimos la cadena de ✅/❌ con fecha
+            status_list = []
+            for idx, row in stats.iterrows():
+                p_name = row['player_name']
+                p_team = row['team_abbreviation']
+                
+                # Buscamos en qué fechas jugó
+                player_games = recent_players[(recent_players['player_name'] == p_name) & (recent_players['team_abbreviation'] == p_team)]
+                dates_played = player_games['game_date'].unique()
+                
+                html_str = ""
+                for d in last_dates:
+                    d_short = d.strftime('%d/%m')
+                    if d in dates_played:
+                        # Jugó
+                        html_str += f"<div class='status-cell'><span class='status-played'>✅</span><span class='status-date'>{d_short}</span></div>"
+                    else:
+                        # No jugó
+                        html_str += f"<div class='status-cell'><span class='status-missed'>❌</span><span class='status-date'>{d_short}</span></div>"
+                
+                status_list.append(html_str)
             
-            stats['GP'] = stats['gp'].astype(str) + "/" + str(total_games_matchup)
-            
+            stats['STATUS_HTML'] = status_list
+
             st.write("---")
             
+            # REBOTEADORES
             st.subheader("🔥 Top Reboteadores")
             reb_df = stats.sort_values('reb', ascending=False).head(15).copy()
-            reb_final = reb_df[['player_name', 'team_abbreviation', 'GP', 'reb', 'trend_reb', 'min']]
-            reb_final.columns = ['JUGADOR', 'EQUIPO', 'PJ', 'REB', 'RACHA', 'MIN']
+            reb_final = reb_df[['player_name', 'team_abbreviation', 'STATUS_HTML', 'reb', 'trend_reb', 'min']]
+            reb_final.columns = ['JUGADOR', 'EQUIPO', 'STATUS', 'REB', 'RACHA', 'MIN']
             mostrar_tabla_bonita(reb_final, 'REB')
             
+            # ANOTADORES
             st.subheader("🎯 Top Anotadores")
             pts_df = stats.sort_values('pts', ascending=False).head(15).copy()
-            pts_final = pts_df[['player_name', 'team_abbreviation', 'GP', 'pts', 'trend_pts', 'min']]
-            pts_final.columns = ['JUGADOR', 'EQUIPO', 'PJ', 'PTS', 'RACHA', 'MIN']
+            pts_final = pts_df[['player_name', 'team_abbreviation', 'STATUS_HTML', 'pts', 'trend_pts', 'min']]
+            pts_final.columns = ['JUGADOR', 'EQUIPO', 'STATUS', 'PTS', 'RACHA', 'MIN']
             mostrar_tabla_bonita(pts_final, 'PTS')
             
+            # ASISTENTES
             st.subheader("🤝 Top Asistentes")
             ast_df = stats.sort_values('ast', ascending=False).head(15).copy()
-            ast_final = ast_df[['player_name', 'team_abbreviation', 'GP', 'ast', 'trend_ast', 'min']]
-            ast_final.columns = ['JUGADOR', 'EQUIPO', 'PJ', 'AST', 'RACHA', 'MIN']
+            ast_final = ast_df[['player_name', 'team_abbreviation', 'STATUS_HTML', 'ast', 'trend_ast', 'min']]
+            ast_final.columns = ['JUGADOR', 'EQUIPO', 'STATUS', 'AST', 'RACHA', 'MIN']
             mostrar_tabla_bonita(ast_final, 'AST')
             
-            st.write("---")
-            st.subheader("📉 Bajas Clave (DNP)")
-            
-            avg_mins = recent_players.groupby(['player_name', 'team_abbreviation'])['min'].mean()
-            key_players_list = avg_mins[avg_mins > 12.0].index.tolist()
-            found_dnps = False
-            
-            for date in last_dates:
-                date_str = date.strftime('%d/%m/%Y')
-                played_on_date = recent_players[recent_players['game_date'] == date]['player_name'].unique()
-                missing_in_game = []
-                for p_name, p_team in key_players_list:
-                    team_played_match = not recent_players[(recent_players['game_date'] == date) & (recent_players['team_abbreviation'] == p_team)].empty
-                    if team_played_match and (p_name not in played_on_date):
-                        missing_in_game.append(f"{p_name} ({p_team})")
-                
-                if missing_in_game:
-                    found_dnps = True
-                    st.write(f"**📅 {date_str}:**")
-                    for p in missing_in_game:
-                        st.error(f"❌ {p}")
-            
-            if not found_dnps:
-                st.success("✅ No hubo bajas importantes en los últimos enfrentamientos.")
-
-            # --- NUEVA SECCIÓN: DETECCIÓN DE PATRONES ---
+            # --- PATRONES ---
             st.write("---")
             st.subheader("🕵️ Detección de Patrones (Impacto de Bajas)")
-            st.info("Análisis automático: ¿Quién mejora sus números cuando falta una estrella en estos partidos?")
 
-            # Lógica de detección
-            # 1. Identificar "Estrellas" (Top players por media en estos partidos)
             top_scorers = stats.sort_values('pts', ascending=False).head(4)['player_name'].tolist()
             top_rebounders = stats.sort_values('reb', ascending=False).head(4)['player_name'].tolist()
             top_assisters = stats.sort_values('ast', ascending=False).head(4)['player_name'].tolist()
-            
             all_stars = list(set(top_scorers + top_rebounders + top_assisters))
             
             patterns_found = []
 
             for date in last_dates:
-                # Jugadores que jugaron ese día
                 roster_day = recent_players[recent_players['game_date'] == date]
                 players_present = roster_day['player_name'].unique()
-                
-                # Checkeamos si faltó alguna estrella de los equipos que jugaron
                 teams_active = roster_day['team_abbreviation'].unique()
                 
                 for star in all_stars:
                     star_team = stats[stats['player_name'] == star]['team_abbreviation'].values[0]
-                    
                     if (star_team in teams_active) and (star not in players_present):
-                        # LA ESTRELLA FALTÓ. ¿Quién dio un paso adelante?
-                        
-                        # Filtramos compañeros de equipo ese día
                         teammates = roster_day[roster_day['team_abbreviation'] == star_team]
-                        
-                        # Buscamos anomalías positivas (Game Stats > Average Stats)
-                        best_diff_pts = -1
-                        beneficiary_pts = None
-                        
-                        best_diff_reb = -1
-                        beneficiary_reb = None
-
-                        best_diff_ast = -1
-                        beneficiary_ast = None
+                        best_diff_pts, beneficiary_pts = -1, None
+                        best_diff_reb, beneficiary_reb = -1, None
+                        best_diff_ast, beneficiary_ast = -1, None
                         
                         for _, row in teammates.iterrows():
                             p_name = row['player_name']
-                            # Sus medias
                             avg_p = stats[stats['player_name'] == p_name].iloc[0]
-                            
-                            # Diferenciales
                             diff_pts = row['pts'] - avg_p['pts']
                             diff_reb = row['reb'] - avg_p['reb']
                             diff_ast = row['ast'] - avg_p['ast']
                             
-                            # Detectar Puntos (Umbral significativo: +5 pts sobre media)
                             if diff_pts > 5 and diff_pts > best_diff_pts:
                                 best_diff_pts = diff_pts
                                 beneficiary_pts = f"{p_name} (+{int(diff_pts)} PTS)"
-                                
-                            # Detectar Rebotes (Umbral: +3 reb sobre media)
                             if diff_reb > 3 and diff_reb > best_diff_reb:
                                 best_diff_reb = diff_reb
                                 beneficiary_reb = f"{p_name} (+{int(diff_reb)} REB)"
-
-                            # Detectar Asistencias (Umbral: +3 ast sobre media)
                             if diff_ast > 3 and diff_ast > best_diff_ast:
                                 best_diff_ast = diff_ast
                                 beneficiary_ast = f"{p_name} (+{int(diff_ast)} AST)"
                         
-                        # Guardar patrón si hubo beneficiario claro
                         date_str = date.strftime('%d/%m')
-                        if beneficiary_pts:
-                            patterns_found.append(f"📅 {date_str} | Sin **{star}** ➔ 🏀 **{beneficiary_pts}** tomó el relevo.")
-                        if beneficiary_reb:
-                            patterns_found.append(f"📅 {date_str} | Sin **{star}** ➔ 🖐 **{beneficiary_reb}** dominó el tablero.")
-                        if beneficiary_ast:
-                            patterns_found.append(f"📅 {date_str} | Sin **{star}** ➔ 🎁 **{beneficiary_ast}** repartió juego.")
+                        if beneficiary_pts: patterns_found.append(f"📅 {date_str} | Sin **{star}** ➔ 🏀 **{beneficiary_pts}** tomó el relevo.")
+                        if beneficiary_reb: patterns_found.append(f"📅 {date_str} | Sin **{star}** ➔ 🖐 **{beneficiary_reb}** dominó el tablero.")
+                        if beneficiary_ast: patterns_found.append(f"📅 {date_str} | Sin **{star}** ➔ 🎁 **{beneficiary_ast}** repartió juego.")
 
             if patterns_found:
                 for pat in patterns_found:
                     st.markdown(f"<div class='pattern-box'><span class='pattern-title'>Patrón:</span> {pat}</div>", unsafe_allow_html=True)
             else:
-                st.write("No se detectaron patrones claros de 'beneficiarios' por bajas en estos 5 partidos.")
+                st.write("No se detectaron patrones claros de 'beneficiarios' por bajas en estos partidos.")
