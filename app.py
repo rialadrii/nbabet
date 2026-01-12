@@ -65,6 +65,36 @@ st.markdown("""
     /* Estilos para Patrones */
     .pat-stars { color: #ffbd45; font-weight: bold; }
     .pat-impact { color: #4caf50; font-weight: bold; }
+
+    /* ESTILO TICKET PARLAY */
+    .parlay-box {
+        background-color: #1e1e1e;
+        border: 2px dashed #ffd700;
+        border-radius: 15px;
+        padding: 20px;
+        margin-top: 20px;
+        text-align: center;
+    }
+    .parlay-header {
+        color: #ffd700;
+        font-size: 24px;
+        font-weight: bold;
+        margin-bottom: 15px;
+        text-transform: uppercase;
+    }
+    .parlay-leg {
+        background-color: #2d2d2d;
+        margin: 10px 0;
+        padding: 10px;
+        border-radius: 8px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-left: 5px solid #4caf50;
+    }
+    .leg-player { font-weight: bold; color: white; font-size: 16px; }
+    .leg-bet { color: #4caf50; font-weight: bold; font-size: 18px; }
+    .leg-stat { color: #aaaaaa; font-size: 12px; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -250,7 +280,8 @@ elif opcion == "⚔️ Analizar Partido":
                 min=('min', 'mean'),
                 trend_pts=('pts', lambda x: '/'.join(x.astype(int).astype(str))),
                 trend_reb=('reb', lambda x: '/'.join(x.astype(int).astype(str))),
-                trend_ast=('ast', lambda x: '/'.join(x.astype(int).astype(str)))
+                trend_ast=('ast', lambda x: '/'.join(x.astype(int).astype(str))),
+                gp=('game_date', 'count') # Necesario para el Parlay
             ).reset_index()
 
             # Status visual
@@ -337,13 +368,10 @@ elif opcion == "⚔️ Analizar Partido":
             else:
                 st.success("✅ No hubo bajas importantes.")
 
-            # --- DETECCIÓN DE PATRONES REFINADA (CON GLOBAL STATS) ---
+            # --- DETECCIÓN DE PATRONES ---
             st.write("---")
             st.subheader("🕵️ Detección de Patrones (Impacto REAL y Agrupado)")
-            st.info("Comparando rendimiento vs MEDIA GLOBAL DE TEMPORADA.")
-
-            # 1. Definir Estrellas (Basado en GLOBAL stats del df completo, no solo de estos 5 partidos)
-            # Calculamos medias globales para todos los jugadores primero
+            
             global_means = df.groupby('player_name')[['pts', 'reb', 'ast']].mean()
             
             star_scorers = global_means[global_means['pts'] > 18].index.tolist()
@@ -360,11 +388,8 @@ elif opcion == "⚔️ Analizar Partido":
                 
                 for team in teams_active:
                     missing_stars_today = []
-                    # Detectar bajas de estrellas (usando latest_teams_map para asegurar equipo correcto)
                     for star in all_stars:
                         current_real_team = latest_teams_map.get(star, None)
-                        
-                        # Si la estrella pertenece a este equipo Y no jugó
                         if current_real_team == team and (star not in players_present):
                             missing_stars_today.append(star)
                     
@@ -374,12 +399,10 @@ elif opcion == "⚔️ Analizar Partido":
                         
                         for _, row in teammates.iterrows():
                             p_name = row['player_name']
-                            
-                            # OBTENEMOS MEDIA GLOBAL (SEASON AVG)
                             if p_name in global_means.index:
                                 avg_p = global_means.loc[p_name]
                             else:
-                                continue # Si no hay datos globales, saltamos
+                                continue 
                             
                             diff_pts = row['pts'] - avg_p['pts']
                             diff_reb = row['reb'] - avg_p['reb']
@@ -387,17 +410,14 @@ elif opcion == "⚔️ Analizar Partido":
                             
                             impact_msgs = []
                             
-                            # PUNTOS: Si falta un anotador, buscamos +15 pts totales y +8 de mejora
                             if any(s in star_scorers for s in missing_stars_today):
                                 if row['pts'] >= 15 and diff_pts >= 8:
                                     impact_msgs.append(f"🏀 +{int(diff_pts)} PTS")
                             
-                            # REBOTES
                             if any(s in star_rebounders for s in missing_stars_today):
                                 if row['reb'] >= 7 and diff_reb >= 4:
                                     impact_msgs.append(f"🖐 +{int(diff_reb)} REB")
                                     
-                            # ASISTENCIAS
                             if any(s in star_assisters for s in missing_stars_today):
                                 if row['ast'] >= 5 and diff_ast >= 4:
                                     impact_msgs.append(f"🎁 +{int(diff_ast)} AST")
@@ -426,3 +446,109 @@ elif opcion == "⚔️ Analizar Partido":
                 st.markdown(f"<div class='table-wrapper'>{html_pat}</div>", unsafe_allow_html=True)
             else:
                 st.write("No se detectaron impactos significativos por bajas en estos partidos.")
+
+            # --- NUEVA SECCIÓN: GENERADOR DE PARLAY ---
+            st.write("---")
+            st.subheader("🎲 IA Parlay Generator (Alta Probabilidad)")
+            st.info("Basado en 'Suelos Seguros': Estadísticas que se han cumplido en TODOS los últimos enfrentamientos H2H analizados.")
+
+            # Lógica del Parlay
+            # 1. Filtramos jugadores que hayan jugado al menos 3 partidos en el historial (o el 70% si son pocos)
+            min_games_needed = max(3, int(len(last_dates) * 0.6))
+            candidates = stats[stats['gp'] >= min_games_needed].copy()
+            
+            parlay_legs = []
+
+            for _, row in candidates.iterrows():
+                p_name = row['player_name']
+                p_team = row['team_abbreviation']
+                
+                # Obtenemos los logs crudos de este jugador en estos partidos
+                logs = recent_players[(recent_players['player_name'] == p_name) & (recent_players['team_abbreviation'] == p_team)]
+                
+                if logs.empty: continue
+                
+                # Buscamos el MÍNIMO (El suelo) en estos enfrentamientos
+                min_pts = logs['pts'].min()
+                min_reb = logs['reb'].min()
+                min_ast = logs['ast'].min()
+                
+                # Criterios para sugerir (No sugerir "Más de 2 puntos")
+                # PTS > 10, REB > 4, AST > 2
+                
+                # Margen de seguridad: Sugerimos un poco menos del mínimo real para asegurar
+                # Ejemplo: Si el mínimo fue 22, sugerimos +20.
+                
+                # Puntos
+                if min_pts >= 10:
+                    safe_line = int(min_pts - 1)
+                    parlay_legs.append({
+                        'player': p_name,
+                        'type': 'PTS',
+                        'val': safe_line,
+                        'avg': row['pts'],
+                        'desc': f"Más de {safe_line} Puntos (Mínimo H2H: {int(min_pts)})"
+                    })
+                
+                # Rebotes
+                if min_reb >= 5:
+                    safe_line = int(min_reb - 1)
+                    parlay_legs.append({
+                        'player': p_name,
+                        'type': 'REB',
+                        'val': safe_line,
+                        'avg': row['reb'],
+                        'desc': f"Más de {safe_line} Rebotes (Mínimo H2H: {int(min_reb)})"
+                    })
+                    
+                # Asistencias
+                if min_ast >= 4:
+                    safe_line = int(min_ast - 1)
+                    parlay_legs.append({
+                        'player': p_name,
+                        'type': 'AST',
+                        'val': safe_line,
+                        'avg': row['ast'],
+                        'desc': f"Más de {safe_line} Asistencias (Mínimo H2H: {int(min_ast)})"
+                    })
+
+            # Seleccionamos los 3 mejores (Priorizamos Puntos altos o stats sólidas)
+            # Ordenamos por valor relativo a la magnitud (un rebote vale mas que un punto en dificultad)
+            # Simple heuristic: Sort by value descending is bad comparing pts to ast.
+            # We assume order of addition is random, lets shuffle or pick top stars.
+            
+            # Ordenar por "Media" descendente suele traer a las estrellas arriba
+            parlay_legs.sort(key=lambda x: x['avg'], reverse=True)
+            
+            # Filtramos para no repetir jugador si es posible
+            final_ticket = []
+            used_players = set()
+            
+            for leg in parlay_legs:
+                if leg['player'] not in used_players:
+                    final_ticket.append(leg)
+                    used_players.add(leg['player'])
+                if len(final_ticket) >= 3:
+                    break
+            
+            if final_ticket:
+                legs_html = ""
+                for leg in final_ticket:
+                    icon = "🏀" if leg['type']=='PTS' else ("🖐" if leg['type']=='REB' else "🎁")
+                    legs_html += f"""
+                    <div class='parlay-leg'>
+                        <div class='leg-player'>{icon} {leg['player']}</div>
+                        <div class='leg-bet'>+{leg['val']} {leg['type']}</div>
+                        <div class='leg-stat'>{leg['desc']}</div>
+                    </div>
+                    """
+                
+                st.markdown(f"""
+                <div class='parlay-box'>
+                    <div class='parlay-header'>🎟️ TICKET RECOMENDADO</div>
+                    {legs_html}
+                    <div style='color: #888; font-size: 12px; margin-top: 10px;'>*Basado estrictamente en mínimos históricos vs este rival. Apuesta con responsabilidad.</div>
+                </div>
+                """, unsafe_allow_html=True)
+            else:
+                st.info("No hay suficientes datos consistentes en el historial para generar un parlay seguro.")
