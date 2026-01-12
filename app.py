@@ -61,6 +61,10 @@ st.markdown("""
     /* Estilos para la tabla de BAJAS */
     .dnp-full { color: #4caf50; font-weight: bold; }
     .dnp-missing { color: #ff5252; }
+    
+    /* Estilos para Patrones */
+    .pat-stars { color: #ffbd45; font-weight: bold; }
+    .pat-impact { color: #4caf50; font-weight: bold; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -130,6 +134,14 @@ st.sidebar.header("Menú de Control")
 opcion = st.sidebar.radio("Selecciona modo:", ["🏠 Inicio", "👤 Analizar Jugador", "⚔️ Analizar Partido", "🔄 Actualizar Datos"])
 
 df = load_data()
+
+# --- MAPA DE EQUIPOS ACTUALES (Anti-Traspasos) ---
+# Creamos un diccionario: { 'Nombre Jugador': 'Último Equipo Conocido' }
+latest_teams_map = {}
+if not df.empty:
+    # Ordenamos por fecha y nos quedamos con la última aparición de cada jugador
+    latest_entries = df.sort_values('game_date').drop_duplicates('player_name', keep='last')
+    latest_teams_map = dict(zip(latest_entries['player_name'], latest_entries['team_abbreviation']))
 
 # --- FUNCION PARA MOSTRAR TABLA LIMPIA ---
 def mostrar_tabla_bonita(df_raw, col_principal_espanol):
@@ -232,7 +244,7 @@ elif opcion == "⚔️ Analizar Partido":
             
             recent_players = history[history['game_date'].isin(last_dates)].sort_values('game_date', ascending=False)
             
-            # Agregamos stats promedio
+            # Stats promedio
             stats = recent_players.groupby(['player_name', 'team_abbreviation']).agg(
                 pts=('pts', 'mean'),
                 reb=('reb', 'mean'),
@@ -243,11 +255,16 @@ elif opcion == "⚔️ Analizar Partido":
                 trend_ast=('ast', lambda x: '/'.join(x.astype(int).astype(str)))
             ).reset_index()
 
-            # Lógica STATUS visual
+            # Status visual
             status_list = []
             for idx, row in stats.iterrows():
                 p_name = row['player_name']
                 p_team = row['team_abbreviation']
+                
+                # VERIFICACIÓN ANTI-TRASPASO: 
+                # Si el equipo analizado (p_team) NO es el equipo actual del jugador, ignoramos
+                real_team = latest_teams_map.get(p_name, p_team)
+                
                 player_games = recent_players[(recent_players['player_name'] == p_name) & (recent_players['team_abbreviation'] == p_team)]
                 dates_played = player_games['game_date'].unique()
                 
@@ -257,7 +274,12 @@ elif opcion == "⚔️ Analizar Partido":
                     if d in dates_played:
                         html_str += f"<div class='status-cell'><span class='status-played'>✅</span><span class='status-date'>{d_short}</span></div>"
                     else:
-                        html_str += f"<div class='status-cell'><span class='status-missed'>❌</span><span class='status-date'>{d_short}</span></div>"
+                        # Si no jugó, verificamos si seguía en el equipo
+                        # Si su equipo actual es DIFERENTE al del historial, probablemente ya no estaba
+                        if real_team != p_team:
+                             html_str += f"<div class='status-cell'><span class='status-date'>N/A</span></div>"
+                        else:
+                            html_str += f"<div class='status-cell'><span class='status-missed'>❌</span><span class='status-date'>{d_short}</span></div>"
                 status_list.append(html_str)
             
             stats['STATUS_HTML'] = status_list
@@ -282,7 +304,7 @@ elif opcion == "⚔️ Analizar Partido":
             ast_final.columns = ['JUGADOR', 'EQUIPO', 'STATUS', 'AST', 'RACHA', 'MIN']
             mostrar_tabla_bonita(ast_final, 'AST')
             
-            # --- SECCIÓN BAJAS ---
+            # --- BAJAS POR EQUIPO (CON FILTRO ANTI-TRASPASO) ---
             st.write("---")
             st.subheader("🏥 Historial de Bajas (Por Equipo)")
             
@@ -298,6 +320,11 @@ elif opcion == "⚔️ Analizar Partido":
                 missing_t2 = []
                 
                 for p_name, p_team in key_players_list:
+                    # FILTRO VITAL: ¿Sigue el jugador en ese equipo HOY?
+                    current_real_team = latest_teams_map.get(p_name, p_team)
+                    if current_real_team != p_team:
+                        continue # Si ya no juega ahí, no es baja, es que se fue.
+
                     team_played = not recent_players[(recent_players['game_date'] == date) & (recent_players['team_abbreviation'] == p_team)].empty
                     if team_played and (p_name not in played_on_date):
                         if p_team == t1:
@@ -317,13 +344,11 @@ elif opcion == "⚔️ Analizar Partido":
             else:
                 st.success("✅ No hubo bajas importantes.")
 
-            # --- DETECCIÓN DE PATRONES REFINADA ---
+            # --- DETECCIÓN DE PATRONES AGRUPADA (Y FILTRADA) ---
             st.write("---")
-            st.subheader("🕵️ Detección de Patrones (Impacto REAL de Bajas)")
-            st.info("Solo se muestran aumentos significativos cuando falta una estrella CLAVE en esa estadística.")
+            st.subheader("🕵️ Detección de Patrones (Impacto REAL y Agrupado)")
+            st.info("Agrupado por día y equipo. Filtra jugadores traspasados.")
 
-            # Identificar Estrellas POR CATEGORÍA
-            # Filtro: Jugadores con buenas medias
             star_scorers = stats[stats['pts'] > 18]['player_name'].tolist()
             star_rebounders = stats[stats['reb'] > 7]['player_name'].tolist()
             star_assisters = stats[stats['ast'] > 5]['player_name'].tolist()
@@ -336,19 +361,22 @@ elif opcion == "⚔️ Analizar Partido":
                 players_present = roster_day['player_name'].unique()
                 teams_active = roster_day['team_abbreviation'].unique()
                 
-                for star in all_stars:
-                    # Datos de la estrella
-                    star_stats = stats[stats['player_name'] == star].iloc[0]
-                    star_team = star_stats['team_abbreviation']
+                for team in teams_active:
+                    missing_stars_today = []
+                    for star in all_stars:
+                        star_team = stats[stats['player_name'] == star]['team_abbreviation'].values[0]
+                        
+                        # FILTRO ANTI-TRASPASO AQUÍ TAMBIÉN
+                        current_real_team = latest_teams_map.get(star, star_team)
+                        if current_real_team != star_team:
+                            continue # Si la estrella fue traspasada, no cuenta como baja del equipo viejo
+
+                        if star_team == team and (star not in players_present):
+                            missing_stars_today.append(star)
                     
-                    # Si la estrella pertenece a un equipo que jugó y NO estuvo presente
-                    if (star_team in teams_active) and (star not in players_present):
-                        
-                        teammates = roster_day[roster_day['team_abbreviation'] == star_team]
-                        
-                        best_pts_diff, beneficiary_pts = -1, None
-                        best_reb_diff, beneficiary_reb = -1, None
-                        best_ast_diff, beneficiary_ast = -1, None
+                    if missing_stars_today:
+                        teammates = roster_day[roster_day['team_abbreviation'] == team]
+                        beneficiaries = []
                         
                         for _, row in teammates.iterrows():
                             p_name = row['player_name']
@@ -358,33 +386,41 @@ elif opcion == "⚔️ Analizar Partido":
                             diff_reb = row['reb'] - avg_p['reb']
                             diff_ast = row['ast'] - avg_p['ast']
                             
-                            # LOGICA ESTRICTA DE PATRONES:
+                            impact_msgs = []
+                            # Filtros estrictos de impacto
+                            if any(s in star_scorers for s in missing_stars_today):
+                                if row['pts'] >= 15 and diff_pts >= 8:
+                                    impact_msgs.append(f"🏀 +{int(diff_pts)} PTS")
                             
-                            # 1. PUNTOS: La estrella debe ser anotadora (>18) Y el beneficiario debe anotar mucho (>15) y mejorar mucho (+8)
-                            if star in star_scorers:
-                                if row['pts'] >= 15 and diff_pts >= 8 and diff_pts > best_pts_diff:
-                                    best_pts_diff = diff_pts
-                                    beneficiary_pts = f"🏀 {p_name} (+{int(diff_pts)} PTS)"
-                            
-                            # 2. REBOTES: La estrella debe ser reboteadora (>7) Y el beneficiario coger muchos (>7) y mejorar (+4)
-                            if star in star_rebounders:
-                                if row['reb'] >= 7 and diff_reb >= 4 and diff_reb > best_reb_diff:
-                                    best_reb_diff = diff_reb
-                                    beneficiary_reb = f"🖐 {p_name} (+{int(diff_reb)} REB)"
+                            if any(s in star_rebounders for s in missing_stars_today):
+                                if row['reb'] >= 7 and diff_reb >= 4:
+                                    impact_msgs.append(f"🖐 +{int(diff_reb)} REB")
                                     
-                            # 3. ASISTENCIAS: La estrella debe ser asistente (>5) Y el beneficiario dar muchas (>5) y mejorar (+4)
-                            if star in star_assisters:
-                                if row['ast'] >= 5 and diff_ast >= 4 and diff_ast > best_ast_diff:
-                                    best_ast_diff = diff_ast
-                                    beneficiary_ast = f"🎁 {p_name} (+{int(diff_ast)} AST)"
+                            if any(s in star_assisters for s in missing_stars_today):
+                                if row['ast'] >= 5 and diff_ast >= 4:
+                                    impact_msgs.append(f"🎁 +{int(diff_ast)} AST")
+                            
+                            if impact_msgs:
+                                beneficiaries.append(f"<b>{p_name}</b> ({', '.join(impact_msgs)})")
                         
-                        date_str = date.strftime('%d/%m')
-                        if beneficiary_pts: patterns_data.append({'FECHA': date_str, 'BAJA': star, 'IMPACTO': beneficiary_pts})
-                        if beneficiary_reb: patterns_data.append({'FECHA': date_str, 'BAJA': star, 'IMPACTO': beneficiary_reb})
-                        if beneficiary_ast: patterns_data.append({'FECHA': date_str, 'BAJA': star, 'IMPACTO': beneficiary_ast})
+                        if beneficiaries:
+                            date_str = date.strftime('%d/%m')
+                            missing_str = ", ".join(missing_stars_today)
+                            impact_str = "<br>".join(beneficiaries)
+                            
+                            formatted_missing = f"<span class='pat-stars'>{missing_str}</span>"
+                            formatted_impact = f"<span class='pat-impact'>{impact_str}</span>"
+                            
+                            patterns_data.append({
+                                'FECHA': date_str, 
+                                'EQUIPO': team,
+                                'BAJAS ESTELARES': formatted_missing, 
+                                'IMPACTO': formatted_impact
+                            })
 
             if patterns_data:
                 df_patterns = pd.DataFrame(patterns_data)
-                mostrar_tabla_bonita(df_patterns, None)
+                html_pat = df_patterns.style.hide(axis="index").to_html(classes="custom-table")
+                st.markdown(f"<div class='table-wrapper'>{html_pat}</div>", unsafe_allow_html=True)
             else:
                 st.write("No se detectaron impactos significativos por bajas en estos partidos.")
