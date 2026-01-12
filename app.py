@@ -10,9 +10,23 @@ from nba_api.stats.endpoints import leaguegamelog
 # ==========================================
 st.set_page_config(page_title="NBA Analyzer Pro", page_icon="🏀", layout="wide")
 
-# --- CSS: MODO OSCURO + CENTRADO ---
+# --- CSS: FUENTES + MODO OSCURO + ESTILOS ---
 st.markdown("""
     <style>
+    /* IMPORTAR FUENTE DEPORTIVA (TEKO) */
+    @import url('https://fonts.googleapis.com/css2?family=Teko:wght@300..700&display=swap');
+
+    /* Estilo del Título Principal */
+    h1 {
+        font-family: 'Teko', sans-serif !important;
+        font-size: 60px !important;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        text-shadow: 2px 2px 4px #000000;
+        text-align: center;
+        margin-bottom: 10px;
+    }
+
     /* Estilo para las tarjetas de métricas */
     div[data-testid="stMetric"] {
         background-color: #262730;
@@ -21,7 +35,8 @@ st.markdown("""
         border-radius: 10px;
         color: white;
     }
-    h1, h2, h3 { text-align: center; }
+    
+    h2, h3 { text-align: center; }
     
     /* ESTILOS TABLA HTML */
     table {
@@ -96,6 +111,16 @@ st.markdown("""
     .leg-player { font-weight: bold; color: white; font-size: 14px; text-align: left; }
     .leg-val { font-weight: bold; font-size: 18px; text-align: right; }
     .leg-stat { color: #aaaaaa; font-size: 11px; display: block; margin-top: 4px; text-align: right; }
+    
+    /* Créditos Footer */
+    .credits {
+        font-family: 'Teko', sans-serif;
+        font-size: 20px;
+        color: #888;
+        text-align: center;
+        margin-top: 20px;
+        letter-spacing: 1px;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -159,7 +184,8 @@ def load_data():
 # INTERFAZ PRINCIPAL
 # ==========================================
 
-st.markdown("<h1 style='text-align: center;'>🏀 NBA Pro Analyzer (Mobile)</h1>", unsafe_allow_html=True)
+# TÍTULO PRINCIPAL (Con la nueva fuente y emojis)
+st.markdown("<h1>🏀 NBA Pro Analyzer 🏀</h1>", unsafe_allow_html=True)
 
 st.sidebar.header("Menú de Control")
 opcion = st.sidebar.radio("Selecciona modo:", ["🏠 Inicio", "👤 Analizar Jugador", "⚔️ Analizar Partido", "🔄 Actualizar Datos"])
@@ -185,13 +211,15 @@ def mostrar_tabla_bonita(df_raw, col_principal_espanol):
 
 if opcion == "🏠 Inicio":
     st.info("Bienvenido. Usa el menú de la izquierda para navegar.")
-    st.markdown("---")
     
     if df.empty:
         st.warning("⚠️ No hay datos. Ve a 'Actualizar Datos' primero.")
     else:
         st.write(f"Datos cargados: **{len(df)}** registros.")
         st.write("Última actualización: ", df['game_date'].max().strftime('%d/%m/%Y') if not df.empty else "N/A")
+    
+    st.markdown("---")
+    st.markdown("<div class='credits'>👨‍💻 Creado por ad.ri.</div>", unsafe_allow_html=True)
 
 elif opcion == "🔄 Actualizar Datos":
     st.write("### 🔄 Sincronización con NBA API")
@@ -292,7 +320,6 @@ elif opcion == "⚔️ Analizar Partido":
             ).reset_index()
 
             # --- FILTRO CRÍTICO: SOLO JUGADORES ACTUALES ---
-            # Si el equipo actual del jugador (según su último partido global) NO es t1 ni t2, se elimina.
             stats = stats[stats['player_name'].apply(lambda x: latest_teams_map.get(x) in [t1, t2])]
 
             # Status visual
@@ -498,15 +525,14 @@ elif opcion == "⚔️ Analizar Partido":
                 if smart_min_ast >= 4: 
                     safe_legs_ast.append({'player': p_name, 'val': int(smart_min_ast), 'score': avg_ast, 'desc': f"Suelo vs Rival"})
 
-                # LOGICA RISKY (La media debe ser notablemente superior al suelo)
-                # NOTA: He bajado ligeramente la exigencia a 1.0 para que salgan más picks si lo deseas.
-                if avg_pts >= 15 and avg_pts > (smart_min_pts + 2):
+                # LOGICA RISKY (Modificada a +1 para ser un poco más flexible y que salgan más picks)
+                if avg_pts >= 15 and avg_pts > (smart_min_pts + 1.0):
                     risky_legs_pts.append({'player': p_name, 'val': int(avg_pts), 'score': avg_pts, 'desc': f"Media vs Rival (Alto Valor)"})
                 
-                if avg_reb >= 8 and avg_reb > (smart_min_reb + 1):
+                if avg_reb >= 8 and avg_reb > (smart_min_reb + 1.0):
                     risky_legs_reb.append({'player': p_name, 'val': int(avg_reb), 'score': avg_reb, 'desc': f"Media vs Rival (Alto Valor)"})
 
-                if avg_ast >= 6 and avg_ast > (smart_min_ast + 1):
+                if avg_ast >= 6 and avg_ast > (smart_min_ast + 1.0):
                     risky_legs_ast.append({'player': p_name, 'val': int(avg_ast), 'score': avg_ast, 'desc': f"Media vs Rival (Alto Valor)"})
 
             # Ordenar
