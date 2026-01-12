@@ -217,7 +217,7 @@ elif opcion == "👤 Analizar Jugador":
         if jugador:
             player_data = df[df['player_name'] == jugador].sort_values('game_date', ascending=False)
             
-            # AQUI ESTA EL CAMBIO: Selectbox en lugar de text_input
+            # Selectbox para rival
             rival = st.selectbox("Filtrar vs Rival (Opcional):", todos_equipos, index=None, placeholder="Selecciona equipo rival...")
             
             c1, c2, c3, c4 = st.columns(4)
@@ -291,6 +291,10 @@ elif opcion == "⚔️ Analizar Partido":
                 gp=('game_date', 'count')
             ).reset_index()
 
+            # --- FILTRO CRÍTICO: SOLO JUGADORES ACTUALES ---
+            # Si el equipo actual del jugador (según su último partido global) NO es t1 ni t2, se elimina.
+            stats = stats[stats['player_name'].apply(lambda x: latest_teams_map.get(x) in [t1, t2])]
+
             # Status visual
             status_list = []
             for idx, row in stats.iterrows():
@@ -320,28 +324,38 @@ elif opcion == "⚔️ Analizar Partido":
             # TABLAS PRINCIPALES
             st.subheader("🔥 Top Reboteadores")
             reb_df = stats.sort_values('reb', ascending=False).head(15).copy()
-            reb_final = reb_df[['player_name', 'team_abbreviation', 'STATUS_HTML', 'reb', 'trend_reb', 'trend_min']]
-            reb_final.columns = ['JUGADOR', 'EQUIPO', 'STATUS', 'REB', 'RACHA', 'MIN (SEQ)']
-            mostrar_tabla_bonita(reb_final, 'REB')
+            if not reb_df.empty:
+                reb_final = reb_df[['player_name', 'team_abbreviation', 'STATUS_HTML', 'reb', 'trend_reb', 'trend_min']]
+                reb_final.columns = ['JUGADOR', 'EQUIPO', 'STATUS', 'REB', 'RACHA', 'MIN (SEQ)']
+                mostrar_tabla_bonita(reb_final, 'REB')
+            else:
+                st.info("Sin datos suficientes.")
             
             st.subheader("🎯 Top Anotadores")
             pts_df = stats.sort_values('pts', ascending=False).head(15).copy()
-            pts_final = pts_df[['player_name', 'team_abbreviation', 'STATUS_HTML', 'pts', 'trend_pts', 'trend_min']]
-            pts_final.columns = ['JUGADOR', 'EQUIPO', 'STATUS', 'PTS', 'RACHA', 'MIN (SEQ)']
-            mostrar_tabla_bonita(pts_final, 'PTS')
+            if not pts_df.empty:
+                pts_final = pts_df[['player_name', 'team_abbreviation', 'STATUS_HTML', 'pts', 'trend_pts', 'trend_min']]
+                pts_final.columns = ['JUGADOR', 'EQUIPO', 'STATUS', 'PTS', 'RACHA', 'MIN (SEQ)']
+                mostrar_tabla_bonita(pts_final, 'PTS')
+            else:
+                st.info("Sin datos suficientes.")
             
             st.subheader("🤝 Top Asistentes")
             ast_df = stats.sort_values('ast', ascending=False).head(15).copy()
-            ast_final = ast_df[['player_name', 'team_abbreviation', 'STATUS_HTML', 'ast', 'trend_ast', 'trend_min']]
-            ast_final.columns = ['JUGADOR', 'EQUIPO', 'STATUS', 'AST', 'RACHA', 'MIN (SEQ)']
-            mostrar_tabla_bonita(ast_final, 'AST')
+            if not ast_df.empty:
+                ast_final = ast_df[['player_name', 'team_abbreviation', 'STATUS_HTML', 'ast', 'trend_ast', 'trend_min']]
+                ast_final.columns = ['JUGADOR', 'EQUIPO', 'STATUS', 'AST', 'RACHA', 'MIN (SEQ)']
+                mostrar_tabla_bonita(ast_final, 'AST')
+            else:
+                st.info("Sin datos suficientes.")
             
             # --- BAJAS POR EQUIPO ---
             st.write("---")
             st.subheader("🏥 Historial de Bajas (Por Equipo)")
             
             avg_mins = recent_players.groupby(['player_name', 'team_abbreviation'])['min'].mean()
-            key_players_list = avg_mins[avg_mins > 12.0].index.tolist() 
+            # Filtramos también las bajas para que no salgan jugadores traspasados
+            active_key_players = [p for p in avg_mins[avg_mins > 12.0].index.tolist() if latest_teams_map.get(p[0]) in [t1, t2]]
             
             dnp_table_data = []
             for date in last_dates:
@@ -350,7 +364,7 @@ elif opcion == "⚔️ Analizar Partido":
                 missing_t1 = []
                 missing_t2 = []
                 
-                for p_name, p_team in key_players_list:
+                for p_name, p_team in active_key_players:
                     current_real_team = latest_teams_map.get(p_name, p_team)
                     if current_real_team != p_team: continue 
 
@@ -390,6 +404,7 @@ elif opcion == "⚔️ Analizar Partido":
                     missing_stars_today = []
                     for star in all_stars:
                         current_real_team = latest_teams_map.get(star, None)
+                        # Verificamos que sea del equipo Y que siga en el equipo
                         if current_real_team == team and (star not in players_present):
                             missing_stars_today.append(star)
                     
@@ -398,6 +413,9 @@ elif opcion == "⚔️ Analizar Partido":
                         beneficiaries = []
                         for _, row in teammates.iterrows():
                             p_name = row['player_name']
+                            # Solo analizamos si sigue en el equipo
+                            if latest_teams_map.get(p_name) != team: continue
+
                             if p_name in global_means.index: avg_p = global_means.loc[p_name]
                             else: continue 
                             
@@ -481,13 +499,14 @@ elif opcion == "⚔️ Analizar Partido":
                     safe_legs_ast.append({'player': p_name, 'val': int(smart_min_ast), 'score': avg_ast, 'desc': f"Suelo vs Rival"})
 
                 # LOGICA RISKY (La media debe ser notablemente superior al suelo)
-                if avg_pts >= 15 and avg_pts > (smart_min_pts + 3):
+                # NOTA: He bajado ligeramente la exigencia a 1.0 para que salgan más picks si lo deseas.
+                if avg_pts >= 15 and avg_pts > (smart_min_pts + 2):
                     risky_legs_pts.append({'player': p_name, 'val': int(avg_pts), 'score': avg_pts, 'desc': f"Media vs Rival (Alto Valor)"})
                 
-                if avg_reb >= 8 and avg_reb > (smart_min_reb + 1.5):
+                if avg_reb >= 8 and avg_reb > (smart_min_reb + 1):
                     risky_legs_reb.append({'player': p_name, 'val': int(avg_reb), 'score': avg_reb, 'desc': f"Media vs Rival (Alto Valor)"})
 
-                if avg_ast >= 6 and avg_ast > (smart_min_ast + 1.5):
+                if avg_ast >= 6 and avg_ast > (smart_min_ast + 1):
                     risky_legs_ast.append({'player': p_name, 'val': int(avg_ast), 'score': avg_ast, 'desc': f"Media vs Rival (Alto Valor)"})
 
             # Ordenar
