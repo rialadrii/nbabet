@@ -208,12 +208,17 @@ elif opcion == "👤 Analizar Jugador":
     if df.empty:
         st.error("Primero actualiza los datos.")
     else:
+        # Listas para los desplegables
         todos_jugadores = sorted(df['player_name'].unique())
-        jugador = st.selectbox("Escribe el nombre:", todos_jugadores, index=None, placeholder="Ej: Kevin Love")
+        todos_equipos = sorted(df['team_abbreviation'].unique())
+
+        jugador = st.selectbox("Escribe el nombre del Jugador:", todos_jugadores, index=None, placeholder="Ej: Kevin Love")
         
         if jugador:
             player_data = df[df['player_name'] == jugador].sort_values('game_date', ascending=False)
-            rival = st.text_input("Filtrar vs Rival (Opcional, ej: CHA):").upper()
+            
+            # AQUI ESTA EL CAMBIO: Selectbox en lugar de text_input
+            rival = st.selectbox("Filtrar vs Rival (Opcional):", todos_equipos, index=None, placeholder="Selecciona equipo rival...")
             
             c1, c2, c3, c4 = st.columns(4)
             c1.metric("PTS", f"{player_data['pts'].mean():.1f}")
@@ -238,6 +243,8 @@ elif opcion == "👤 Analizar Jugador":
                     view_h2h.columns = ['FECHA', 'PARTIDO', 'MIN', 'PTS', 'REB', 'AST']
                     view_h2h['FECHA'] = view_h2h['FECHA'].dt.strftime('%d/%m/%Y')
                     mostrar_tabla_bonita(view_h2h, None)
+                else:
+                    st.info(f"No hay registros recientes de {jugador} contra {rival}.")
 
 elif opcion == "⚔️ Analizar Partido":
     st.header("⚔️ Análisis de Choque")
