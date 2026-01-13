@@ -12,119 +12,31 @@ from nba_api.stats.static import teams as nba_static_teams
 # ==========================================
 st.set_page_config(page_title="NBA Analyzer Pro", page_icon="🏀", layout="wide")
 
-# --- CSS: FUENTES + MODO OSCURO + ESTILOS ---
+# --- CSS: FUENTE TEKO + DISEÑO LIMPIO ---
 st.markdown("""
     <style>
-    /* IMPORTAR FUENTE DEPORTIVA (TEKO) */
     @import url('https://fonts.googleapis.com/css2?family=Teko:wght@300..700&display=swap');
 
-    /* Estilo del Título Principal */
+    /* Título principal con balones a los lados */
     h1 {
         font-family: 'Teko', sans-serif !important;
-        font-size: 60px !important;
+        font-size: 65px !important;
         text-transform: uppercase;
-        letter-spacing: 2px;
-        text-shadow: 2px 2px 4px #000000;
+        letter-spacing: 3px;
         text-align: center;
-        margin-bottom: 10px;
-    }
-
-    /* Estilo para las tarjetas de métricas */
-    div[data-testid="stMetric"] {
-        background-color: #262730;
-        border: 1px solid #464b5f;
-        padding: 10px;
-        border-radius: 10px;
+        margin-bottom: 30px;
         color: white;
     }
-    
-    h2, h3 { text-align: center; }
-    
-    /* ESTILOS TABLA HTML */
-    table {
-        width: 100%;
-        border-collapse: collapse;
-        margin-bottom: 20px;
-        color: white; 
-        font-family: sans-serif;
-    }
-    th {
-        background-color: #31333F;
-        color: white;
-        font-weight: bold;
-        text-align: center !important; 
-        padding: 10px;
-        border-bottom: 2px solid #464b5f;
-        text-transform: uppercase;
-    }
-    td {
-        text-align: center !important; 
-        padding: 8px;
-        border-bottom: 1px solid #464b5f;
-        font-size: 14px;
-        vertical-align: middle;
-    }
-    div.table-wrapper {
-        overflow-x: auto;
-    }
-    
-    /* Estilos específicos para STATUS */
-    .status-played { color: #4caf50; font-weight: bold; font-size: 16px; }
-    .status-missed { color: #ff5252; font-weight: bold; font-size: 16px; }
-    .status-date { font-size: 10px; color: #aaaaaa; display: block; }
-    .status-cell { display: inline-block; margin: 0 4px; text-align: center; }
 
-    /* Estilos para la tabla de BAJAS */
-    .dnp-full { color: #4caf50; font-weight: bold; }
-    .dnp-missing { color: #ff5252; }
-    
-    /* Estilos para Patrones */
-    .pat-stars { color: #ffbd45; font-weight: bold; }
-    .pat-impact { color: #4caf50; font-weight: bold; }
-
-    /* ESTILO TICKET PARLAY */
-    .parlay-box {
-        background-color: #1e1e1e;
-        border: 1px solid #444;
-        border-radius: 15px;
-        padding: 15px;
-        margin-bottom: 20px;
-        text-align: center;
-    }
-    .parlay-header {
-        font-size: 20px;
-        font-weight: bold;
-        margin-bottom: 15px;
+    /* Estilo de los encabezados de jornada */
+    h3 {
+        font-family: 'Teko', sans-serif !important;
+        font-size: 35px !important;
         text-transform: uppercase;
-        letter-spacing: 1px;
-        border-bottom: 1px solid #444;
-        padding-bottom: 10px;
-    }
-    .parlay-leg {
-        background-color: #2d2d2d;
-        margin: 10px 0;
-        padding: 10px;
-        border-radius: 8px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.3);
-    }
-    .leg-player { font-weight: bold; color: white; font-size: 14px; text-align: left; }
-    .leg-val { font-weight: bold; font-size: 18px; text-align: right; }
-    .leg-stat { color: #aaaaaa; font-size: 11px; display: block; margin-top: 4px; text-align: right; }
-    
-    /* Créditos Footer */
-    .credits {
-        font-family: 'Teko', sans-serif;
-        font-size: 20px;
-        color: #888;
-        text-align: center;
-        margin-top: 20px;
         letter-spacing: 1px;
     }
 
-    /* CALENDARIO CARDS MEJORADO */
+    /* Tarjetas del calendario */
     .game-card {
         background-color: #2d2d2d;
         border: 1px solid #444;
@@ -132,62 +44,64 @@ st.markdown("""
         padding: 15px;
         margin-bottom: 15px;
         text-align: center;
-        transition: transform 0.2s;
     }
-    .game-card:hover {
-        transform: scale(1.02);
-        border-color: #666;
-    }
-    .game-matchup {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        gap: 15px;
-        margin-bottom: 10px;
-    }
-    .team-logo {
-        width: 45px;
-        height: 45px;
-        object-fit: contain;
-    }
-    .vs-text {
-        font-weight: bold;
-        font-size: 14px;
-        color: #888;
-    }
+    .game-matchup { display: flex; justify-content: center; align-items: center; gap: 15px; margin-bottom: 10px; }
+    .team-logo { width: 45px; height: 45px; object-fit: contain; }
+    .vs-text { font-weight: bold; font-size: 14px; color: #888; }
     .game-time { 
         color: #ffbd45; 
-        font-size: 18px; 
+        font-size: 24px; 
         font-weight: bold; 
-        font-family: 'Teko', sans-serif;
-        letter-spacing: 1px;
+        font-family: 'Teko', sans-serif; 
+        margin-top: 5px;
     }
-    .game-status { color: #aaa; font-size: 12px; }
+    
     .injuries-link {
-        font-size: 12px;
+        font-size: 13px;
         color: #4caf50;
         text-decoration: none;
         border: 1px solid #4caf50;
-        padding: 4px 8px;
-        border-radius: 4px;
-        margin-top: 8px;
+        padding: 5px 10px;
+        border-radius: 5px;
+        margin-top: 10px;
         display: inline-block;
     }
-    .injuries-link:hover {
-        background-color: #4caf50;
-        color: white;
+
+    /* Enlace de la ficha del partido en la tabla */
+    a.match-link {
+        color: #2196f3 !important;
+        text-decoration: none;
+        font-weight: bold;
+        border: 1px solid #2196f3;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 12px;
     }
+    a.match-link:hover {
+        background-color: #2196f3;
+        color: white !important;
+    }
+
+    .credits { 
+        font-family: 'Teko', sans-serif; 
+        font-size: 24px; 
+        color: #666; 
+        text-align: center; 
+        margin-top: 40px; 
+    }
+    
+    /* Ajustes tabla */
+    table { width: 100%; border-collapse: collapse; margin-bottom: 20px; color: white; font-family: sans-serif; }
+    th { background-color: #31333F; color: white; font-weight: bold; text-align: center !important; padding: 10px; border-bottom: 2px solid #464b5f; text-transform: uppercase; }
+    td { text-align: center !important; padding: 8px; border-bottom: 1px solid #464b5f; font-size: 14px; vertical-align: middle; }
     </style>
     """, unsafe_allow_html=True)
 
 # ==========================================
-# LÓGICA DE BASE DE DATOS Y DESCARGA
+# LÓGICA DE DATOS
 # ==========================================
-DB_PATH = "nba.sqlite"
 CSV_FOLDER = "csv"
-
-if not os.path.exists(CSV_FOLDER):
-    os.makedirs(CSV_FOLDER)
+if not os.path.exists(CSV_FOLDER): os.makedirs(CSV_FOLDER)
 
 def download_data():
     progress_text = "Descargando datos de la NBA (2024-2026)... Por favor espera."
@@ -209,12 +123,14 @@ def download_data():
 
     if all_seasons_data:
         full_df = pd.concat(all_seasons_data, ignore_index=True)
-        cols_needed = ['PLAYER_ID', 'PLAYER_NAME', 'TEAM_ABBREVIATION', 'GAME_DATE', 'MATCHUP', 'PTS', 'REB', 'AST', 'MIN', 'WL']
+        # --- AÑADIDO 'GAME_ID' A LAS COLUMNAS NECESARIAS ---
+        cols_needed = ['PLAYER_ID', 'PLAYER_NAME', 'TEAM_ABBREVIATION', 'GAME_DATE', 'MATCHUP', 'PTS', 'REB', 'AST', 'MIN', 'WL', 'GAME_ID']
         cols_final = [c for c in cols_needed if c in full_df.columns]
         df_clean = full_df[cols_final].copy()
         df_clean.columns = df_clean.columns.str.lower()
         
         df_clean.to_csv(f'{CSV_FOLDER}/player_stats.csv', index=False)
+        # SQLite opcional, lo mantenemos por si lo usas luego
         conn = sqlite3.connect(DB_PATH)
         df_clean.to_sql('player', conn, if_exists='replace', index=False)
         conn.close()
@@ -229,154 +145,99 @@ def load_data():
     csv_path = f"{CSV_FOLDER}/player_stats.csv"
     if os.path.exists(csv_path):
         df = pd.read_csv(csv_path)
-        if 'game_date' in df.columns:
-            df['game_date'] = pd.to_datetime(df['game_date'])
-        if 'min' in df.columns:
-            df['min'] = pd.to_numeric(df['min'], errors='coerce')
+        if 'game_date' in df.columns: df['game_date'] = pd.to_datetime(df['game_date'])
+        # Asegurarnos de que game_id sea string para que no pierda ceros iniciales
+        if 'game_id' in df.columns: df['game_id'] = df['game_id'].astype(str).str.zfill(10)
         return df
     return pd.DataFrame()
 
-# --- FUNCIONES DE CALENDARIO Y HORA ---
-
 def convertir_hora_espanol(hora_et):
-    """Convierte '7:00 pm ET' a formato 24h España (+6h aprox)"""
-    if "Final" in hora_et:
-        return "Finalizado"
-    if "pm" not in hora_et.lower() and "am" not in hora_et.lower():
-        return hora_et # Por si devuelve otro estado
-        
+    if "Final" in hora_et: return "FINALIZADO"
     try:
-        # Limpiar string
         hora_clean = hora_et.replace(" ET", "").strip()
-        # Parsear hora
         dt = datetime.strptime(hora_clean, "%I:%M %p")
-        # Sumar 6 horas (Aprox ET a CET)
         dt_spain = dt + timedelta(hours=6)
         return dt_spain.strftime("%H:%M")
-    except:
-        return hora_et
+    except: return hora_et
 
-def obtener_partidos_hoy_manana():
+def obtener_partidos():
     nba_teams = nba_static_teams.get_teams()
     team_map = {t['id']: t['abbreviation'] for t in nba_teams}
-    
     fechas = [datetime.now(), datetime.now() + timedelta(days=1)]
     agenda = {}
-    
     for fecha in fechas:
         fecha_str = fecha.strftime('%Y-%m-%d')
-        # Determinar etiqueta
-        is_today = fecha.date() == datetime.now().date()
-        label = "JORNADA DE HOY" if is_today else "JORNADA DE MAÑANA"
+        label = "HOY" if fecha.date() == datetime.now().date() else "MAÑANA"
         agenda[label] = []
-        
         try:
             board = scoreboardv2.ScoreboardV2(game_date=fecha_str)
             games = board.game_header.get_data_frame()
-            
             if not games.empty:
                 for _, game in games.iterrows():
-                    home_id = game['HOME_TEAM_ID']
-                    visitor_id = game['VISITOR_TEAM_ID']
-                    home_abv = team_map.get(home_id, "N/A")
-                    vis_abv = team_map.get(visitor_id, "N/A")
-                    status_raw = game['GAME_STATUS_TEXT'] 
-                    
-                    # Convertir hora
-                    hora_esp = convertir_hora_espanol(status_raw)
-                    
-                    # URLs de logos
-                    logo_home = f"https://cdn.nba.com/logos/nba/{home_id}/global/L/logo.svg"
-                    logo_vis = f"https://cdn.nba.com/logos/nba/{visitor_id}/global/L/logo.svg"
-                    
-                    # Link a reporte de bajas (Rotowire es fiable)
-                    injury_url = f"https://www.rotowire.com/basketball/nba-lineups.php" 
-
+                    h_id, v_id = game['HOME_TEAM_ID'], game['VISITOR_TEAM_ID']
                     agenda[label].append({
-                        'h_abv': home_abv,
-                        'v_abv': vis_abv,
-                        'h_logo': logo_home,
-                        'v_logo': logo_vis,
-                        'time': hora_esp,
-                        'raw_status': status_raw,
-                        'injury_link': injury_url
+                        'v_abv': team_map.get(v_id), 'h_abv': team_map.get(h_id),
+                        'v_logo': f"https://cdn.nba.com/logos/nba/{v_id}/global/L/logo.svg",
+                        'h_logo': f"https://cdn.nba.com/logos/nba/{h_id}/global/L/logo.svg",
+                        'time': convertir_hora_espanol(game['GAME_STATUS_TEXT'])
                     })
-        except:
-            pass
-            
+        except: pass
     return agenda
 
-# ==========================================
-# INTERFAZ PRINCIPAL
-# ==========================================
-
-st.markdown("<h1>🏀 NBA Pro Analyzer 🏀</h1>", unsafe_allow_html=True)
-
-st.sidebar.header("Menú de Control")
-opcion = st.sidebar.radio("Selecciona modo:", ["🏠 Inicio", "👤 Analizar Jugador", "⚔️ Analizar Partido", "🔄 Actualizar Datos"])
-
-df = load_data()
-
-latest_teams_map = {}
-if not df.empty:
-    latest_entries = df.sort_values('game_date').drop_duplicates('player_name', keep='last')
-    latest_teams_map = dict(zip(latest_entries['player_name'], latest_entries['team_abbreviation']))
-
-# --- FUNCION PARA MOSTRAR TABLA LIMPIA ---
+# --- MODIFICADO: FUNCIÓN PARA MOSTRAR TABLA CON HTML (LINKS) ---
 def mostrar_tabla_bonita(df_raw, col_principal_espanol):
+    # Columnas numéricas para formatear
     cols_fmt = [c for c in df_raw.columns if c in ['PTS', 'REB', 'AST']] 
     
     html = df_raw.style\
         .format("{:.1f}", subset=cols_fmt)\
         .background_gradient(subset=[col_principal_espanol] if col_principal_espanol else None, cmap='YlOrBr' if col_principal_espanol=='REB' else ('Greens' if col_principal_espanol=='PTS' else ('Blues' if col_principal_espanol=='AST' else None)))\
         .hide(axis="index")\
-        .to_html(classes="custom-table")
+        .to_html(classes="custom-table", escape=False) # escape=False es CLAVE para que funcione el link
     
     st.markdown(f"<div class='table-wrapper'>{html}</div>", unsafe_allow_html=True)
 
-if opcion == "🏠 Inicio":
-    
-    # --- CALENDARIO DE PARTIDOS ---
-    st.write("---")
-    
-    with st.spinner("Cargando agenda de la NBA..."):
-        agenda = obtener_partidos_hoy_manana()
-    
-    col_hoy, col_manana = st.columns(2)
-    
-    def render_calendar_col(col, title, games, color_title):
-        with col:
-            st.markdown(f"<h3 style='color:{color_title}; text-align: center;'>{title}</h3>", unsafe_allow_html=True)
-            if games:
-                for game in games:
-                    st.markdown(f"""
-                    <div class='game-card'>
-                        <div class='game-matchup'>
-                            <img src='{game['v_logo']}' class='team-logo'>
-                            <span class='vs-text'>@</span>
-                            <img src='{game['h_logo']}' class='team-logo'>
-                        </div>
-                        <div class='game-teams'>{game['v_abv']} vs {game['h_abv']}</div>
-                        <div class='game-time'>{game['time']}</div>
-                        <a href='{game['injury_link']}' target='_blank' class='injuries-link'>🏥 Ver Bajas / Lineups</a>
-                    </div>
-                    """, unsafe_allow_html=True)
-            else:
-                st.caption("No hay partidos programados.")
+# ==========================================
+# INTERFAZ (Pestaña Inicio)
+# ==========================================
+st.markdown("<h1>🏀 NBA PRO ANALYZER 🏀</h1>", unsafe_allow_html=True)
 
-    render_calendar_col(col_hoy, "JORNADA DE HOY (Madrugada)", agenda.get("JORNADA DE HOY", []), "#4caf50")
-    render_calendar_col(col_manana, "JORNADA DE MAÑANA", agenda.get("JORNADA DE MAÑANA", []), "#2196f3")
-            
-    st.write("---")
+opcion = st.sidebar.radio("Menú:", ["🏠 Inicio", "👤 Jugador", "⚔️ Analizar Partido", "🔄 Actualizar Datos"])
+df = load_data()
+
+if opcion == "🏠 Inicio":
+    agenda = obtener_partidos()
+    c1, c2 = st.columns(2)
     
-    if df.empty:
-        st.warning("⚠️ No hay datos históricos. Ve a 'Actualizar Datos' primero.")
-    else:
-        st.write(f"Base de Datos Histórica: **{len(df)}** registros cargados.")
-        st.write("Última actualización de datos: ", df['game_date'].max().strftime('%d/%m/%Y') if not df.empty else "N/A")
-    
-    st.markdown("---")
-    st.markdown("<div class='credits'>👨‍💻 Creado por ad.ri.</div>", unsafe_allow_html=True)
+    with c1:
+        st.markdown("<h3 style='color:#4caf50; text-align: center;'>JORNADA DE HOY (Madrugada)</h3>", unsafe_allow_html=True)
+        for g in agenda.get("HOY", []):
+            st.markdown(f"""
+            <div class='game-card'>
+                <div class='game-matchup'>
+                    <img src='{g['v_logo']}' class='team-logo'> <span class='vs-text'>@</span> <img src='{g['h_logo']}' class='team-logo'>
+                </div>
+                <div style='color:white; font-weight:bold;'>{g['v_abv']} vs {g['h_abv']}</div>
+                <div class='game-time'>{g['time']}</div>
+                <a href='https://www.rotowire.com/basketball/nba-lineups.php' target='_blank' class='injuries-link'>🏥 Ver Bajas / Lineups</a>
+            </div>
+            """, unsafe_allow_html=True)
+
+    with c2:
+        st.markdown("<h3 style='color:#2196f3; text-align: center;'>JORNADA DE MAÑANA</h3>", unsafe_allow_html=True)
+        for g in agenda.get("MAÑANA", []):
+            st.markdown(f"""
+            <div class='game-card'>
+                <div class='game-matchup'>
+                    <img src='{g['v_logo']}' class='team-logo'> <span class='vs-text'>@</span> <img src='{g['h_logo']}' class='team-logo'>
+                </div>
+                <div style='color:white; font-weight:bold;'>{g['v_abv']} vs {g['h_abv']}</div>
+                <div class='game-time'>{g['time']}</div>
+                <a href='https://www.rotowire.com/basketball/nba-lineups.php' target='_blank' class='injuries-link'>🏥 Ver Bajas / Lineups</a>
+            </div>
+            """, unsafe_allow_html=True)
+
+    st.markdown("<div class='credits'>Creado por ad.ri.</div>", unsafe_allow_html=True)
 
 elif opcion == "🔄 Actualizar Datos":
     st.write("### 🔄 Sincronización con NBA API")
@@ -411,19 +272,42 @@ elif opcion == "👤 Analizar Jugador":
             
             st.subheader("Últimos 5 Partidos")
             
-            view = player_data[['game_date', 'matchup', 'min', 'pts', 'reb', 'ast']].head(5).copy()
+            # --- MODIFICADO: AÑADIR LINK DE FICHA ---
+            cols_to_view = ['game_date', 'matchup', 'min', 'pts', 'reb', 'ast']
+            if 'game_id' in player_data.columns:
+                cols_to_view.append('game_id')
+            
+            view = player_data[cols_to_view].head(5).copy()
             view['min'] = view['min'].astype(int)
-            view.columns = ['FECHA', 'PARTIDO', 'MIN', 'PTS', 'REB', 'AST']
+            
+            # Crear columna de link si existe game_id
+            if 'game_id' in view.columns:
+                view['FICHA'] = view['game_id'].apply(lambda x: f"<a href='https://www.nba.com/game/{x}' target='_blank' class='match-link'>📊 Ver</a>")
+                view = view.drop(columns=['game_id'])
+                # Reordenar
+                view = view[['game_date', 'matchup', 'FICHA', 'min', 'pts', 'reb', 'ast']]
+            
+            view.columns = ['FECHA', 'PARTIDO', 'FICHA', 'MIN', 'PTS', 'REB', 'AST'] if 'FICHA' in view.columns else ['FECHA', 'PARTIDO', 'MIN', 'PTS', 'REB', 'AST']
             view['FECHA'] = view['FECHA'].dt.strftime('%d/%m/%Y') 
+            
+            if 'FICHA' not in view.columns:
+                st.warning("⚠️ Pulsa 'Actualizar Datos' para ver los enlaces a las fichas.")
+                
             mostrar_tabla_bonita(view, None)
             
             if rival:
                 st.subheader(f"Historial vs {rival}")
                 h2h = player_data[player_data['matchup'].str.contains(rival, case=False)]
                 if not h2h.empty:
-                    view_h2h = h2h[['game_date', 'matchup', 'min', 'pts', 'reb', 'ast']].copy()
+                    view_h2h = h2h[cols_to_view].copy()
                     view_h2h['min'] = view_h2h['min'].astype(int)
-                    view_h2h.columns = ['FECHA', 'PARTIDO', 'MIN', 'PTS', 'REB', 'AST']
+                    
+                    if 'game_id' in view_h2h.columns:
+                        view_h2h['FICHA'] = view_h2h['game_id'].apply(lambda x: f"<a href='https://www.nba.com/game/{x}' target='_blank' class='match-link'>📊 Ver</a>")
+                        view_h2h = view_h2h.drop(columns=['game_id'])
+                        view_h2h = view_h2h[['game_date', 'matchup', 'FICHA', 'min', 'pts', 'reb', 'ast']]
+                    
+                    view_h2h.columns = ['FECHA', 'PARTIDO', 'FICHA', 'MIN', 'PTS', 'REB', 'AST'] if 'FICHA' in view_h2h.columns else ['FECHA', 'PARTIDO', 'MIN', 'PTS', 'REB', 'AST']
                     view_h2h['FECHA'] = view_h2h['FECHA'].dt.strftime('%d/%m/%Y')
                     mostrar_tabla_bonita(view_h2h, None)
                 else:
@@ -452,12 +336,19 @@ elif opcion == "⚔️ Analizar Partido":
             games_summary = []
             for date in last_dates:
                 row = history[history['game_date'] == date].iloc[0]
+                # Obtener ID si existe
+                g_id = row['game_id'] if 'game_id' in row else None
+                link_html = f"<a href='https://www.nba.com/game/{g_id}' target='_blank' class='match-link'>📊 Ver Ficha</a>" if g_id else "-"
+                
                 games_summary.append({
                     'FECHA': date.strftime('%d/%m/%Y'),
-                    'ENFRENTAMIENTO': row['matchup']
+                    'ENFRENTAMIENTO': row['matchup'],
+                    'FICHA': link_html
                 })
             
             df_games = pd.DataFrame(games_summary)
+            if 'game_id' not in df.columns:
+                 st.warning("⚠️ Pulsa 'Actualizar Datos' para habilitar los enlaces.")
             mostrar_tabla_bonita(df_games, None)
 
             # --- ESTADÍSTICAS DE EQUIPO ---
