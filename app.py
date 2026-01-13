@@ -333,6 +333,9 @@ def mostrar_tabla_bonita(df_raw, col_principal_espanol):
         .to_html(classes="custom-table")
     
     st.markdown(f"<div class='table-wrapper'>{html}</div>", unsafe_allow_html=True)
+
+    if opcion == "🏠 Inicio":
+    st.info("Bienvenido. Usa el menú de la izquierda para navegar.")
     
     # --- CALENDARIO DE PARTIDOS ---
     st.write("---")
@@ -709,4 +712,5 @@ elif opcion == "⚔️ Analizar Partido":
                 st.markdown(render_ticket("PTS (High Value)", risky_legs_pts, "🏀", "#ff5252", "parlay-box"), unsafe_allow_html=True)
                 if risky_legs_reb: st.markdown(render_ticket("REB (High Value)", risky_legs_reb, "🖐", "#ff5252", "parlay-box"), unsafe_allow_html=True)
                 if risky_legs_ast: st.markdown(render_ticket("AST (High Value)", risky_legs_ast, "🎁", "#ff5252", "parlay-box"), unsafe_allow_html=True)
+
 
