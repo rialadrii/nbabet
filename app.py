@@ -8,33 +8,123 @@ from nba_api.stats.endpoints import leaguegamelog, scoreboardv2
 from nba_api.stats.static import teams as nba_static_teams
 
 # ==========================================
-# CONFIGURACIÓN DE LA PÁGINA
+# CONFIGURACIÓN DE LA PÁGINA (VISUAL)
 # ==========================================
 st.set_page_config(page_title="NBA Analyzer Pro", page_icon="🏀", layout="wide")
 
-# --- CSS ---
+# --- CSS: FUENTES + MODO OSCURO + ESTILOS ---
 st.markdown("""
     <style>
+    /* IMPORTAR FUENTE DEPORTIVA (TEKO) */
     @import url('https://fonts.googleapis.com/css2?family=Teko:wght@300..700&display=swap');
 
+    /* Estilo del Título Principal */
     h1 {
         font-family: 'Teko', sans-serif !important;
-        font-size: 65px !important;
+        font-size: 60px !important;
         text-transform: uppercase;
-        letter-spacing: 3px;
+        letter-spacing: 2px;
+        text-shadow: 2px 2px 4px #000000;
         text-align: center;
-        margin-bottom: 30px;
-        color: white;
+        margin-bottom: 10px;
     }
 
-    h3 {
-        font-family: 'Teko', sans-serif !important;
-        font-size: 35px !important;
+    /* Estilo para las tarjetas de métricas */
+    div[data-testid="stMetric"] {
+        background-color: #262730;
+        border: 1px solid #464b5f;
+        padding: 10px;
+        border-radius: 10px;
+        color: white;
+    }
+    
+    h2, h3 { text-align: center; }
+    
+    /* ESTILOS TABLA HTML */
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 20px;
+        color: white; 
+        font-family: sans-serif;
+    }
+    th {
+        background-color: #31333F;
+        color: white;
+        font-weight: bold;
+        text-align: center !important; 
+        padding: 10px;
+        border-bottom: 2px solid #464b5f;
         text-transform: uppercase;
+    }
+    td {
+        text-align: center !important; 
+        padding: 8px;
+        border-bottom: 1px solid #464b5f;
+        font-size: 14px;
+        vertical-align: middle;
+    }
+    div.table-wrapper {
+        overflow-x: auto;
+    }
+    
+    /* Estilos específicos para STATUS */
+    .status-played { color: #4caf50; font-weight: bold; font-size: 16px; }
+    .status-missed { color: #ff5252; font-weight: bold; font-size: 16px; }
+    .status-date { font-size: 10px; color: #aaaaaa; display: block; }
+    .status-cell { display: inline-block; margin: 0 4px; text-align: center; }
+
+    /* Estilos para la tabla de BAJAS */
+    .dnp-full { color: #4caf50; font-weight: bold; }
+    .dnp-missing { color: #ff5252; }
+    
+    /* Estilos para Patrones */
+    .pat-stars { color: #ffbd45; font-weight: bold; }
+    .pat-impact { color: #4caf50; font-weight: bold; }
+
+    /* ESTILO TICKET PARLAY */
+    .parlay-box {
+        background-color: #1e1e1e;
+        border: 1px solid #444;
+        border-radius: 15px;
+        padding: 15px;
+        margin-bottom: 20px;
+        text-align: center;
+    }
+    .parlay-header {
+        font-size: 20px;
+        font-weight: bold;
+        margin-bottom: 15px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        border-bottom: 1px solid #444;
+        padding-bottom: 10px;
+    }
+    .parlay-leg {
+        background-color: #2d2d2d;
+        margin: 10px 0;
+        padding: 10px;
+        border-radius: 8px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+    }
+    .leg-player { font-weight: bold; color: white; font-size: 14px; text-align: left; }
+    .leg-val { font-weight: bold; font-size: 18px; text-align: right; }
+    .leg-stat { color: #aaaaaa; font-size: 11px; display: block; margin-top: 4px; text-align: right; }
+    
+    /* Créditos Footer */
+    .credits {
+        font-family: 'Teko', sans-serif;
+        font-size: 20px;
+        color: #888;
+        text-align: center;
+        margin-top: 20px;
         letter-spacing: 1px;
     }
 
-    /* Tarjetas del calendario */
+    /* CALENDARIO CARDS MEJORADO */
     .game-card {
         background-color: #2d2d2d;
         border: 1px solid #444;
@@ -42,71 +132,65 @@ st.markdown("""
         padding: 15px;
         margin-bottom: 15px;
         text-align: center;
+        transition: transform 0.2s;
     }
-    .game-matchup { display: flex; justify-content: center; align-items: center; gap: 15px; margin-bottom: 10px; }
-    .team-logo { width: 45px; height: 45px; object-fit: contain; }
+    .game-card:hover {
+        transform: scale(1.02);
+        border-color: #666;
+    }
+    .game-matchup {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 15px;
+        margin-bottom: 10px;
+    }
+    .team-logo {
+        width: 45px;
+        height: 45px;
+        object-fit: contain;
+    }
+    .vs-text {
+        font-weight: bold;
+        font-size: 14px;
+        color: #888;
+    }
     .game-time { 
         color: #ffbd45; 
-        font-size: 24px; 
+        font-size: 18px; 
         font-weight: bold; 
-        font-family: 'Teko', sans-serif; 
-        margin-top: 5px;
+        font-family: 'Teko', sans-serif;
+        letter-spacing: 1px;
     }
-    
+    .game-status { color: #aaa; font-size: 12px; }
     .injuries-link {
-        font-size: 13px; color: #4caf50; text-decoration: none;
-        border: 1px solid #4caf50; padding: 5px 10px;
-        border-radius: 5px; margin-top: 10px; display: inline-block;
-    }
-
-    /* Enlace de la ficha del partido en la tabla */
-    a.match-link {
-        color: #fff !important;
-        background-color: #2196f3;
-        text-decoration: none;
-        font-weight: bold;
-        padding: 4px 10px;
-        border-radius: 4px;
         font-size: 12px;
+        color: #4caf50;
+        text-decoration: none;
+        border: 1px solid #4caf50;
+        padding: 4px 8px;
+        border-radius: 4px;
+        margin-top: 8px;
         display: inline-block;
-        width: 80px;
-        text-align: center;
     }
-    a.match-link:hover { background-color: #1976d2; }
-    
-    .no-link { color: #666; font-size: 11px; font-style: italic; }
-
-    .credits { 
-        font-family: 'Teko', sans-serif; 
-        font-size: 24px; color: #666; 
-        text-align: center; margin-top: 40px; 
+    .injuries-link:hover {
+        background-color: #4caf50;
+        color: white;
     }
-    
-    /* Ajustes tabla */
-    table { width: 100%; border-collapse: collapse; margin-bottom: 20px; color: white; font-family: sans-serif; }
-    th { background-color: #31333F; color: white; font-weight: bold; text-align: center !important; padding: 10px; border-bottom: 2px solid #464b5f; text-transform: uppercase; }
-    td { text-align: center !important; padding: 8px; border-bottom: 1px solid #464b5f; font-size: 14px; vertical-align: middle; }
-    div[data-testid="stMetric"] { background-color: #262730; border: 1px solid #464b5f; border-radius: 10px; padding: 10px; }
-    
-    /* Parlay Boxes */
-    .parlay-box { background-color: #1e1e1e; border: 1px solid #444; border-radius: 15px; padding: 15px; margin-bottom: 20px; }
-    .parlay-header { font-size: 20px; font-weight: bold; margin-bottom: 15px; text-transform: uppercase; border-bottom: 1px solid #444; padding-bottom: 10px; text-align: center; }
-    .parlay-leg { background-color: #2d2d2d; margin: 10px 0; padding: 10px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; }
-    .leg-player { font-weight: bold; font-size: 14px; }
-    .leg-val { font-weight: bold; font-size: 18px; text-align: right; }
-    .leg-stat { color: #aaaaaa; font-size: 11px; text-align: right; }
     </style>
     """, unsafe_allow_html=True)
 
 # ==========================================
-# LÓGICA DE DATOS
+# LÓGICA DE BASE DE DATOS Y DESCARGA
 # ==========================================
 DB_PATH = "nba.sqlite"
 CSV_FOLDER = "csv"
-if not os.path.exists(CSV_FOLDER): os.makedirs(CSV_FOLDER)
+
+if not os.path.exists(CSV_FOLDER):
+    os.makedirs(CSV_FOLDER)
 
 def download_data():
-    progress_text = "Descargando datos completos (incluyendo IDs de partido)..."
+    progress_text = "Descargando datos de la NBA (2024-2026)... Por favor espera."
     my_bar = st.progress(0, text=progress_text)
     
     target_seasons = ['2024-25', '2025-26']
@@ -119,13 +203,13 @@ def download_data():
             if not df.empty:
                 all_seasons_data.append(df)
             my_bar.progress((i + 1) * 50, text=f"Temporada {season} descargada...")
+            time.sleep(1)
         except Exception as e:
             st.error(f"Error descargando {season}: {e}")
 
     if all_seasons_data:
         full_df = pd.concat(all_seasons_data, ignore_index=True)
-        # IMPORTANTE: Incluir 'GAME_ID'
-        cols_needed = ['PLAYER_ID', 'PLAYER_NAME', 'TEAM_ABBREVIATION', 'GAME_DATE', 'MATCHUP', 'PTS', 'REB', 'AST', 'MIN', 'WL', 'GAME_ID']
+        cols_needed = ['PLAYER_ID', 'PLAYER_NAME', 'TEAM_ABBREVIATION', 'GAME_DATE', 'MATCHUP', 'PTS', 'REB', 'AST', 'MIN', 'WL']
         cols_final = [c for c in cols_needed if c in full_df.columns]
         df_clean = full_df[cols_final].copy()
         df_clean.columns = df_clean.columns.str.lower()
@@ -145,49 +229,100 @@ def load_data():
     csv_path = f"{CSV_FOLDER}/player_stats.csv"
     if os.path.exists(csv_path):
         df = pd.read_csv(csv_path)
-        if 'game_date' in df.columns: df['game_date'] = pd.to_datetime(df['game_date'])
-        # Asegurar que game_id es string
-        if 'game_id' in df.columns: 
-            df['game_id'] = df['game_id'].astype(str).str.zfill(10)
-        else:
-            df['game_id'] = None # Evita error si la columna no existe
+        if 'game_date' in df.columns:
+            df['game_date'] = pd.to_datetime(df['game_date'])
+        if 'min' in df.columns:
+            df['min'] = pd.to_numeric(df['min'], errors='coerce')
         return df
     return pd.DataFrame()
 
+# --- FUNCIONES DE CALENDARIO Y HORA ---
+
 def convertir_hora_espanol(hora_et):
-    if "Final" in hora_et: return "FINALIZADO"
+    """Convierte '7:00 pm ET' a formato 24h España (+6h aprox)"""
+    if "Final" in hora_et:
+        return "Finalizado"
+    if "pm" not in hora_et.lower() and "am" not in hora_et.lower():
+        return hora_et # Por si devuelve otro estado
+        
     try:
+        # Limpiar string
         hora_clean = hora_et.replace(" ET", "").strip()
+        # Parsear hora
         dt = datetime.strptime(hora_clean, "%I:%M %p")
+        # Sumar 6 horas (Aprox ET a CET)
         dt_spain = dt + timedelta(hours=6)
         return dt_spain.strftime("%H:%M")
-    except: return hora_et
+    except:
+        return hora_et
 
-def obtener_partidos():
+def obtener_partidos_hoy_manana():
     nba_teams = nba_static_teams.get_teams()
     team_map = {t['id']: t['abbreviation'] for t in nba_teams}
+    
     fechas = [datetime.now(), datetime.now() + timedelta(days=1)]
     agenda = {}
+    
     for fecha in fechas:
         fecha_str = fecha.strftime('%Y-%m-%d')
-        label = "HOY" if fecha.date() == datetime.now().date() else "MAÑANA"
+        # Determinar etiqueta
+        is_today = fecha.date() == datetime.now().date()
+        label = "JORNADA DE HOY" if is_today else "JORNADA DE MAÑANA"
         agenda[label] = []
+        
         try:
             board = scoreboardv2.ScoreboardV2(game_date=fecha_str)
             games = board.game_header.get_data_frame()
+            
             if not games.empty:
                 for _, game in games.iterrows():
-                    h_id, v_id = game['HOME_TEAM_ID'], game['VISITOR_TEAM_ID']
+                    home_id = game['HOME_TEAM_ID']
+                    visitor_id = game['VISITOR_TEAM_ID']
+                    home_abv = team_map.get(home_id, "N/A")
+                    vis_abv = team_map.get(visitor_id, "N/A")
+                    status_raw = game['GAME_STATUS_TEXT'] 
+                    
+                    # Convertir hora
+                    hora_esp = convertir_hora_espanol(status_raw)
+                    
+                    # URLs de logos
+                    logo_home = f"https://cdn.nba.com/logos/nba/{home_id}/global/L/logo.svg"
+                    logo_vis = f"https://cdn.nba.com/logos/nba/{visitor_id}/global/L/logo.svg"
+                    
+                    # Link a reporte de bajas (Rotowire es fiable)
+                    injury_url = f"https://www.rotowire.com/basketball/nba-lineups.php" 
+
                     agenda[label].append({
-                        'v_abv': team_map.get(v_id), 'h_abv': team_map.get(h_id),
-                        'v_logo': f"https://cdn.nba.com/logos/nba/{v_id}/global/L/logo.svg",
-                        'h_logo': f"https://cdn.nba.com/logos/nba/{h_id}/global/L/logo.svg",
-                        'time': convertir_hora_espanol(game['GAME_STATUS_TEXT'])
+                        'h_abv': home_abv,
+                        'v_abv': vis_abv,
+                        'h_logo': logo_home,
+                        'v_logo': logo_vis,
+                        'time': hora_esp,
+                        'raw_status': status_raw,
+                        'injury_link': injury_url
                     })
-        except: pass
+        except:
+            pass
+            
     return agenda
 
-# --- FUNCIÓN TABLA HTML ---
+# ==========================================
+# INTERFAZ PRINCIPAL
+# ==========================================
+
+st.markdown("<h1>🏀 NBA Pro Analyzer 🏀</h1>", unsafe_allow_html=True)
+
+st.sidebar.header("Menú de Control")
+opcion = st.sidebar.radio("Selecciona modo:", ["🏠 Inicio", "👤 Analizar Jugador", "⚔️ Analizar Partido", "🔄 Actualizar Datos"])
+
+df = load_data()
+
+latest_teams_map = {}
+if not df.empty:
+    latest_entries = df.sort_values('game_date').drop_duplicates('player_name', keep='last')
+    latest_teams_map = dict(zip(latest_entries['player_name'], latest_entries['team_abbreviation']))
+
+# --- FUNCION PARA MOSTRAR TABLA LIMPIA ---
 def mostrar_tabla_bonita(df_raw, col_principal_espanol):
     cols_fmt = [c for c in df_raw.columns if c in ['PTS', 'REB', 'AST']] 
     
@@ -195,55 +330,57 @@ def mostrar_tabla_bonita(df_raw, col_principal_espanol):
         .format("{:.1f}", subset=cols_fmt)\
         .background_gradient(subset=[col_principal_espanol] if col_principal_espanol else None, cmap='YlOrBr' if col_principal_espanol=='REB' else ('Greens' if col_principal_espanol=='PTS' else ('Blues' if col_principal_espanol=='AST' else None)))\
         .hide(axis="index")\
-        .to_html(classes="custom-table", escape=False)
+        .to_html(classes="custom-table")
     
     st.markdown(f"<div class='table-wrapper'>{html}</div>", unsafe_allow_html=True)
 
-# ==========================================
-# INTERFAZ
-# ==========================================
-st.markdown("<h1>🏀 NBA PRO ANALYZER 🏀</h1>", unsafe_allow_html=True)
-
-opcion = st.sidebar.radio("Menú:", ["🏠 Inicio", "👤 Jugador", "⚔️ Analizar Partido", "🔄 Actualizar Datos"])
-df = load_data()
-
 if opcion == "🏠 Inicio":
-    agenda = obtener_partidos()
-    c1, c2 = st.columns(2)
     
-    with c1:
-        st.markdown("<h3 style='color:#4caf50; text-align: center;'>JORNADA DE HOY (Madrugada)</h3>", unsafe_allow_html=True)
-        for g in agenda.get("HOY", []):
-            st.markdown(f"""
-            <div class='game-card'>
-                <div class='game-matchup'>
-                    <img src='{g['v_logo']}' class='team-logo'> <span class='vs-text'>@</span> <img src='{g['h_logo']}' class='team-logo'>
-                </div>
-                <div style='color:white; font-weight:bold;'>{g['v_abv']} vs {g['h_abv']}</div>
-                <div class='game-time'>{g['time']}</div>
-                <a href='https://www.rotowire.com/basketball/nba-lineups.php' target='_blank' class='injuries-link'>🏥 Ver Bajas / Lineups</a>
-            </div>
-            """, unsafe_allow_html=True)
+    # --- CALENDARIO DE PARTIDOS ---
+    st.write("---")
+    
+    with st.spinner("Cargando agenda de la NBA..."):
+        agenda = obtener_partidos_hoy_manana()
+    
+    col_hoy, col_manana = st.columns(2)
+    
+    def render_calendar_col(col, title, games, color_title):
+        with col:
+            st.markdown(f"<h3 style='color:{color_title}; text-align: center;'>{title}</h3>", unsafe_allow_html=True)
+            if games:
+                for game in games:
+                    st.markdown(f"""
+                    <div class='game-card'>
+                        <div class='game-matchup'>
+                            <img src='{game['v_logo']}' class='team-logo'>
+                            <span class='vs-text'>@</span>
+                            <img src='{game['h_logo']}' class='team-logo'>
+                        </div>
+                        <div class='game-teams'>{game['v_abv']} vs {game['h_abv']}</div>
+                        <div class='game-time'>{game['time']}</div>
+                        <a href='{game['injury_link']}' target='_blank' class='injuries-link'>🏥 Ver Bajas / Lineups</a>
+                    </div>
+                    """, unsafe_allow_html=True)
+            else:
+                st.caption("No hay partidos programados.")
 
-    with c2:
-        st.markdown("<h3 style='color:#2196f3; text-align: center;'>JORNADA DE MAÑANA</h3>", unsafe_allow_html=True)
-        for g in agenda.get("MAÑANA", []):
-            st.markdown(f"""
-            <div class='game-card'>
-                <div class='game-matchup'>
-                    <img src='{g['v_logo']}' class='team-logo'> <span class='vs-text'>@</span> <img src='{g['h_logo']}' class='team-logo'>
-                </div>
-                <div style='color:white; font-weight:bold;'>{g['v_abv']} vs {g['h_abv']}</div>
-                <div class='game-time'>{g['time']}</div>
-                <a href='https://www.rotowire.com/basketball/nba-lineups.php' target='_blank' class='injuries-link'>🏥 Ver Bajas / Lineups</a>
-            </div>
-            """, unsafe_allow_html=True)
-
-    st.markdown("<div class='credits'>Creado por ad.ri.</div>", unsafe_allow_html=True)
+    render_calendar_col(col_hoy, "JORNADA DE HOY (Madrugada)", agenda.get("JORNADA DE HOY", []), "#4caf50")
+    render_calendar_col(col_manana, "JORNADA DE MAÑANA", agenda.get("JORNADA DE MAÑANA", []), "#2196f3")
+            
+    st.write("---")
+    
+    if df.empty:
+        st.warning("⚠️ No hay datos históricos. Ve a 'Actualizar Datos' primero.")
+    else:
+        st.write(f"Base de Datos Histórica: **{len(df)}** registros cargados.")
+        st.write("Última actualización de datos: ", df['game_date'].max().strftime('%d/%m/%Y') if not df.empty else "N/A")
+    
+    st.markdown("---")
+    st.markdown("<div class='credits'>👨‍💻 Creado por ad.ri.</div>", unsafe_allow_html=True)
 
 elif opcion == "🔄 Actualizar Datos":
     st.write("### 🔄 Sincronización con NBA API")
-    st.write("Pulsa el botón para descargar los últimos partidos y los IDs necesarios para los enlaces.")
+    st.write("Pulsa el botón para bajar las estadísticas más recientes.")
     if st.button("Descargar y Actualizar Ahora"):
         with st.spinner("Conectando con servidores NBA..."):
             success = download_data()
@@ -263,6 +400,7 @@ elif opcion == "👤 Analizar Jugador":
         
         if jugador:
             player_data = df[df['player_name'] == jugador].sort_values('game_date', ascending=False)
+            
             rival = st.selectbox("Filtrar vs Rival (Opcional):", todos_equipos, index=None, placeholder="Selecciona equipo rival...")
             
             c1, c2, c3, c4 = st.columns(4)
@@ -273,22 +411,9 @@ elif opcion == "👤 Analizar Jugador":
             
             st.subheader("Últimos 5 Partidos")
             
-            # --- CREAR TABLA CON LINKS ---
-            cols = ['game_date', 'matchup', 'min', 'pts', 'reb', 'ast']
-            if 'game_id' in player_data.columns: cols.append('game_id')
-            
-            view = player_data[cols].head(5).copy()
+            view = player_data[['game_date', 'matchup', 'min', 'pts', 'reb', 'ast']].head(5).copy()
             view['min'] = view['min'].astype(int)
-            
-            # Generar enlaces
-            if 'game_id' in view.columns:
-                view['FICHA'] = view['game_id'].apply(lambda x: f"<a href='https://www.nba.com/game/{x}' target='_blank' class='match-link'>📊 Ver</a>" if pd.notnull(x) else "<span class='no-link'>Actualiza Datos</span>")
-                view = view.drop(columns=['game_id'])
-                view = view[['game_date', 'matchup', 'FICHA', 'min', 'pts', 'reb', 'ast']] # Reordenar
-            else:
-                view['FICHA'] = "<span class='no-link'>Actualiza Datos</span>"
-                
-            view.columns = ['FECHA', 'PARTIDO', 'FICHA', 'MIN', 'PTS', 'REB', 'AST']
+            view.columns = ['FECHA', 'PARTIDO', 'MIN', 'PTS', 'REB', 'AST']
             view['FECHA'] = view['FECHA'].dt.strftime('%d/%m/%Y') 
             mostrar_tabla_bonita(view, None)
             
@@ -296,16 +421,9 @@ elif opcion == "👤 Analizar Jugador":
                 st.subheader(f"Historial vs {rival}")
                 h2h = player_data[player_data['matchup'].str.contains(rival, case=False)]
                 if not h2h.empty:
-                    view_h2h = h2h[cols].copy()
+                    view_h2h = h2h[['game_date', 'matchup', 'min', 'pts', 'reb', 'ast']].copy()
                     view_h2h['min'] = view_h2h['min'].astype(int)
-                    if 'game_id' in view_h2h.columns:
-                        view_h2h['FICHA'] = view_h2h['game_id'].apply(lambda x: f"<a href='https://www.nba.com/game/{x}' target='_blank' class='match-link'>📊 Ver</a>" if pd.notnull(x) else "-")
-                        view_h2h = view_h2h.drop(columns=['game_id'])
-                        view_h2h = view_h2h[['game_date', 'matchup', 'FICHA', 'min', 'pts', 'reb', 'ast']]
-                    else:
-                        view_h2h['FICHA'] = "-"
-                    
-                    view_h2h.columns = ['FECHA', 'PARTIDO', 'FICHA', 'MIN', 'PTS', 'REB', 'AST']
+                    view_h2h.columns = ['FECHA', 'PARTIDO', 'MIN', 'PTS', 'REB', 'AST']
                     view_h2h['FECHA'] = view_h2h['FECHA'].dt.strftime('%d/%m/%Y')
                     mostrar_tabla_bonita(view_h2h, None)
                 else:
@@ -334,17 +452,12 @@ elif opcion == "⚔️ Analizar Partido":
             games_summary = []
             for date in last_dates:
                 row = history[history['game_date'] == date].iloc[0]
-                g_id = row.get('game_id')
-                link = f"<a href='https://www.nba.com/game/{g_id}' target='_blank' class='match-link'>📊 Ver Ficha</a>" if pd.notnull(g_id) else "<span class='no-link'>Falta ID</span>"
-                
                 games_summary.append({
                     'FECHA': date.strftime('%d/%m/%Y'),
-                    'ENFRENTAMIENTO': row['matchup'],
-                    'FICHA': link
+                    'ENFRENTAMIENTO': row['matchup']
                 })
             
             df_games = pd.DataFrame(games_summary)
-            if 'game_id' not in df.columns: st.warning("⚠️ Aviso: Faltan los enlaces. Ve a 'Actualizar Datos' para arreglarlo.")
             mostrar_tabla_bonita(df_games, None)
 
             # --- ESTADÍSTICAS DE EQUIPO ---
@@ -524,19 +637,24 @@ elif opcion == "⚔️ Analizar Partido":
             else:
                 st.write("No se detectaron impactos significativos por bajas.")
 
-            # --- GENERADOR DE PARLAY ---
+            # --- GENERADOR DE PARLAY (DUAL: SAFE vs RISKY) ---
             st.write("---")
             st.subheader("🎲 GENERADOR DE PARLAY (Dual Strategy)")
             
             min_games_needed = max(3, int(len(last_dates) * 0.6))
             candidates = stats[stats['gp'] >= min_games_needed].copy()
             
-            safe_legs_pts, safe_legs_reb, safe_legs_ast = [], [], []
-            risky_legs_pts, risky_legs_reb, risky_legs_ast = [], [], []
+            safe_legs_pts = []
+            safe_legs_reb = []
+            safe_legs_ast = []
+            risky_legs_pts = []
+            risky_legs_reb = []
+            risky_legs_ast = []
 
             for _, row in candidates.iterrows():
                 p_name = row['player_name']
                 p_team = row['team_abbreviation']
+                
                 logs = recent_players[(recent_players['player_name'] == p_name) & (recent_players['team_abbreviation'] == p_team)]
                 if logs.empty: continue
                 
@@ -544,26 +662,37 @@ elif opcion == "⚔️ Analizar Partido":
                 reb_vals = sorted(logs['reb'].tolist())
                 ast_vals = sorted(logs['ast'].tolist())
                 
-                smart_min_pts = pts_vals[1] if len(pts_vals) >= 4 else pts_vals[0]
-                smart_min_reb = reb_vals[1] if len(reb_vals) >= 4 else reb_vals[0]
-                smart_min_ast = ast_vals[1] if len(ast_vals) >= 4 else ast_vals[0]
+                if len(pts_vals) >= 4: smart_min_pts = pts_vals[1] 
+                else: smart_min_pts = pts_vals[0]
+                if len(reb_vals) >= 4: smart_min_reb = reb_vals[1]
+                else: smart_min_reb = reb_vals[0]
+                if len(ast_vals) >= 4: smart_min_ast = ast_vals[1]
+                else: smart_min_ast = ast_vals[0]
                 
-                avg_pts, avg_reb, avg_ast = row['pts'], row['reb'], row['ast']
+                avg_pts = row['pts']
+                avg_reb = row['reb']
+                avg_ast = row['ast']
 
-                if smart_min_pts >= 12: safe_legs_pts.append({'player': p_name, 'val': int(smart_min_pts), 'score': avg_pts, 'desc': f"Suelo vs Rival"})
-                if smart_min_reb >= 6: safe_legs_reb.append({'player': p_name, 'val': int(smart_min_reb), 'score': avg_reb, 'desc': f"Suelo vs Rival"})
-                if smart_min_ast >= 4: safe_legs_ast.append({'player': p_name, 'val': int(smart_min_ast), 'score': avg_ast, 'desc': f"Suelo vs Rival"})
+                if smart_min_pts >= 12: 
+                    safe_legs_pts.append({'player': p_name, 'val': int(smart_min_pts), 'score': avg_pts, 'desc': f"Suelo vs Rival"})
+                if smart_min_reb >= 6: 
+                    safe_legs_reb.append({'player': p_name, 'val': int(smart_min_reb), 'score': avg_reb, 'desc': f"Suelo vs Rival"})
+                if smart_min_ast >= 4: 
+                    safe_legs_ast.append({'player': p_name, 'val': int(smart_min_ast), 'score': avg_ast, 'desc': f"Suelo vs Rival"})
 
-                if avg_pts >= 15 and avg_pts > (smart_min_pts + 1.0): risky_legs_pts.append({'player': p_name, 'val': int(avg_pts), 'score': avg_pts, 'desc': f"Media vs Rival (Alto Valor)"})
-                if avg_reb >= 8 and avg_reb > (smart_min_reb + 1.0): risky_legs_reb.append({'player': p_name, 'val': int(avg_reb), 'score': avg_reb, 'desc': f"Media vs Rival (Alto Valor)"})
-                if avg_ast >= 6 and avg_ast > (smart_min_ast + 1.0): risky_legs_ast.append({'player': p_name, 'val': int(avg_ast), 'score': avg_ast, 'desc': f"Media vs Rival (Alto Valor)"})
+                if avg_pts >= 15 and avg_pts > (smart_min_pts + 1.0):
+                    risky_legs_pts.append({'player': p_name, 'val': int(avg_pts), 'score': avg_pts, 'desc': f"Media vs Rival (Alto Valor)"})
+                if avg_reb >= 8 and avg_reb > (smart_min_reb + 1.0):
+                    risky_legs_reb.append({'player': p_name, 'val': int(avg_reb), 'score': avg_reb, 'desc': f"Media vs Rival (Alto Valor)"})
+                if avg_ast >= 6 and avg_ast > (smart_min_ast + 1.0):
+                    risky_legs_ast.append({'player': p_name, 'val': int(avg_ast), 'score': avg_ast, 'desc': f"Media vs Rival (Alto Valor)"})
 
             for l in [safe_legs_pts, safe_legs_reb, safe_legs_ast, risky_legs_pts, risky_legs_reb, risky_legs_ast]:
                 l.sort(key=lambda x: x['score'], reverse=True)
 
             def render_ticket(title, legs, icon, color_border, css_class):
                 final_legs = legs[:5] 
-                if not final_legs: return f"<div class='{css_class}' style='border:1px solid {color_border};'><div class='parlay-header' style='color:{color_border};'>{title}</div><div style='color:#888; text-align:center;'>Sin opciones claras</div></div>"
+                if not final_legs: return f"<div class='{css_class}' style='border:1px solid {color_border};'><div class='parlay-header' style='color:{color_border};'>{title}</div><div style='color:#888;'>Sin opciones claras</div></div>"
                 html_legs = ""
                 for leg in final_legs:
                     html_legs += f"<div class='parlay-leg' style='border-left: 5px solid {color_border};'><div class='leg-player'>{icon} {leg['player']}</div><div class='leg-info'><div class='leg-val'>+{leg['val']}</div><div class='leg-stat'>{leg['desc']}</div></div></div>"
