@@ -67,21 +67,6 @@ st.markdown("""
         display: inline-block;
     }
 
-    /* Enlace de la ficha del partido en la tabla */
-    a.match-link {
-        color: #2196f3 !important;
-        text-decoration: none;
-        font-weight: bold;
-        border: 1px solid #2196f3;
-        padding: 2px 8px;
-        border-radius: 4px;
-        font-size: 12px;
-    }
-    a.match-link:hover {
-        background-color: #2196f3;
-        color: white !important;
-    }
-
     .credits { 
         font-family: 'Teko', sans-serif; 
         font-size: 24px; 
@@ -90,18 +75,101 @@ st.markdown("""
         margin-top: 40px; 
     }
     
-    /* Ajustes tabla */
-    table { width: 100%; border-collapse: collapse; margin-bottom: 20px; color: white; font-family: sans-serif; }
-    th { background-color: #31333F; color: white; font-weight: bold; text-align: center !important; padding: 10px; border-bottom: 2px solid #464b5f; text-transform: uppercase; }
-    td { text-align: center !important; padding: 8px; border-bottom: 1px solid #464b5f; font-size: 14px; vertical-align: middle; }
+    /* Estilos para las tarjetas de métricas */
+    div[data-testid="stMetric"] {
+        background-color: #262730;
+        border: 1px solid #464b5f;
+        padding: 10px;
+        border-radius: 10px;
+        color: white;
+    }
+    
+    h2 { text-align: center; }
+    
+    /* ESTILOS TABLA HTML */
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 20px;
+        color: white; 
+        font-family: sans-serif;
+    }
+    th {
+        background-color: #31333F;
+        color: white;
+        font-weight: bold;
+        text-align: center !important; 
+        padding: 10px;
+        border-bottom: 2px solid #464b5f;
+        text-transform: uppercase;
+    }
+    td {
+        text-align: center !important; 
+        padding: 8px;
+        border-bottom: 1px solid #464b5f;
+        font-size: 14px;
+        vertical-align: middle;
+    }
+    div.table-wrapper {
+        overflow-x: auto;
+    }
+    
+    /* Estilos específicos para STATUS */
+    .status-played { color: #4caf50; font-weight: bold; font-size: 16px; }
+    .status-missed { color: #ff5252; font-weight: bold; font-size: 16px; }
+    .status-date { font-size: 10px; color: #aaaaaa; display: block; }
+    .status-cell { display: inline-block; margin: 0 4px; text-align: center; }
+
+    /* Estilos para la tabla de BAJAS */
+    .dnp-full { color: #4caf50; font-weight: bold; }
+    .dnp-missing { color: #ff5252; }
+    
+    /* Estilos para Patrones */
+    .pat-stars { color: #ffbd45; font-weight: bold; }
+    .pat-impact { color: #4caf50; font-weight: bold; }
+
+    /* ESTILO TICKET PARLAY */
+    .parlay-box {
+        background-color: #1e1e1e;
+        border: 1px solid #444;
+        border-radius: 15px;
+        padding: 15px;
+        margin-bottom: 20px;
+        text-align: center;
+    }
+    .parlay-header {
+        font-size: 20px;
+        font-weight: bold;
+        margin-bottom: 15px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        border-bottom: 1px solid #444;
+        padding-bottom: 10px;
+    }
+    .parlay-leg {
+        background-color: #2d2d2d;
+        margin: 10px 0;
+        padding: 10px;
+        border-radius: 8px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+    }
+    .leg-player { font-weight: bold; color: white; font-size: 14px; text-align: left; }
+    .leg-val { font-weight: bold; font-size: 18px; text-align: right; }
+    .leg-stat { color: #aaaaaa; font-size: 11px; display: block; margin-top: 4px; text-align: right; }
     </style>
     """, unsafe_allow_html=True)
 
 # ==========================================
 # LÓGICA DE DATOS
 # ==========================================
+DB_PATH = "nba.sqlite"  # <--- ESTA ES LA LÍNEA QUE FALTABA
 CSV_FOLDER = "csv"
-if not os.path.exists(CSV_FOLDER): os.makedirs(CSV_FOLDER)
+
+if not os.path.exists(CSV_FOLDER):
+    os.makedirs(CSV_FOLDER)
 
 def download_data():
     progress_text = "Descargando datos de la NBA (2024-2026)... Por favor espera."
@@ -123,14 +191,14 @@ def download_data():
 
     if all_seasons_data:
         full_df = pd.concat(all_seasons_data, ignore_index=True)
-        # --- AÑADIDO 'GAME_ID' A LAS COLUMNAS NECESARIAS ---
-        cols_needed = ['PLAYER_ID', 'PLAYER_NAME', 'TEAM_ABBREVIATION', 'GAME_DATE', 'MATCHUP', 'PTS', 'REB', 'AST', 'MIN', 'WL', 'GAME_ID']
+        cols_needed = ['PLAYER_ID', 'PLAYER_NAME', 'TEAM_ABBREVIATION', 'GAME_DATE', 'MATCHUP', 'PTS', 'REB', 'AST', 'MIN', 'WL']
         cols_final = [c for c in cols_needed if c in full_df.columns]
         df_clean = full_df[cols_final].copy()
         df_clean.columns = df_clean.columns.str.lower()
         
         df_clean.to_csv(f'{CSV_FOLDER}/player_stats.csv', index=False)
-        # SQLite opcional, lo mantenemos por si lo usas luego
+        
+        # Aquí es donde fallaba antes sin la variable DB_PATH
         conn = sqlite3.connect(DB_PATH)
         df_clean.to_sql('player', conn, if_exists='replace', index=False)
         conn.close()
@@ -145,9 +213,10 @@ def load_data():
     csv_path = f"{CSV_FOLDER}/player_stats.csv"
     if os.path.exists(csv_path):
         df = pd.read_csv(csv_path)
-        if 'game_date' in df.columns: df['game_date'] = pd.to_datetime(df['game_date'])
-        # Asegurarnos de que game_id sea string para que no pierda ceros iniciales
-        if 'game_id' in df.columns: df['game_id'] = df['game_id'].astype(str).str.zfill(10)
+        if 'game_date' in df.columns:
+            df['game_date'] = pd.to_datetime(df['game_date'])
+        if 'min' in df.columns:
+            df['min'] = pd.to_numeric(df['min'], errors='coerce')
         return df
     return pd.DataFrame()
 
@@ -184,19 +253,6 @@ def obtener_partidos():
         except: pass
     return agenda
 
-# --- MODIFICADO: FUNCIÓN PARA MOSTRAR TABLA CON HTML (LINKS) ---
-def mostrar_tabla_bonita(df_raw, col_principal_espanol):
-    # Columnas numéricas para formatear
-    cols_fmt = [c for c in df_raw.columns if c in ['PTS', 'REB', 'AST']] 
-    
-    html = df_raw.style\
-        .format("{:.1f}", subset=cols_fmt)\
-        .background_gradient(subset=[col_principal_espanol] if col_principal_espanol else None, cmap='YlOrBr' if col_principal_espanol=='REB' else ('Greens' if col_principal_espanol=='PTS' else ('Blues' if col_principal_espanol=='AST' else None)))\
-        .hide(axis="index")\
-        .to_html(classes="custom-table", escape=False) # escape=False es CLAVE para que funcione el link
-    
-    st.markdown(f"<div class='table-wrapper'>{html}</div>", unsafe_allow_html=True)
-
 # ==========================================
 # INTERFAZ (Pestaña Inicio)
 # ==========================================
@@ -204,6 +260,23 @@ st.markdown("<h1>🏀 NBA PRO ANALYZER 🏀</h1>", unsafe_allow_html=True)
 
 opcion = st.sidebar.radio("Menú:", ["🏠 Inicio", "👤 Jugador", "⚔️ Analizar Partido", "🔄 Actualizar Datos"])
 df = load_data()
+
+latest_teams_map = {}
+if not df.empty:
+    latest_entries = df.sort_values('game_date').drop_duplicates('player_name', keep='last')
+    latest_teams_map = dict(zip(latest_entries['player_name'], latest_entries['team_abbreviation']))
+
+# --- FUNCION PARA MOSTRAR TABLA LIMPIA ---
+def mostrar_tabla_bonita(df_raw, col_principal_espanol):
+    cols_fmt = [c for c in df_raw.columns if c in ['PTS', 'REB', 'AST']] 
+    
+    html = df_raw.style\
+        .format("{:.1f}", subset=cols_fmt)\
+        .background_gradient(subset=[col_principal_espanol] if col_principal_espanol else None, cmap='YlOrBr' if col_principal_espanol=='REB' else ('Greens' if col_principal_espanol=='PTS' else ('Blues' if col_principal_espanol=='AST' else None)))\
+        .hide(axis="index")\
+        .to_html(classes="custom-table")
+    
+    st.markdown(f"<div class='table-wrapper'>{html}</div>", unsafe_allow_html=True)
 
 if opcion == "🏠 Inicio":
     agenda = obtener_partidos()
@@ -272,42 +345,19 @@ elif opcion == "👤 Analizar Jugador":
             
             st.subheader("Últimos 5 Partidos")
             
-            # --- MODIFICADO: AÑADIR LINK DE FICHA ---
-            cols_to_view = ['game_date', 'matchup', 'min', 'pts', 'reb', 'ast']
-            if 'game_id' in player_data.columns:
-                cols_to_view.append('game_id')
-            
-            view = player_data[cols_to_view].head(5).copy()
+            view = player_data[['game_date', 'matchup', 'min', 'pts', 'reb', 'ast']].head(5).copy()
             view['min'] = view['min'].astype(int)
-            
-            # Crear columna de link si existe game_id
-            if 'game_id' in view.columns:
-                view['FICHA'] = view['game_id'].apply(lambda x: f"<a href='https://www.nba.com/game/{x}' target='_blank' class='match-link'>📊 Ver</a>")
-                view = view.drop(columns=['game_id'])
-                # Reordenar
-                view = view[['game_date', 'matchup', 'FICHA', 'min', 'pts', 'reb', 'ast']]
-            
-            view.columns = ['FECHA', 'PARTIDO', 'FICHA', 'MIN', 'PTS', 'REB', 'AST'] if 'FICHA' in view.columns else ['FECHA', 'PARTIDO', 'MIN', 'PTS', 'REB', 'AST']
+            view.columns = ['FECHA', 'PARTIDO', 'MIN', 'PTS', 'REB', 'AST']
             view['FECHA'] = view['FECHA'].dt.strftime('%d/%m/%Y') 
-            
-            if 'FICHA' not in view.columns:
-                st.warning("⚠️ Pulsa 'Actualizar Datos' para ver los enlaces a las fichas.")
-                
             mostrar_tabla_bonita(view, None)
             
             if rival:
                 st.subheader(f"Historial vs {rival}")
                 h2h = player_data[player_data['matchup'].str.contains(rival, case=False)]
                 if not h2h.empty:
-                    view_h2h = h2h[cols_to_view].copy()
+                    view_h2h = h2h[['game_date', 'matchup', 'min', 'pts', 'reb', 'ast']].copy()
                     view_h2h['min'] = view_h2h['min'].astype(int)
-                    
-                    if 'game_id' in view_h2h.columns:
-                        view_h2h['FICHA'] = view_h2h['game_id'].apply(lambda x: f"<a href='https://www.nba.com/game/{x}' target='_blank' class='match-link'>📊 Ver</a>")
-                        view_h2h = view_h2h.drop(columns=['game_id'])
-                        view_h2h = view_h2h[['game_date', 'matchup', 'FICHA', 'min', 'pts', 'reb', 'ast']]
-                    
-                    view_h2h.columns = ['FECHA', 'PARTIDO', 'FICHA', 'MIN', 'PTS', 'REB', 'AST'] if 'FICHA' in view_h2h.columns else ['FECHA', 'PARTIDO', 'MIN', 'PTS', 'REB', 'AST']
+                    view_h2h.columns = ['FECHA', 'PARTIDO', 'MIN', 'PTS', 'REB', 'AST']
                     view_h2h['FECHA'] = view_h2h['FECHA'].dt.strftime('%d/%m/%Y')
                     mostrar_tabla_bonita(view_h2h, None)
                 else:
@@ -336,19 +386,12 @@ elif opcion == "⚔️ Analizar Partido":
             games_summary = []
             for date in last_dates:
                 row = history[history['game_date'] == date].iloc[0]
-                # Obtener ID si existe
-                g_id = row['game_id'] if 'game_id' in row else None
-                link_html = f"<a href='https://www.nba.com/game/{g_id}' target='_blank' class='match-link'>📊 Ver Ficha</a>" if g_id else "-"
-                
                 games_summary.append({
                     'FECHA': date.strftime('%d/%m/%Y'),
-                    'ENFRENTAMIENTO': row['matchup'],
-                    'FICHA': link_html
+                    'ENFRENTAMIENTO': row['matchup']
                 })
             
             df_games = pd.DataFrame(games_summary)
-            if 'game_id' not in df.columns:
-                 st.warning("⚠️ Pulsa 'Actualizar Datos' para habilitar los enlaces.")
             mostrar_tabla_bonita(df_games, None)
 
             # --- ESTADÍSTICAS DE EQUIPO ---
