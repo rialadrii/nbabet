@@ -3,7 +3,8 @@ import pandas as pd
 import sqlite3
 import os
 import time
-from nba_api.stats.endpoints import leaguegamelog
+from datetime import datetime, timedelta
+from nba_api.stats.endpoints import leaguegamelog, scoreboardv2
 
 # ==========================================
 # CONFIGURACIÓN DE LA PÁGINA (VISUAL)
@@ -180,6 +181,57 @@ def load_data():
         return df
     return pd.DataFrame()
 
+@st.cache_data(ttl=3600) # Caché de 1 hora para no saturar la API
+def obtener_calendario():
+    # Fechas de Hoy y Mañana
+    today = datetime.now()
+    tomorrow = today + timedelta(days=1)
+    
+    dates_to_check = [today, tomorrow]
+    calendar_data = []
+
+    # Mapa de IDs de equipos para obtener nombres cortos (si ya tenemos datos cargados)
+    # Si no, usamos los IDs crudos o intentamos sacar el nombre de la API
+    
+    for d in dates_to_check:
+        d_str = d.strftime('%Y-%m-%d')
+        label_day = "HOY" if d == today else "MAÑANA"
+        
+        try:
+            # ScoreboardV2 trae los partidos del día
+            board = scoreboardv2.ScoreboardV2(game_date=d_str)
+            games = board.game_header.get_data_frame()
+            line_score = board.line_score.get_data_frame() # Aquí suelen venir las abreviaturas
+            
+            if not games.empty and not line_score.empty:
+                for _, game in games.iterrows():
+                    game_id = game['GAME_ID']
+                    
+                    # Buscamos las abreviaturas en line_score usando el GAME_ID
+                    home_info = line_score[(line_score['GAME_ID'] == game_id) & (line_score['TEAM_ID'] == game['HOME_TEAM_ID'])]
+                    visitor_info = line_score[(line_score['GAME_ID'] == game_id) & (line_score['TEAM_ID'] == game['VISITOR_TEAM_ID'])]
+                    
+                    if not home_info.empty and not visitor_info.empty:
+                        home_abbr = home_info.iloc[0]['TEAM_ABBREVIATION']
+                        visitor_abbr = visitor_info.iloc[0]['TEAM_ABBREVIATION']
+                        
+                        # Formato de hora (EST/UTC a algo legible, simplificado mostramos el string tal cual viene a veces)
+                        # La API suele dar GAME_STATUS_TEXT con la hora (ej: "7:30 pm ET")
+                        time_status = game['GAME_STATUS_TEXT']
+                        
+                        calendar_data.append({
+                            'DÍA': label_day,
+                            'FECHA': d.strftime('%d/%m'),
+                            'LOCAL': home_abbr,
+                            'VISITANTE': visitor_abbr,
+                            'HORA / ESTADO': time_status
+                        })
+        except Exception as e:
+            print(f"Error fetching calendar for {d_str}: {e}")
+            pass
+            
+    return pd.DataFrame(calendar_data)
+
 # ==========================================
 # INTERFAZ PRINCIPAL
 # ==========================================
@@ -211,11 +263,42 @@ def mostrar_tabla_bonita(df_raw, col_principal_espanol):
 if opcion == "🏠 Inicio":
     st.info("Bienvenido. Usa el menú de la izquierda para navegar.")
     
-    if df.empty:
-        st.warning("⚠️ No hay datos. Ve a 'Actualizar Datos' primero.")
+    # --- CALENDARIO DE PARTIDOS ---
+    st.write("---")
+    st.subheader("📅 Calendario NBA (Hoy y Mañana)")
+    
+    with st.spinner("Cargando calendario..."):
+        df_cal = obtener_calendario()
+    
+    if not df_cal.empty:
+        # Separar Hoy y Mañana para mejor visualización
+        col_hoy, col_manana = st.columns(2)
+        
+        with col_hoy:
+            st.markdown("<h3 style='color:#4caf50;'>HOY</h3>", unsafe_allow_html=True)
+            df_hoy = df_cal[df_cal['DÍA'] == 'HOY'][['LOCAL', 'VISITANTE', 'HORA / ESTADO']]
+            if not df_hoy.empty:
+                mostrar_tabla_bonita(df_hoy, None)
+            else:
+                st.write("No hay partidos programados para hoy.")
+                
+        with col_manana:
+            st.markdown("<h3 style='color:#2196f3;'>MAÑANA</h3>", unsafe_allow_html=True)
+            df_manana = df_cal[df_cal['DÍA'] == 'MAÑANA'][['LOCAL', 'VISITANTE', 'HORA / ESTADO']]
+            if not df_manana.empty:
+                mostrar_tabla_bonita(df_manana, None)
+            else:
+                st.write("No hay partidos programados para mañana.")
     else:
-        st.write(f"Datos cargados: **{len(df)}** registros.")
-        st.write("Última actualización: ", df['game_date'].max().strftime('%d/%m/%Y') if not df.empty else "N/A")
+        st.warning("No se pudo cargar el calendario o no hay partidos próximos.")
+    
+    st.write("---")
+    
+    if df.empty:
+        st.warning("⚠️ No hay datos históricos. Ve a 'Actualizar Datos' primero.")
+    else:
+        st.write(f"Base de datos histórica: **{len(df)}** registros.")
+        st.write("Última actualización de datos: ", df['game_date'].max().strftime('%d/%m/%Y') if not df.empty else "N/A")
     
     st.markdown("---")
     st.markdown("<div class='credits'>👨‍💻 Creado por ad.ri.</div>", unsafe_allow_html=True)
@@ -303,19 +386,13 @@ elif opcion == "⚔️ Analizar Partido":
             mostrar_tabla_bonita(df_games, None)
 
             # --- NUEVA SECCIÓN: ESTADÍSTICAS DE EQUIPO ---
-            # Agrupamos por Partido y Equipo para sumar los puntos totales
-            # (Como el dataframe es de jugadores, la suma de sus puntos = Puntos del Equipo)
             team_totals = history.groupby(['game_date', 'team_abbreviation'])[['pts', 'reb', 'ast']].sum().reset_index()
-            # Calculamos la media por equipo
             team_avgs = team_totals.groupby('team_abbreviation')[['pts', 'reb', 'ast']].mean().reset_index()
-            
-            # Filtramos solo para los dos equipos seleccionados (por seguridad)
             team_avgs = team_avgs[team_avgs['team_abbreviation'].isin([t1, t2])]
             
             if not team_avgs.empty:
                 st.write("---")
                 st.subheader("📊 Estadísticas Medias de Equipo (H2H)")
-                # Renombrar columnas para la visualización
                 team_avgs.columns = ['EQUIPO', 'PTS', 'REB', 'AST']
                 mostrar_tabla_bonita(team_avgs, 'PTS')
             
