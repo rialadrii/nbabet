@@ -5,6 +5,7 @@ import os
 import time
 from datetime import datetime, timedelta
 from nba_api.stats.endpoints import leaguegamelog, scoreboardv2
+from nba_api.stats.static import teams as nba_static_teams
 
 # ==========================================
 # CONFIGURACIÓN DE LA PÁGINA (VISUAL)
@@ -122,6 +123,19 @@ st.markdown("""
         margin-top: 20px;
         letter-spacing: 1px;
     }
+
+    /* CALENDARIO CARDS */
+    .game-card {
+        background-color: #2d2d2d;
+        border: 1px solid #444;
+        border-radius: 8px;
+        padding: 10px;
+        margin-bottom: 10px;
+        text-align: center;
+    }
+    .game-teams { font-weight: bold; color: white; font-size: 16px; margin-bottom: 5px; }
+    .game-time { color: #4caf50; font-size: 13px; font-weight: bold; }
+    .game-status { color: #aaa; font-size: 12px; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -181,56 +195,40 @@ def load_data():
         return df
     return pd.DataFrame()
 
-@st.cache_data(ttl=3600) # Caché de 1 hora para no saturar la API
-def obtener_calendario():
-    # Fechas de Hoy y Mañana
-    today = datetime.now()
-    tomorrow = today + timedelta(days=1)
+# Función para obtener calendario
+def obtener_partidos_hoy_manana():
+    # Diccionario rápido para mapear ID a Abreviatura
+    nba_teams = nba_static_teams.get_teams()
+    team_map = {t['id']: t['abbreviation'] for t in nba_teams}
     
-    dates_to_check = [today, tomorrow]
-    calendar_data = []
-
-    # Mapa de IDs de equipos para obtener nombres cortos (si ya tenemos datos cargados)
-    # Si no, usamos los IDs crudos o intentamos sacar el nombre de la API
+    fechas = [datetime.now(), datetime.now() + timedelta(days=1)]
+    agenda = {}
     
-    for d in dates_to_check:
-        d_str = d.strftime('%Y-%m-%d')
-        label_day = "HOY" if d == today else "MAÑANA"
+    for fecha in fechas:
+        fecha_str = fecha.strftime('%Y-%m-%d')
+        label = "HOY" if fecha.date() == datetime.now().date() else "MAÑANA"
+        agenda[label] = []
         
         try:
-            # ScoreboardV2 trae los partidos del día
-            board = scoreboardv2.ScoreboardV2(game_date=d_str)
+            board = scoreboardv2.ScoreboardV2(game_date=fecha_str)
             games = board.game_header.get_data_frame()
-            line_score = board.line_score.get_data_frame() # Aquí suelen venir las abreviaturas
             
-            if not games.empty and not line_score.empty:
+            if not games.empty:
                 for _, game in games.iterrows():
-                    game_id = game['GAME_ID']
+                    home_id = game['HOME_TEAM_ID']
+                    visitor_id = game['VISITOR_TEAM_ID']
+                    home_abv = team_map.get(home_id, "N/A")
+                    vis_abv = team_map.get(visitor_id, "N/A")
+                    status = game['GAME_STATUS_TEXT'] # Ej: "7:00 pm ET" o "Final"
                     
-                    # Buscamos las abreviaturas en line_score usando el GAME_ID
-                    home_info = line_score[(line_score['GAME_ID'] == game_id) & (line_score['TEAM_ID'] == game['HOME_TEAM_ID'])]
-                    visitor_info = line_score[(line_score['GAME_ID'] == game_id) & (line_score['TEAM_ID'] == game['VISITOR_TEAM_ID'])]
-                    
-                    if not home_info.empty and not visitor_info.empty:
-                        home_abbr = home_info.iloc[0]['TEAM_ABBREVIATION']
-                        visitor_abbr = visitor_info.iloc[0]['TEAM_ABBREVIATION']
-                        
-                        # Formato de hora (EST/UTC a algo legible, simplificado mostramos el string tal cual viene a veces)
-                        # La API suele dar GAME_STATUS_TEXT con la hora (ej: "7:30 pm ET")
-                        time_status = game['GAME_STATUS_TEXT']
-                        
-                        calendar_data.append({
-                            'DÍA': label_day,
-                            'FECHA': d.strftime('%d/%m'),
-                            'LOCAL': home_abbr,
-                            'VISITANTE': visitor_abbr,
-                            'HORA / ESTADO': time_status
-                        })
-        except Exception as e:
-            print(f"Error fetching calendar for {d_str}: {e}")
+                    agenda[label].append({
+                        'matchup': f"{home_abv} vs {vis_abv}",
+                        'time': status
+                    })
+        except:
             pass
             
-    return pd.DataFrame(calendar_data)
+    return agenda
 
 # ==========================================
 # INTERFAZ PRINCIPAL
@@ -265,39 +263,45 @@ if opcion == "🏠 Inicio":
     
     # --- CALENDARIO DE PARTIDOS ---
     st.write("---")
-    st.subheader("📅 Calendario NBA (Hoy y Mañana)")
+    st.subheader("📅 Calendario de Partidos")
     
-    with st.spinner("Cargando calendario..."):
-        df_cal = obtener_calendario()
+    with st.spinner("Cargando agenda de la NBA..."):
+        agenda = obtener_partidos_hoy_manana()
     
-    if not df_cal.empty:
-        # Separar Hoy y Mañana para mejor visualización
-        col_hoy, col_manana = st.columns(2)
-        
-        with col_hoy:
-            st.markdown("<h3 style='color:#4caf50;'>HOY</h3>", unsafe_allow_html=True)
-            df_hoy = df_cal[df_cal['DÍA'] == 'HOY'][['LOCAL', 'VISITANTE', 'HORA / ESTADO']]
-            if not df_hoy.empty:
-                mostrar_tabla_bonita(df_hoy, None)
-            else:
-                st.write("No hay partidos programados para hoy.")
-                
-        with col_manana:
-            st.markdown("<h3 style='color:#2196f3;'>MAÑANA</h3>", unsafe_allow_html=True)
-            df_manana = df_cal[df_cal['DÍA'] == 'MAÑANA'][['LOCAL', 'VISITANTE', 'HORA / ESTADO']]
-            if not df_manana.empty:
-                mostrar_tabla_bonita(df_manana, None)
-            else:
-                st.write("No hay partidos programados para mañana.")
-    else:
-        st.warning("No se pudo cargar el calendario o no hay partidos próximos.")
+    col_hoy, col_manana = st.columns(2)
     
+    with col_hoy:
+        st.markdown("<h3 style='color:#4caf50;'>HOY</h3>", unsafe_allow_html=True)
+        if agenda["HOY"]:
+            for game in agenda["HOY"]:
+                st.markdown(f"""
+                <div class='game-card'>
+                    <div class='game-teams'>{game['matchup']}</div>
+                    <div class='game-time'>{game['time']}</div>
+                </div>
+                """, unsafe_allow_html=True)
+        else:
+            st.caption("No hay partidos programados para hoy.")
+
+    with col_manana:
+        st.markdown("<h3 style='color:#2196f3;'>MAÑANA</h3>", unsafe_allow_html=True)
+        if agenda["MAÑANA"]:
+            for game in agenda["MAÑANA"]:
+                st.markdown(f"""
+                <div class='game-card'>
+                    <div class='game-teams'>{game['matchup']}</div>
+                    <div class='game-time'>{game['time']}</div>
+                </div>
+                """, unsafe_allow_html=True)
+        else:
+            st.caption("No hay partidos programados para mañana.")
+            
     st.write("---")
     
     if df.empty:
         st.warning("⚠️ No hay datos históricos. Ve a 'Actualizar Datos' primero.")
     else:
-        st.write(f"Base de datos histórica: **{len(df)}** registros.")
+        st.write(f"Base de Datos Histórica: **{len(df)}** registros cargados.")
         st.write("Última actualización de datos: ", df['game_date'].max().strftime('%d/%m/%Y') if not df.empty else "N/A")
     
     st.markdown("---")
@@ -385,7 +389,7 @@ elif opcion == "⚔️ Analizar Partido":
             df_games = pd.DataFrame(games_summary)
             mostrar_tabla_bonita(df_games, None)
 
-            # --- NUEVA SECCIÓN: ESTADÍSTICAS DE EQUIPO ---
+            # --- ESTADÍSTICAS DE EQUIPO ---
             team_totals = history.groupby(['game_date', 'team_abbreviation'])[['pts', 'reb', 'ast']].sum().reset_index()
             team_avgs = team_totals.groupby('team_abbreviation')[['pts', 'reb', 'ast']].mean().reset_index()
             team_avgs = team_avgs[team_avgs['team_abbreviation'].isin([t1, t2])]
@@ -410,7 +414,7 @@ elif opcion == "⚔️ Analizar Partido":
                 gp=('game_date', 'count')
             ).reset_index()
 
-            # --- FILTRO CRÍTICO: SOLO JUGADORES ACTUALES ---
+            # --- FILTRO: SOLO JUGADORES ACTUALES ---
             stats = stats[stats['player_name'].apply(lambda x: latest_teams_map.get(x) in [t1, t2])]
 
             # Status visual
@@ -472,7 +476,6 @@ elif opcion == "⚔️ Analizar Partido":
             st.subheader("🏥 Historial de Bajas (Por Equipo)")
             
             avg_mins = recent_players.groupby(['player_name', 'team_abbreviation'])['min'].mean()
-            # Filtramos también las bajas para que no salgan jugadores traspasados
             active_key_players = [p for p in avg_mins[avg_mins > 12.0].index.tolist() if latest_teams_map.get(p[0]) in [t1, t2]]
             
             dnp_table_data = []
@@ -522,7 +525,6 @@ elif opcion == "⚔️ Analizar Partido":
                     missing_stars_today = []
                     for star in all_stars:
                         current_real_team = latest_teams_map.get(star, None)
-                        # Verificamos que sea del equipo Y que siga en el equipo
                         if current_real_team == team and (star not in players_present):
                             missing_stars_today.append(star)
                     
@@ -531,7 +533,6 @@ elif opcion == "⚔️ Analizar Partido":
                         beneficiaries = []
                         for _, row in teammates.iterrows():
                             p_name = row['player_name']
-                            # Solo analizamos si sigue en el equipo
                             if latest_teams_map.get(p_name) != team: continue
 
                             if p_name in global_means.index: avg_p = global_means.loc[p_name]
@@ -572,12 +573,9 @@ elif opcion == "⚔️ Analizar Partido":
             min_games_needed = max(3, int(len(last_dates) * 0.6))
             candidates = stats[stats['gp'] >= min_games_needed].copy()
             
-            # Listas para opción CONSERVADORA
             safe_legs_pts = []
             safe_legs_reb = []
             safe_legs_ast = []
-
-            # Listas para opción ARRIESGADA
             risky_legs_pts = []
             risky_legs_reb = []
             risky_legs_ast = []
@@ -593,22 +591,17 @@ elif opcion == "⚔️ Analizar Partido":
                 reb_vals = sorted(logs['reb'].tolist())
                 ast_vals = sorted(logs['ast'].tolist())
                 
-                # --- CALCULO SAFE (SUELO) ---
                 if len(pts_vals) >= 4: smart_min_pts = pts_vals[1] 
                 else: smart_min_pts = pts_vals[0]
-
                 if len(reb_vals) >= 4: smart_min_reb = reb_vals[1]
                 else: smart_min_reb = reb_vals[0]
-
                 if len(ast_vals) >= 4: smart_min_ast = ast_vals[1]
                 else: smart_min_ast = ast_vals[0]
                 
-                # --- CALCULO RISKY (MEDIA) ---
                 avg_pts = row['pts']
                 avg_reb = row['reb']
                 avg_ast = row['ast']
 
-                # LOGICA SAFE
                 if smart_min_pts >= 12: 
                     safe_legs_pts.append({'player': p_name, 'val': int(smart_min_pts), 'score': avg_pts, 'desc': f"Suelo vs Rival"})
                 if smart_min_reb >= 6: 
@@ -616,17 +609,13 @@ elif opcion == "⚔️ Analizar Partido":
                 if smart_min_ast >= 4: 
                     safe_legs_ast.append({'player': p_name, 'val': int(smart_min_ast), 'score': avg_ast, 'desc': f"Suelo vs Rival"})
 
-                # LOGICA RISKY (Modificada a +1 para ser un poco más flexible)
                 if avg_pts >= 15 and avg_pts > (smart_min_pts + 1.0):
                     risky_legs_pts.append({'player': p_name, 'val': int(avg_pts), 'score': avg_pts, 'desc': f"Media vs Rival (Alto Valor)"})
-                
                 if avg_reb >= 8 and avg_reb > (smart_min_reb + 1.0):
                     risky_legs_reb.append({'player': p_name, 'val': int(avg_reb), 'score': avg_reb, 'desc': f"Media vs Rival (Alto Valor)"})
-
                 if avg_ast >= 6 and avg_ast > (smart_min_ast + 1.0):
                     risky_legs_ast.append({'player': p_name, 'val': int(avg_ast), 'score': avg_ast, 'desc': f"Media vs Rival (Alto Valor)"})
 
-            # Ordenar
             for l in [safe_legs_pts, safe_legs_reb, safe_legs_ast, risky_legs_pts, risky_legs_reb, risky_legs_ast]:
                 l.sort(key=lambda x: x['score'], reverse=True)
 
@@ -638,7 +627,6 @@ elif opcion == "⚔️ Analizar Partido":
                     html_legs += f"<div class='parlay-leg' style='border-left: 5px solid {color_border};'><div class='leg-player'>{icon} {leg['player']}</div><div class='leg-info'><div class='leg-val'>+{leg['val']}</div><div class='leg-stat'>{leg['desc']}</div></div></div>"
                 return f"<div class='{css_class}' style='border:1px solid {color_border};'><div class='parlay-header' style='color:{color_border};'>{title}</div>{html_legs}</div>"
 
-            # COLUMNAS PARA COMPARAR
             col_safe, col_risky = st.columns(2)
             
             with col_safe:
