@@ -137,7 +137,8 @@ if opcion == "🏠 Inicio":
     c1, c2 = st.columns(2)
     
     with c1:
-        st.markdown("<h3 style='color:#4caf50;'>JORNADA DE HOY (Madrugada)</h3>", unsafe_allow_html=True)
+        # AÑADIDO: text-align: center
+        st.markdown("<h3 style='text-align: center; color:#4caf50;'>JORNADA DE HOY (Madrugada)</h3>", unsafe_allow_html=True)
         for g in agenda.get("HOY", []):
             st.markdown(f"""
             <div class='game-card'>
@@ -151,7 +152,8 @@ if opcion == "🏠 Inicio":
             """, unsafe_allow_html=True)
 
     with c2:
-        st.markdown("<h3 style='color:#2196f3;'>JORNADA DE MAÑANA</h3>", unsafe_allow_html=True)
+        # AÑADIDO: text-align: center
+        st.markdown("<h3 style='text-align: center; color:#2196f3;'>JORNADA DE MAÑANA</h3>", unsafe_allow_html=True)
         for g in agenda.get("MAÑANA", []):
             st.markdown(f"""
             <div class='game-card'>
