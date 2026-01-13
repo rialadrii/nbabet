@@ -124,18 +124,59 @@ st.markdown("""
         letter-spacing: 1px;
     }
 
-    /* CALENDARIO CARDS */
+    /* CALENDARIO CARDS MEJORADO */
     .game-card {
         background-color: #2d2d2d;
         border: 1px solid #444;
-        border-radius: 8px;
-        padding: 10px;
-        margin-bottom: 10px;
+        border-radius: 12px;
+        padding: 15px;
+        margin-bottom: 15px;
         text-align: center;
+        transition: transform 0.2s;
     }
-    .game-teams { font-weight: bold; color: white; font-size: 16px; margin-bottom: 5px; }
-    .game-time { color: #4caf50; font-size: 13px; font-weight: bold; }
+    .game-card:hover {
+        transform: scale(1.02);
+        border-color: #666;
+    }
+    .game-matchup {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 15px;
+        margin-bottom: 10px;
+    }
+    .team-logo {
+        width: 45px;
+        height: 45px;
+        object-fit: contain;
+    }
+    .vs-text {
+        font-weight: bold;
+        font-size: 14px;
+        color: #888;
+    }
+    .game-time { 
+        color: #ffbd45; 
+        font-size: 18px; 
+        font-weight: bold; 
+        font-family: 'Teko', sans-serif;
+        letter-spacing: 1px;
+    }
     .game-status { color: #aaa; font-size: 12px; }
+    .injuries-link {
+        font-size: 12px;
+        color: #4caf50;
+        text-decoration: none;
+        border: 1px solid #4caf50;
+        padding: 4px 8px;
+        border-radius: 4px;
+        margin-top: 8px;
+        display: inline-block;
+    }
+    .injuries-link:hover {
+        background-color: #4caf50;
+        color: white;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -195,9 +236,27 @@ def load_data():
         return df
     return pd.DataFrame()
 
-# Función para obtener calendario
+# --- FUNCIONES DE CALENDARIO Y HORA ---
+
+def convertir_hora_espanol(hora_et):
+    """Convierte '7:00 pm ET' a formato 24h España (+6h aprox)"""
+    if "Final" in hora_et:
+        return "Finalizado"
+    if "pm" not in hora_et.lower() and "am" not in hora_et.lower():
+        return hora_et # Por si devuelve otro estado
+        
+    try:
+        # Limpiar string
+        hora_clean = hora_et.replace(" ET", "").strip()
+        # Parsear hora
+        dt = datetime.strptime(hora_clean, "%I:%M %p")
+        # Sumar 6 horas (Aprox ET a CET)
+        dt_spain = dt + timedelta(hours=6)
+        return dt_spain.strftime("%H:%M")
+    except:
+        return hora_et
+
 def obtener_partidos_hoy_manana():
-    # Diccionario rápido para mapear ID a Abreviatura
     nba_teams = nba_static_teams.get_teams()
     team_map = {t['id']: t['abbreviation'] for t in nba_teams}
     
@@ -206,7 +265,9 @@ def obtener_partidos_hoy_manana():
     
     for fecha in fechas:
         fecha_str = fecha.strftime('%Y-%m-%d')
-        label = "HOY" if fecha.date() == datetime.now().date() else "MAÑANA"
+        # Determinar etiqueta
+        is_today = fecha.date() == datetime.now().date()
+        label = "JORNADA DE HOY" if is_today else "JORNADA DE MAÑANA"
         agenda[label] = []
         
         try:
@@ -219,11 +280,26 @@ def obtener_partidos_hoy_manana():
                     visitor_id = game['VISITOR_TEAM_ID']
                     home_abv = team_map.get(home_id, "N/A")
                     vis_abv = team_map.get(visitor_id, "N/A")
-                    status = game['GAME_STATUS_TEXT'] # Ej: "7:00 pm ET" o "Final"
+                    status_raw = game['GAME_STATUS_TEXT'] 
                     
+                    # Convertir hora
+                    hora_esp = convertir_hora_espanol(status_raw)
+                    
+                    # URLs de logos
+                    logo_home = f"https://cdn.nba.com/logos/nba/{home_id}/global/L/logo.svg"
+                    logo_vis = f"https://cdn.nba.com/logos/nba/{visitor_id}/global/L/logo.svg"
+                    
+                    # Link a reporte de bajas (Rotowire es fiable)
+                    injury_url = f"https://www.rotowire.com/basketball/nba-lineups.php" 
+
                     agenda[label].append({
-                        'matchup': f"{home_abv} vs {vis_abv}",
-                        'time': status
+                        'h_abv': home_abv,
+                        'v_abv': vis_abv,
+                        'h_logo': logo_home,
+                        'v_logo': logo_vis,
+                        'time': hora_esp,
+                        'raw_status': status_raw,
+                        'injury_link': injury_url
                     })
         except:
             pass
@@ -263,38 +339,34 @@ if opcion == "🏠 Inicio":
     
     # --- CALENDARIO DE PARTIDOS ---
     st.write("---")
-    st.subheader("📅 Calendario de Partidos")
     
     with st.spinner("Cargando agenda de la NBA..."):
         agenda = obtener_partidos_hoy_manana()
     
     col_hoy, col_manana = st.columns(2)
     
-    with col_hoy:
-        st.markdown("<h3 style='color:#4caf50;'>HOY</h3>", unsafe_allow_html=True)
-        if agenda["HOY"]:
-            for game in agenda["HOY"]:
-                st.markdown(f"""
-                <div class='game-card'>
-                    <div class='game-teams'>{game['matchup']}</div>
-                    <div class='game-time'>{game['time']}</div>
-                </div>
-                """, unsafe_allow_html=True)
-        else:
-            st.caption("No hay partidos programados para hoy.")
+    def render_calendar_col(col, title, games, color_title):
+        with col:
+            st.markdown(f"<h3 style='color:{color_title};'>{title}</h3>", unsafe_allow_html=True)
+            if games:
+                for game in games:
+                    st.markdown(f"""
+                    <div class='game-card'>
+                        <div class='game-matchup'>
+                            <img src='{game['v_logo']}' class='team-logo'>
+                            <span class='vs-text'>@</span>
+                            <img src='{game['h_logo']}' class='team-logo'>
+                        </div>
+                        <div class='game-teams'>{game['v_abv']} vs {game['h_abv']}</div>
+                        <div class='game-time'>{game['time']}</div>
+                        <a href='{game['injury_link']}' target='_blank' class='injuries-link'>🏥 Ver Bajas / Lineups</a>
+                    </div>
+                    """, unsafe_allow_html=True)
+            else:
+                st.caption("No hay partidos programados.")
 
-    with col_manana:
-        st.markdown("<h3 style='color:#2196f3;'>MAÑANA</h3>", unsafe_allow_html=True)
-        if agenda["MAÑANA"]:
-            for game in agenda["MAÑANA"]:
-                st.markdown(f"""
-                <div class='game-card'>
-                    <div class='game-teams'>{game['matchup']}</div>
-                    <div class='game-time'>{game['time']}</div>
-                </div>
-                """, unsafe_allow_html=True)
-        else:
-            st.caption("No hay partidos programados para mañana.")
+    render_calendar_col(col_hoy, "JORNADA DE HOY (Madrugada)", agenda.get("JORNADA DE HOY", []), "#4caf50")
+    render_calendar_col(col_manana, "JORNADA DE MAÑANA", agenda.get("JORNADA DE MAÑANA", []), "#2196f3")
             
     st.write("---")
     
