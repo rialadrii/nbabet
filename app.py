@@ -335,7 +335,6 @@ def mostrar_tabla_bonita(df_raw, col_principal_espanol):
     st.markdown(f"<div class='table-wrapper'>{html}</div>", unsafe_allow_html=True)
 
 if opcion == "🏠 Inicio":
-    st.info("Bienvenido. Usa el menú de la izquierda para navegar.")
     
     # --- CALENDARIO DE PARTIDOS ---
     st.write("---")
@@ -347,7 +346,7 @@ if opcion == "🏠 Inicio":
     
     def render_calendar_col(col, title, games, color_title):
         with col:
-            st.markdown(f"<h3 style='color:{color_title};'>{title}</h3>", unsafe_allow_html=True)
+            st.markdown(f"<h3 style='color:{color_title}; text-align: center;'>{title}</h3>", unsafe_allow_html=True)
             if games:
                 for game in games:
                     st.markdown(f"""
