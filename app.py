@@ -18,7 +18,6 @@ if 'selected_visitor' not in st.session_state:
     st.session_state.selected_visitor = None
 
 # --- FUNCIÓN DE NAVEGACIÓN (CALLBACK) ---
-# Esta función se ejecutará al hacer clic en el botón, antes de recargar la página
 def ir_a_analisis(home, visitor):
     st.session_state.selected_home = home
     st.session_state.selected_visitor = visitor
@@ -237,6 +236,12 @@ st.markdown("<h1>🏀 NBA PRO ANALYZER 🏀</h1>", unsafe_allow_html=True)
 opcion = st.sidebar.radio("Menú:", ["🏠 Inicio", "👤 Jugador", "⚔️ Analizar Partido", "🔄 Actualizar Datos"], key="page")
 df = load_data()
 
+# --- DEFINICIÓN DE MAPA DE EQUIPOS (ESTO FALTABA) ---
+latest_teams_map = {}
+if not df.empty:
+    latest_entries = df.sort_values('game_date').drop_duplicates('player_name', keep='last')
+    latest_teams_map = dict(zip(latest_entries['player_name'], latest_entries['team_abbreviation']))
+
 # ==========================================
 # PÁGINA INICIO (CALENDARIO)
 # ==========================================
@@ -264,7 +269,7 @@ if opcion == "🏠 Inicio":
                 </div>
                 """, unsafe_allow_html=True)
                 
-                # BOTÓN DE REDIRECCIÓN (CORREGIDO CON CALLBACK)
+                # BOTÓN DE REDIRECCIÓN
                 st.button(
                     f"🔍 ANALIZAR {g['v_abv']} vs {g['h_abv']}", 
                     key=f"btn_hoy_{g['game_id']}",
@@ -292,7 +297,7 @@ if opcion == "🏠 Inicio":
                 </div>
                 """, unsafe_allow_html=True)
                 
-                # BOTÓN DE REDIRECCIÓN (CORREGIDO CON CALLBACK)
+                # BOTÓN DE REDIRECCIÓN
                 st.button(
                     f"🔍 ANALIZAR {g['v_abv']} vs {g['h_abv']}", 
                     key=f"btn_tmrw_{g['game_id']}",
@@ -431,6 +436,7 @@ elif opcion == "⚔️ Analizar Partido":
                 gp=('game_date', 'count')
             ).reset_index()
 
+            # USO DEL MAPA DE EQUIPOS QUE DABA ERROR
             stats = stats[stats['player_name'].apply(lambda x: latest_teams_map.get(x) in [t1, t2])]
 
             # Status visual
