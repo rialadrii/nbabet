@@ -349,8 +349,7 @@ def render_clickable_player_table(df_stats, stat_col, jersey_map):
     df_stats['NUM'] = df_stats['player_name'].map(jersey_map).fillna('-')
     df_stats['JUGADOR'] = df_stats['player_name'] + ' (' + df_stats['team_abbreviation'] + ')'
 
-    # --- CAMBIO IMPORTANTE: SOLO MOSTRAMOS COLUMNAS CRÍTICAS ---
-    # He quitado 'NUM' (Dorsal) de la vista principal para ahorrar espacio en móvil
+    # Solo mostramos columnas críticas
     df_interactive = df_stats[['JUGADOR', 'player_name', stat_col.lower(), f'trend_{stat_col.lower()}', 'trend_min']].copy()
     df_interactive.columns = ['JUGADOR', 'player_name_hidden', stat_col, 'RACHA', 'MIN']
     
@@ -361,12 +360,12 @@ def render_clickable_player_table(df_stats, stat_col, jersey_map):
         on_select="rerun", 
         selection_mode="single-row",
         column_config={
-            "JUGADOR": st.column_config.TextColumn("JUGADOR", width=None), # Auto-ajuste para el nombre
+            "JUGADOR": st.column_config.TextColumn("JUGADOR", width=None),
             "player_name_hidden": None,
-            # PÍXELES EXACTOS PARA CONTROLAR EL ESPACIO (El "Fit-Content" manual)
+            # AJUSTE DE ANCHOS PARA QUE QUEPA TODO
             stat_col: st.column_config.NumberColumn(stat_col, format="%.1f", width=50),
-            "RACHA": st.column_config.TextColumn("RACHA", width=100), # 100px asegura que se vea 20/20/20...
-            "MIN": st.column_config.TextColumn("MIN", width=50)       # 50px es suficiente para "30/30"
+            "RACHA": st.column_config.TextColumn("RACHA", width=100), 
+            "MIN": st.column_config.TextColumn("MIN", width=90) # <-- AUMENTADO A 90PX
         }
     )
     
