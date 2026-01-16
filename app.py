@@ -30,6 +30,9 @@ def navegar_a_jugador(player_name):
     st.session_state.selected_player = player_name
     st.session_state.page = "👤 Jugador"
 
+def volver_inicio():
+    st.session_state.page = "🏠 Inicio"
+
 # ==========================================
 # CONFIGURACIÓN DE LA PÁGINA
 # ==========================================
@@ -83,7 +86,7 @@ st.markdown("""
         border-radius: 5px; margin-top: 10px; display: inline-block;
     }
 
-    /* --- BOTÓN DE ANÁLISIS (ESTILO INTEGRADO) --- */
+    /* --- BOTÓN DE ANÁLISIS --- */
     div.stButton > button {
         width: 100%;
         border-radius: 0 0 12px 12px !important; 
@@ -93,7 +96,7 @@ st.markdown("""
         background-color: #1e1e1e;
         color: #fff;
         padding: 10px;
-        margin-top: -16px !important; /* Ajuste milimétrico para pegar */
+        margin-top: -16px !important; 
         position: relative;
         z-index: 1;
         transition: all 0.2s;
@@ -102,6 +105,15 @@ st.markdown("""
         background-color: #4caf50;
         color: white;
         border-color: #4caf50;
+    }
+    
+    /* Botón Volver (Estilo especial para diferenciarlo) */
+    .back-btn-container div.stButton > button {
+        width: auto !important;
+        margin-top: 0 !important;
+        border-radius: 5px !important;
+        background-color: #444 !important;
+        border: none !important;
     }
 
     /* Enlace tabla */
@@ -149,6 +161,8 @@ st.markdown("""
     /* Status y Patrones */
     .status-played { color: #4caf50; font-weight: bold; font-size: 16px; }
     .status-missed { color: #ff5252; font-weight: bold; font-size: 16px; }
+    .status-date { font-size: 10px; color: #aaaaaa; display: block; }
+    .status-cell { display: inline-block; margin: 0 4px; text-align: center; }
     .dnp-full { color: #4caf50; font-weight: bold; }
     .dnp-missing { color: #ff5252; }
     .pat-stars { color: #ffbd45; font-weight: bold; }
@@ -231,7 +245,6 @@ def get_nba_schedule():
 def get_next_matchup_info(t1_abv, t2_abv):
     dates = get_nba_schedule()
     if not dates: return None
-    
     nba_teams = nba_static_teams.get_teams()
     team_map = {t['abbreviation']: t['id'] for t in nba_teams}
     id1 = team_map.get(t1_abv)
@@ -299,40 +312,29 @@ def mostrar_tabla_bonita(df_raw, col_principal_espanol, simple_mode=False):
             .to_html(classes="custom-table", escape=False)
     st.markdown(f"<div class='table-wrapper'>{html}</div>", unsafe_allow_html=True)
 
-# --- FUNCIÓN TABLA INTERACTIVA (CLICKABLE) ---
+# --- FUNCIÓN TABLA INTERACTIVA (DATA EDITOR) ---
 def render_clickable_player_table(df_stats, stat_col):
-    """
-    Muestra una tabla donde las filas son seleccionables.
-    Al seleccionar una fila, te lleva al jugador.
-    """
     if df_stats.empty:
         st.info("Sin datos.")
         return
 
-    # Limpiamos para la visualización interactiva
-    # status_list (texto con emojis) en vez de HTML puro para que se vea bien en dataframe
-    # En este caso, usaremos el 'trend' como indicativo
-    
+    # Usamos st.dataframe con on_select
     df_interactive = df_stats[['player_name', 'team_abbreviation', stat_col.lower(), f'trend_{stat_col.lower()}', 'trend_min']].copy()
     df_interactive.columns = ['JUGADOR', 'EQ', stat_col, 'RACHA', 'MIN']
     
-    # Renderizamos el dataframe interactivo
     selection = st.dataframe(
         df_interactive,
         use_container_width=True,
         hide_index=True,
-        on_select="rerun", # Clave para interactividad
+        on_select="rerun", 
         selection_mode="single-row",
         column_config={
-            "JUGADOR": st.column_config.TextColumn("JUGADOR (Click para ver)", width="medium"),
+            "JUGADOR": st.column_config.TextColumn("JUGADOR (Click para analizar)", width="medium"),
             "EQ": st.column_config.TextColumn("EQ", width="small"),
-            stat_col: st.column_config.NumberColumn(stat_col, format="%.1f"),
-            "RACHA": st.column_config.TextColumn("RACHA RECIENTE"),
-            "MIN": st.column_config.TextColumn("MINUTOS")
+            stat_col: st.column_config.NumberColumn(stat_col, format="%.1f")
         }
     )
     
-    # Lógica de redirección
     if len(selection.selection.rows) > 0:
         row_idx = selection.selection.rows[0]
         player_name = df_interactive.iloc[row_idx]['JUGADOR']
@@ -419,7 +421,8 @@ elif st.session_state.page == "👤 Jugador":
         idx_sel = todos_jugadores.index(st.session_state.selected_player) if st.session_state.selected_player in todos_jugadores else None
         jugador = st.selectbox("Nombre del Jugador:", todos_jugadores, index=idx_sel)
         
-        if jugador != st.session_state.selected_player:
+        # ACTUALIZAR ESTADO SI CAMBIA MANUAL
+        if jugador and jugador != st.session_state.selected_player:
             st.session_state.selected_player = jugador
 
         if jugador:
@@ -468,7 +471,18 @@ elif st.session_state.page == "👤 Jugador":
 # PÁGINA ANALIZAR PARTIDO
 # ==========================================
 elif st.session_state.page == "⚔️ Analizar Partido":
-    st.header("⚔️ Análisis de Choque")
+    
+    # --- BOTÓN VOLVER ARRIBA ---
+    c_back, c_title = st.columns([1, 6])
+    with c_back:
+        st.markdown("<div class='back-btn-container'>", unsafe_allow_html=True)
+        if st.button("⬅️ Volver al Calendario"):
+            volver_inicio()
+            st.rerun()
+        st.markdown("</div>", unsafe_allow_html=True)
+    with c_title:
+        st.header("⚔️ Análisis de Choque")
+
     if df.empty:
         st.error("Datos no disponibles.")
     else:
@@ -480,6 +494,10 @@ elif st.session_state.page == "⚔️ Analizar Partido":
         
         t1 = col1.selectbox("Equipo Local", equipos, index=idx_t1)
         t2 = col2.selectbox("Equipo Visitante", equipos, index=idx_t2)
+        
+        # PERSISTENCIA MANUAL
+        if t1 and t1 != st.session_state.selected_home: st.session_state.selected_home = t1
+        if t2 and t2 != st.session_state.selected_visitor: st.session_state.selected_visitor = t2
         
         if t1 and t2:
             with st.spinner("Buscando próximo enfrentamiento..."):
@@ -554,7 +572,7 @@ elif st.session_state.page == "⚔️ Analizar Partido":
 
             recent_players = history[history['game_date'].isin(last_dates)].sort_values('game_date', ascending=False)
             
-            # Stats Jugadores (ESTO ARREGLA EL KEYERROR ANTERIOR)
+            # Stats Jugadores
             stats = recent_players.groupby(['player_name', 'team_abbreviation']).agg(
                 pts=('pts', 'mean'), reb=('reb', 'mean'), ast=('ast', 'mean'),
                 trend_pts=('pts', lambda x: '/'.join(x.astype(int).astype(str))),
@@ -566,7 +584,7 @@ elif st.session_state.page == "⚔️ Analizar Partido":
 
             stats = stats[stats['player_name'].apply(lambda x: latest_teams_map.get(x) in [t1, t2])]
 
-            # CALCULO DE STATUS (RECUPERADO PARA EVITAR KEYERROR)
+            # Status visual (IMPORTANTE: Esto generaba error antes si faltaba)
             status_list = []
             for idx, row in stats.iterrows():
                 p_name, p_team = row['player_name'], row['team_abbreviation']
@@ -585,7 +603,7 @@ elif st.session_state.page == "⚔️ Analizar Partido":
 
             st.write("---")
             
-            # --- TABLAS CLICABLES ---
+            # --- TABLAS CLICABLES (NUEVA IMPLEMENTACIÓN) ---
             st.subheader("🔥 Top Reboteadores")
             render_clickable_player_table(stats.sort_values('reb', ascending=False).head(10), 'REB')
             
