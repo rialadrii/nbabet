@@ -18,7 +18,7 @@ st.set_page_config(
 )
 
 # ==========================================
-# 2. CSS DEFINITIVO
+# 2. CSS DEFINITIVO (SOLUCIÓN AGRESIVA PARA ICONOS)
 # ==========================================
 st.markdown("""
 <style>
@@ -41,15 +41,28 @@ h1, h2, h3, h4, p, span, label, div.stMarkdown {
     width: 100% !important;
 }
 
-/* --- OCULTAR ANCHOR LINKS (ICONOS CADENA) --- */
-/* Esto elimina el icono de enlace al pasar el ratón por los títulos */
+/* --- OCULTAR ANCHOR LINKS (SOLUCIÓN NUCLEAR) --- */
+/* Oculta el contenedor de acciones del header */
 [data-testid="stHeaderAction"] {
     display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    height: 0 !important;
+    width: 0 !important;
+    pointer-events: none !important;
 }
-/* Refuerzo para ocultar enlaces dentro de headers */
-h1 > a, h2 > a, h3 > a, h4 > a, h5 > a, h6 > a {
+
+/* Oculta cualquier enlace 'a' dentro de los headers (h1-h6) */
+h1 a, h2 a, h3 a, h4 a, h5 a, h6 a {
     display: none !important;
-    pointer-events: none; 
+    visibility: hidden !important;
+    pointer-events: none !important;
+    color: transparent !important;
+}
+
+/* Oculta enlaces generados por markdown directamente */
+.css-10trblm, .css-16idsys, a.anchor-link {
+    display: none !important;
 }
 
 /* --- FIX TABLAS INTERACTIVAS --- */
