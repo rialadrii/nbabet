@@ -33,6 +33,9 @@ def navegar_a_jugador(player_name):
 def volver_inicio():
     st.session_state.page = "🏠 Inicio"
 
+def volver_a_partido():
+    st.session_state.page = "⚔️ Analizar Partido"
+
 # ==========================================
 # CONFIGURACIÓN DE LA PÁGINA
 # ==========================================
@@ -107,13 +110,19 @@ st.markdown("""
         border-color: #4caf50;
     }
     
-    /* Botón Volver (Estilo especial para diferenciarlo) */
+    /* Botón Volver */
     .back-btn-container div.stButton > button {
         width: auto !important;
         margin-top: 0 !important;
         border-radius: 5px !important;
         background-color: #444 !important;
-        border: none !important;
+        border: 1px solid #666 !important;
+        font-size: 14px !important;
+        padding: 5px 15px !important;
+    }
+    .back-btn-container div.stButton > button:hover {
+        background-color: #666 !important;
+        border-color: #888 !important;
     }
 
     /* Enlace tabla */
@@ -296,20 +305,57 @@ def obtener_partidos():
         except: pass
     return agenda
 
+# --- LÓGICA DE COLORES PERSONALIZADA (ACTUALIZADA) ---
+def apply_custom_color(column, avg, col_name):
+    """Aplica el color según la lógica del usuario con tolerancia dinámica"""
+    styles = []
+    
+    # Determinar tolerancia
+    if col_name in ['REB', 'AST']:
+        tolerance = 2 # Tolerancia corta para stats bajas
+    else:
+        tolerance = 5 # Tolerancia normal para PTS y MIN
+        
+    for val in column:
+        if val > avg: 
+            color = '#2962ff' # Azul Eléctrico (Supera media)
+        elif val == avg: 
+            color = '#00c853' # Verde Brillante (Iguala media)
+        elif val >= (avg - tolerance): 
+            color = '#388e3c' # Verde Oscuro (En rango aceptable)
+        else: 
+            color = '#d32f2f' # Rojo (Mal partido, debajo de tolerancia)
+            
+        styles.append(f'background-color: {color}; color: white; font-weight: bold;')
+    return styles
+
 # --- FUNCIÓN TABLA HTML ---
-def mostrar_tabla_bonita(df_raw, col_principal_espanol, simple_mode=False):
+def mostrar_tabla_bonita(df_raw, col_principal_espanol, simple_mode=False, means_dict=None):
     if simple_mode:
         html = df_raw.style\
             .format("{:.0f}", subset=[c for c in df_raw.columns if 'PTS' in c or 'REB' in c or 'AST' in c])\
             .hide(axis="index")\
             .to_html(classes="custom-table", escape=False)
     else:
-        cols_fmt = [c for c in df_raw.columns if c in ['PTS', 'REB', 'AST'] or '_PTS' in c or '_REB' in c or '_AST' in c]
-        html = df_raw.style\
-            .format("{:.1f}", subset=cols_fmt)\
-            .background_gradient(subset=[col_principal_espanol] if col_principal_espanol else None, cmap='YlOrBr' if col_principal_espanol=='REB' else ('Greens' if col_principal_espanol=='PTS' else ('Blues' if col_principal_espanol=='AST' else None)))\
-            .hide(axis="index")\
-            .to_html(classes="custom-table", escape=False)
+        # Modo con colores personalizados
+        styler = df_raw.style.format("{:.1f}", subset=[c for c in df_raw.columns if c in ['PTS', 'REB', 'AST', 'MIN'] or '_PTS' in c or '_REB' in c or '_AST' in c])
+        
+        if means_dict:
+            # Aplicamos la lógica a cada columna relevante
+            if 'PTS' in df_raw.columns and 'PTS' in means_dict:
+                styler.apply(apply_custom_color, avg=means_dict['PTS'], col_name='PTS', subset=['PTS'])
+            if 'REB' in df_raw.columns and 'REB' in means_dict:
+                styler.apply(apply_custom_color, avg=means_dict['REB'], col_name='REB', subset=['REB'])
+            if 'AST' in df_raw.columns and 'AST' in means_dict:
+                styler.apply(apply_custom_color, avg=means_dict['AST'], col_name='AST', subset=['AST'])
+            if 'MIN' in df_raw.columns and 'MIN' in means_dict:
+                styler.apply(apply_custom_color, avg=means_dict['MIN'], col_name='MIN', subset=['MIN'])
+        else:
+            # Fallback simple
+            styler.background_gradient(subset=[col_principal_espanol] if col_principal_espanol else None, cmap='Greens')
+            
+        html = styler.hide(axis="index").to_html(classes="custom-table", escape=False)
+        
     st.markdown(f"<div class='table-wrapper'>{html}</div>", unsafe_allow_html=True)
 
 # --- FUNCIÓN TABLA INTERACTIVA (DATA EDITOR) ---
@@ -318,7 +364,6 @@ def render_clickable_player_table(df_stats, stat_col):
         st.info("Sin datos.")
         return
 
-    # Usamos st.dataframe con on_select
     df_interactive = df_stats[['player_name', 'team_abbreviation', stat_col.lower(), f'trend_{stat_col.lower()}', 'trend_min']].copy()
     df_interactive.columns = ['JUGADOR', 'EQ', stat_col, 'RACHA', 'MIN']
     
@@ -357,7 +402,6 @@ if opcion != st.session_state.page:
 
 df = load_data()
 
-# Mapa de equipos (Requerido para análisis)
 latest_teams_map = {}
 if not df.empty:
     latest_entries = df.sort_values('game_date').drop_duplicates('player_name', keep='last')
@@ -411,7 +455,19 @@ elif st.session_state.page == "🔄 Actualizar Datos":
 # PÁGINA JUGADOR
 # ==========================================
 elif st.session_state.page == "👤 Jugador":
-    st.header("👤 Buscador de Jugadores")
+    
+    # --- BOTÓN VOLVER ---
+    c_back, c_title = st.columns([1, 6])
+    with c_back:
+        if st.session_state.selected_home and st.session_state.selected_visitor:
+            st.markdown("<div class='back-btn-container'>", unsafe_allow_html=True)
+            if st.button(f"⬅️ Volver a {st.session_state.selected_home} vs {st.session_state.selected_visitor}"):
+                volver_a_partido()
+                st.rerun()
+            st.markdown("</div>", unsafe_allow_html=True)
+    with c_title:
+        st.header("👤 Buscador de Jugadores")
+
     if df.empty:
         st.error("Primero actualiza los datos.")
     else:
@@ -421,7 +477,6 @@ elif st.session_state.page == "👤 Jugador":
         idx_sel = todos_jugadores.index(st.session_state.selected_player) if st.session_state.selected_player in todos_jugadores else None
         jugador = st.selectbox("Nombre del Jugador:", todos_jugadores, index=idx_sel)
         
-        # ACTUALIZAR ESTADO SI CAMBIA MANUAL
         if jugador and jugador != st.session_state.selected_player:
             st.session_state.selected_player = jugador
 
@@ -429,11 +484,19 @@ elif st.session_state.page == "👤 Jugador":
             player_data = df[df['player_name'] == jugador].sort_values('game_date', ascending=False)
             rival = st.selectbox("Filtrar vs Rival (Opcional):", todos_equipos, index=None)
             
+            # CALCULAR MEDIAS TOTALES
+            mean_pts = player_data['pts'].mean()
+            mean_reb = player_data['reb'].mean()
+            mean_ast = player_data['ast'].mean()
+            mean_min = player_data['min'].mean()
+            
+            means_dict = {'PTS': mean_pts, 'REB': mean_reb, 'AST': mean_ast, 'MIN': mean_min}
+
             c1, c2, c3, c4 = st.columns(4)
-            c1.metric("PTS", f"{player_data['pts'].mean():.1f}")
-            c2.metric("REB", f"{player_data['reb'].mean():.1f}")
-            c3.metric("AST", f"{player_data['ast'].mean():.1f}")
-            c4.metric("MIN", f"{player_data['min'].mean():.1f}")
+            c1.metric("PTS", f"{mean_pts:.1f}")
+            c2.metric("REB", f"{mean_reb:.1f}")
+            c3.metric("AST", f"{mean_ast:.1f}")
+            c4.metric("MIN", f"{mean_min:.1f}")
             
             st.subheader("Últimos 5 Partidos")
             
@@ -450,7 +513,8 @@ elif st.session_state.page == "👤 Jugador":
                 
             view.columns = ['FECHA', 'PARTIDO', 'FICHA', 'MIN', 'PTS', 'REB', 'AST']
             view['FECHA'] = view['FECHA'].dt.strftime('%d/%m/%Y') 
-            mostrar_tabla_bonita(view, None)
+            
+            mostrar_tabla_bonita(view, None, means_dict=means_dict)
             
             if rival:
                 st.subheader(f"Historial vs {rival}")
@@ -464,7 +528,7 @@ elif st.session_state.page == "👤 Jugador":
                         view_h2h = view_h2h[['game_date', 'matchup', 'FICHA', 'min', 'pts', 'reb', 'ast']]
                     view_h2h.columns = ['FECHA', 'PARTIDO', 'FICHA', 'MIN', 'PTS', 'REB', 'AST']
                     view_h2h['FECHA'] = view_h2h['FECHA'].dt.strftime('%d/%m/%Y')
-                    mostrar_tabla_bonita(view_h2h, None)
+                    mostrar_tabla_bonita(view_h2h, None, means_dict=means_dict)
                 else: st.info(f"No hay registros recientes contra {rival}.")
 
 # ==========================================
@@ -472,7 +536,7 @@ elif st.session_state.page == "👤 Jugador":
 # ==========================================
 elif st.session_state.page == "⚔️ Analizar Partido":
     
-    # --- BOTÓN VOLVER ARRIBA ---
+    # --- BOTÓN VOLVER ---
     c_back, c_title = st.columns([1, 6])
     with c_back:
         st.markdown("<div class='back-btn-container'>", unsafe_allow_html=True)
@@ -495,7 +559,6 @@ elif st.session_state.page == "⚔️ Analizar Partido":
         t1 = col1.selectbox("Equipo Local", equipos, index=idx_t1)
         t2 = col2.selectbox("Equipo Visitante", equipos, index=idx_t2)
         
-        # PERSISTENCIA MANUAL
         if t1 and t1 != st.session_state.selected_home: st.session_state.selected_home = t1
         if t2 and t2 != st.session_state.selected_visitor: st.session_state.selected_visitor = t2
         
@@ -584,26 +647,8 @@ elif st.session_state.page == "⚔️ Analizar Partido":
 
             stats = stats[stats['player_name'].apply(lambda x: latest_teams_map.get(x) in [t1, t2])]
 
-            # Status visual (IMPORTANTE: Esto generaba error antes si faltaba)
-            status_list = []
-            for idx, row in stats.iterrows():
-                p_name, p_team = row['player_name'], row['team_abbreviation']
-                real_team = latest_teams_map.get(p_name, p_team)
-                player_games = recent_players[(recent_players['player_name'] == p_name) & (recent_players['team_abbreviation'] == p_team)]
-                dates_played = player_games['game_date'].unique()
-                html_str = ""
-                for d in last_dates:
-                    d_short = d.strftime('%d/%m')
-                    if d in dates_played: html_str += f"<div class='status-cell'><span class='status-played'>✅</span><span class='status-date'>{d_short}</span></div>"
-                    else:
-                        if real_team != p_team: html_str += f"<div class='status-cell'><span class='status-date'>N/A</span></div>"
-                        else: html_str += f"<div class='status-cell'><span class='status-missed'>❌</span><span class='status-date'>{d_short}</span></div>"
-                status_list.append(html_str)
-            stats['STATUS_HTML'] = status_list
-
             st.write("---")
             
-            # --- TABLAS CLICABLES (NUEVA IMPLEMENTACIÓN) ---
             st.subheader("🔥 Top Reboteadores")
             render_clickable_player_table(stats.sort_values('reb', ascending=False).head(10), 'REB')
             
@@ -640,7 +685,13 @@ elif st.session_state.page == "⚔️ Analizar Partido":
                 st.markdown(f"<div class='table-wrapper'>{html_dnp}</div>", unsafe_allow_html=True)
             else: st.success("✅ No hubo bajas importantes.")
 
-            # Patrones
+            # Patrones y Parlay...
+            # (El resto del código se mantiene igual para ahorrar espacio en la respuesta)
+            # COPIA Y PEGA LA PARTE DE PATRONES Y PARLAY DEL CÓDIGO ANTERIOR AQUI SI ES NECESARIO
+            # O USA EL CÓDIGO ANTERIOR Y SOLO REEMPLAZA LAS FUNCIONES 'apply_custom_color' y 'mostrar_tabla_bonita'
+            # Y LA SECCIÓN 'PÁGINA JUGADOR'
+            
+            # --- Para que el código esté 100% completo, añado el final ---
             st.write("---")
             st.subheader("🕵️ Detección de Patrones")
             global_means = df.groupby('player_name')[['pts', 'reb', 'ast']].mean()
@@ -689,7 +740,6 @@ elif st.session_state.page == "⚔️ Analizar Partido":
                 st.markdown(f"<div class='table-wrapper'>{html_pat}</div>", unsafe_allow_html=True)
             else: st.write("No se detectaron impactos significativos.")
 
-            # Parlay
             st.write("---")
             st.subheader("🎲 GENERADOR DE PARLAY (Dual Strategy)")
             min_games_needed = max(3, int(len(last_dates) * 0.6))
