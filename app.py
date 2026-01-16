@@ -9,7 +9,7 @@ from nba_api.stats.endpoints import leaguegamelog, scoreboardv2
 from nba_api.stats.static import teams as nba_static_teams
 
 # ==========================================
-# GESTIÓN DE ESTADO (NAVEGACIÓN)
+# GESTIÓN DE ESTADO Y NAVEGACIÓN
 # ==========================================
 if 'page' not in st.session_state:
     st.session_state.page = "🏠 Inicio"
@@ -17,16 +17,16 @@ if 'selected_home' not in st.session_state:
     st.session_state.selected_home = None
 if 'selected_visitor' not in st.session_state:
     st.session_state.selected_visitor = None
-if 'selected_player' not in st.session_state: # NUEVO: Para guardar el jugador clickado
+if 'selected_player' not in st.session_state:
     st.session_state.selected_player = None
 
-# --- FUNCIONES DE NAVEGACIÓN (CALLBACKS) ---
-def ir_a_analisis(home, visitor):
+# --- FUNCIONES DE NAVEGACIÓN ---
+def navegar_a_partido(home, visitor):
     st.session_state.selected_home = home
     st.session_state.selected_visitor = visitor
     st.session_state.page = "⚔️ Analizar Partido"
 
-def ir_a_jugador(player_name):
+def navegar_a_jugador(player_name):
     st.session_state.selected_player = player_name
     st.session_state.page = "👤 Jugador"
 
@@ -35,7 +35,7 @@ def ir_a_jugador(player_name):
 # ==========================================
 st.set_page_config(page_title="NBA Analyzer Pro", page_icon="🏀", layout="wide")
 
-# --- CSS ---
+# --- CSS MEJORADO (Unión perfecta Card/Botón) ---
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Teko:wght@300..700&display=swap');
@@ -57,14 +57,15 @@ st.markdown("""
         letter-spacing: 1px;
     }
 
-    /* Tarjetas del calendario */
+    /* --- TARJETA DEL PARTIDO (PARTE SUPERIOR) --- */
     .game-card {
         background-color: #2d2d2d;
         border: 1px solid #444;
-        border-radius: 12px;
+        border-bottom: 0px; /* Sin borde abajo para unir */
+        border-radius: 12px 12px 0 0; /* Solo redondeado arriba */
         padding: 15px;
-        margin-bottom: 15px;
         text-align: center;
+        margin-bottom: 0px !important; /* Pegado al botón */
     }
     .game-matchup { display: flex; justify-content: center; align-items: center; gap: 15px; margin-bottom: 10px; }
     .team-logo { width: 45px; height: 45px; object-fit: contain; }
@@ -82,82 +83,67 @@ st.markdown("""
         border-radius: 5px; margin-top: 10px; display: inline-block;
     }
 
-    /* Enlace de la ficha del partido en la tabla */
-    a.match-link {
-        color: #fff !important;
-        background-color: #2196f3;
-        text-decoration: none;
+    /* --- BOTÓN DE ANÁLISIS (PARTE INFERIOR) --- */
+    /* Forzamos al botón a pegarse arriba */
+    div.stButton > button {
+        width: 100%;
+        border-radius: 0 0 12px 12px !important; /* Solo redondeado abajo */
         font-weight: bold;
-        padding: 4px 10px;
-        border-radius: 4px;
-        font-size: 12px;
-        display: inline-block;
-        width: 80px;
-        text-align: center;
+        border: 1px solid #444;
+        border-top: 0px; /* Sin borde arriba */
+        background-color: #1e1e1e;
+        color: #fff;
+        padding: 10px;
+        margin-top: -15px !important; /* Margen negativo para subirlo y pegarlo */
+        z-index: 1;
+        transition: all 0.2s;
+    }
+    div.stButton > button:hover {
+        background-color: #4caf50;
+        color: white;
+        border-color: #4caf50;
+    }
+    
+    /* Botones de Jugadores (Pequeños) */
+    .player-btn-container {
+        display: flex; gap: 5px; flex-wrap: wrap; justify-content: center; margin-top: 5px;
+    }
+
+    /* Enlace tabla */
+    a.match-link {
+        color: #fff !important; background-color: #2196f3;
+        text-decoration: none; font-weight: bold;
+        padding: 4px 10px; border-radius: 4px;
+        font-size: 12px; display: inline-block; width: 80px; text-align: center;
     }
     a.match-link:hover { background-color: #1976d2; }
-    
     .no-link { color: #666; font-size: 11px; font-style: italic; }
 
-    /* Estilo para el aviso de próximo partido */
+    /* Aviso Próximo Partido */
     .next-game-box {
-        background-color: #1a2e1a;
-        border: 2px solid #4caf50;
-        border-radius: 10px;
-        padding: 15px;
-        text-align: center;
-        margin-bottom: 20px;
-        color: #fff;
+        background-color: #1a2e1a; border: 2px solid #4caf50;
+        border-radius: 10px; padding: 15px; text-align: center;
+        margin-bottom: 20px; color: #fff;
     }
-    .next-game-title { color: #4caf50; font-weight: bold; font-size: 22px; margin-bottom: 5px; font-family: 'Teko', sans-serif; }
-    .next-game-info { font-size: 16px; margin-bottom: 10px; }
-    
+    .next-game-title { color: #4caf50; font-weight: bold; font-size: 22px; font-family: 'Teko', sans-serif; }
     .next-game-btn {
-        background-color: #4caf50;
-        color: white !important;
-        padding: 8px 15px;
-        text-decoration: none;
-        border-radius: 5px;
-        font-weight: bold;
-        font-size: 14px;
+        background-color: #4caf50; color: white !important;
+        padding: 8px 15px; text-decoration: none; border-radius: 5px;
+        font-weight: bold; font-size: 14px;
     }
-    .next-game-btn:hover { background-color: #45a049; }
 
     .credits { 
-        font-family: 'Teko', sans-serif; 
-        font-size: 24px; color: #666; 
+        font-family: 'Teko', sans-serif; font-size: 24px; color: #666; 
         text-align: center; margin-top: 40px; 
     }
     
-    /* Estilo para el botón de analizar dentro de la tarjeta */
-    div.stButton > button {
-        width: 100%;
-        border-radius: 8px;
-        font-weight: bold;
-        border: 1px solid #464b5f;
-        background-color: #31333F;
-        color: white;
-    }
-    div.stButton > button:hover {
-        border-color: #ffbd45;
-        color: #ffbd45;
-    }
-    
-    /* Estilo para los botones de la tabla de jugadores */
-    /* Diferenciamos los botones pequeños de la tabla */
-    button.small-player-btn {
-        padding: 2px 10px !important;
-        font-size: 12px !important;
-        height: auto !important;
-    }
-
-    /* Ajustes tabla */
-    table { width: 100%; border-collapse: collapse; margin-bottom: 20px; color: white; font-family: sans-serif; }
+    /* TABLAS HTML (RESPONSIVAS) */
+    table { width: 100%; border-collapse: collapse; margin-bottom: 5px; color: white; font-family: sans-serif; }
     th { background-color: #31333F; color: white; font-weight: bold; text-align: center !important; padding: 10px; border-bottom: 2px solid #464b5f; text-transform: uppercase; }
     td { text-align: center !important; padding: 8px; border-bottom: 1px solid #464b5f; font-size: 14px; vertical-align: middle; }
-    div[data-testid="stMetric"] { background-color: #262730; border: 1px solid #464b5f; border-radius: 10px; padding: 10px; }
+    div.table-wrapper { overflow-x: auto; margin-bottom: 10px; }
     
-    /* Parlay Boxes */
+    /* Parlay */
     .parlay-box { background-color: #1e1e1e; border: 1px solid #444; border-radius: 15px; padding: 15px; margin-bottom: 20px; }
     .parlay-header { font-size: 20px; font-weight: bold; margin-bottom: 15px; text-transform: uppercase; border-bottom: 1px solid #444; padding-bottom: 10px; text-align: center; }
     .parlay-leg { background-color: #2d2d2d; margin: 10px 0; padding: 10px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; }
@@ -165,19 +151,15 @@ st.markdown("""
     .leg-val { font-weight: bold; font-size: 18px; text-align: right; }
     .leg-stat { color: #aaaaaa; font-size: 11px; text-align: right; }
     
-    /* Estilos para Patrones */
-    .pat-stars { color: #ffbd45; font-weight: bold; }
-    .pat-impact { color: #4caf50; font-weight: bold; }
-    
-    /* Status cells */
+    /* Status y Patrones */
     .status-played { color: #4caf50; font-weight: bold; font-size: 16px; }
     .status-missed { color: #ff5252; font-weight: bold; font-size: 16px; }
     .status-date { font-size: 10px; color: #aaaaaa; display: block; }
     .status-cell { display: inline-block; margin: 0 4px; text-align: center; }
-    
-    /* Bajas */
     .dnp-full { color: #4caf50; font-weight: bold; }
     .dnp-missing { color: #ff5252; }
+    .pat-stars { color: #ffbd45; font-weight: bold; }
+    .pat-impact { color: #4caf50; font-weight: bold; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -259,23 +241,18 @@ def get_next_matchup_info(t1_abv, t2_abv):
     
     nba_teams = nba_static_teams.get_teams()
     team_map = {t['abbreviation']: t['id'] for t in nba_teams}
-    
     id1 = team_map.get(t1_abv)
     id2 = team_map.get(t2_abv)
-    
     if not id1 or not id2: return None
     
     today = datetime.now().date()
-    
     for day in dates:
         try:
             game_dt = datetime.strptime(day['gameDate'], "%m/%d/%Y %H:%M:%S").date()
             if game_dt < today: continue 
-            
             for game in day['games']:
                 h_id = game['homeTeam']['teamId']
                 v_id = game['awayTeam']['teamId']
-                
                 if (h_id == id1 and v_id == id2) or (h_id == id2 and v_id == id1):
                     return {
                         'date': game_dt.strftime("%d/%m/%Y"),
@@ -290,10 +267,8 @@ def get_next_matchup_info(t1_abv, t2_abv):
 def obtener_partidos():
     nba_teams = nba_static_teams.get_teams()
     team_map = {t['id']: t['abbreviation'] for t in nba_teams}
-    
     basket_today = get_basketball_date()
     fechas = [basket_today, basket_today + timedelta(days=1)]
-    
     agenda = {}
     for i, fecha in enumerate(fechas):
         fecha_str = fecha.strftime('%Y-%m-%d')
@@ -315,7 +290,7 @@ def obtener_partidos():
         except: pass
     return agenda
 
-# --- FUNCIÓN TABLA HTML MEJORADA ---
+# --- FUNCIÓN TABLA HTML (LA QUE FUNCIONA BIEN) ---
 def mostrar_tabla_bonita(df_raw, col_principal_espanol, simple_mode=False):
     if simple_mode:
         html = df_raw.style\
@@ -329,49 +304,26 @@ def mostrar_tabla_bonita(df_raw, col_principal_espanol, simple_mode=False):
             .background_gradient(subset=[col_principal_espanol] if col_principal_espanol else None, cmap='YlOrBr' if col_principal_espanol=='REB' else ('Greens' if col_principal_espanol=='PTS' else ('Blues' if col_principal_espanol=='AST' else None)))\
             .hide(axis="index")\
             .to_html(classes="custom-table", escape=False)
-            
     st.markdown(f"<div class='table-wrapper'>{html}</div>", unsafe_allow_html=True)
-
-# --- NUEVA FUNCIÓN: TABLA INTERACTIVA DE JUGADORES ---
-def render_interactive_player_table(df_stats, stat_col):
-    """
-    Renderiza una tabla con filas interactivas en lugar de HTML estático.
-    Permite hacer clic en el nombre del jugador.
-    """
-    # Encabezados
-    c1, c2, c3, c4 = st.columns([2, 1, 1, 2])
-    with c1: st.markdown("**JUGADOR**")
-    with c2: st.markdown("**EQUIPO**")
-    with c3: st.markdown(f"**{stat_col}**")
-    with c4: st.markdown("**MIN (SEQ)**")
-    
-    st.markdown("<hr style='margin:5px 0; border-color:#444;'>", unsafe_allow_html=True)
-    
-    # Filas
-    for idx, row in df_stats.iterrows():
-        c1, c2, c3, c4 = st.columns([2, 1, 1, 2])
-        with c1:
-            # Botón con el nombre del jugador
-            if st.button(f"👤 {row['player_name']}", key=f"btn_p_{idx}_{stat_col}", help="Ver análisis"):
-                ir_a_jugador(row['player_name'])
-                st.rerun()
-        with c2:
-            st.write(row['team_abbreviation'])
-        with c3:
-            val = row[stat_col.lower()] # stat_col viene en mayus (REB), en df es minus (reb)
-            st.write(f"**{val:.1f}**")
-        with c4:
-            st.write(row['trend_min'])
-        
-        st.markdown("<div style='height:1px; background-color:#333; margin:5px 0;'></div>", unsafe_allow_html=True)
-
 
 # ==========================================
 # INTERFAZ
 # ==========================================
 st.markdown("<h1>🏀 NBA PRO ANALYZER 🏀</h1>", unsafe_allow_html=True)
 
-opcion = st.sidebar.radio("Menú:", ["🏠 Inicio", "👤 Jugador", "⚔️ Analizar Partido", "🔄 Actualizar Datos"], key="page")
+# --- MENÚ DE NAVEGACIÓN SIN CONFLICTOS ---
+pages = ["🏠 Inicio", "👤 Jugador", "⚔️ Analizar Partido", "🔄 Actualizar Datos"]
+# Si el estado no coincide, forzamos el índice
+if st.session_state.page not in pages: st.session_state.page = "🏠 Inicio"
+current_index = pages.index(st.session_state.page)
+
+opcion = st.sidebar.radio("Menú:", pages, index=current_index)
+
+# Si el usuario cambia el radio manualmente, actualizamos el estado
+if opcion != st.session_state.page:
+    st.session_state.page = opcion
+    st.rerun()
+
 df = load_data()
 
 # --- DEFINICIÓN DE MAPA DE EQUIPOS ---
@@ -383,67 +335,54 @@ if not df.empty:
 # ==========================================
 # PÁGINA INICIO (CALENDARIO)
 # ==========================================
-if opcion == "🏠 Inicio":
+if st.session_state.page == "🏠 Inicio":
     agenda = obtener_partidos()
     c1, c2 = st.columns(2)
     
-    with c1:
-        st.markdown("<h3 style='color:#4caf50; text-align: center;'>JORNADA DE HOY (Madrugada)</h3>", unsafe_allow_html=True)
-        games_today = agenda.get("HOY", [])
-        if not games_today:
-            st.caption("No se encontraron partidos para hoy.")
-        for g in games_today:
-            st.markdown(f"""
-            <div class='game-card'>
-                <div class='game-matchup'>
-                    <img src='{g['v_logo']}' class='team-logo'> <span class='vs-text'>@</span> <img src='{g['h_logo']}' class='team-logo'>
+    # Función para renderizar tarjeta + botón pegado
+    def render_card_button(col, title, games, color):
+        with col:
+            st.markdown(f"<h3 style='color:{color}; text-align: center;'>{title}</h3>", unsafe_allow_html=True)
+            if not games: st.caption("No hay partidos.")
+            for g in games:
+                st.markdown(f"""
+                <div class='game-card'>
+                    <div class='game-matchup'>
+                        <img src='{g['v_logo']}' class='team-logo'> <span class='vs-text'>@</span> <img src='{g['h_logo']}' class='team-logo'>
+                    </div>
+                    <div style='color:white; font-weight:bold;'>{g['v_abv']} vs {g['h_abv']}</div>
+                    <div class='game-time'>{g['time']}</div>
+                    <a href='https://www.rotowire.com/basketball/nba-lineups.php' target='_blank' class='injuries-link'>🏥 Ver Bajas / Lineups</a>
                 </div>
-                <div style='color:white; font-weight:bold;'>{g['v_abv']} vs {g['h_abv']}</div>
-                <div class='game-time'>{g['time']}</div>
-                <a href='https://www.rotowire.com/basketball/nba-lineups.php' target='_blank' class='injuries-link'>🏥 Ver Bajas / Lineups</a>
-            </div>
-            """, unsafe_allow_html=True)
-            st.button(f"🔍 ANALIZAR {g['v_abv']} vs {g['h_abv']}", key=f"btn_hoy_{g['game_id']}", on_click=ir_a_analisis, args=(g['h_abv'], g['v_abv']))
-            st.write("") 
+                """, unsafe_allow_html=True)
+                
+                # El botón se pega gracias al CSS 'margin-top: -15px'
+                if st.button(f"🔍 ANALIZAR {g['v_abv']} vs {g['h_abv']}", key=f"btn_{g['game_id']}"):
+                    navegar_a_partido(g['h_abv'], g['v_abv'])
+                    st.rerun()
+                st.write("") # Espacio entre tarjetas
 
-    with c2:
-        st.markdown("<h3 style='color:#2196f3; text-align: center;'>JORNADA DE MAÑANA</h3>", unsafe_allow_html=True)
-        games_tmrw = agenda.get("MAÑANA", [])
-        if not games_tmrw:
-            st.caption("No se encontraron partidos para mañana.")
-        for g in games_tmrw:
-            st.markdown(f"""
-            <div class='game-card'>
-                <div class='game-matchup'>
-                    <img src='{g['v_logo']}' class='team-logo'> <span class='vs-text'>@</span> <img src='{g['h_logo']}' class='team-logo'>
-                </div>
-                <div style='color:white; font-weight:bold;'>{g['v_abv']} vs {g['h_abv']}</div>
-                <div class='game-time'>{g['time']}</div>
-                <a href='https://www.rotowire.com/basketball/nba-lineups.php' target='_blank' class='injuries-link'>🏥 Ver Bajas / Lineups</a>
-            </div>
-            """, unsafe_allow_html=True)
-            st.button(f"🔍 ANALIZAR {g['v_abv']} vs {g['h_abv']}", key=f"btn_tmrw_{g['game_id']}", on_click=ir_a_analisis, args=(g['h_abv'], g['v_abv']))
-            st.write("")
+    render_card_button(c1, "JORNADA DE HOY (Madrugada)", agenda.get("HOY", []), "#4caf50")
+    render_card_button(c2, "JORNADA DE MAÑANA", agenda.get("MAÑANA", []), "#2196f3")
 
     st.markdown("<div class='credits'>Creado por ad.ri.</div>", unsafe_allow_html=True)
 
 # ==========================================
 # PÁGINA ACTUALIZAR
 # ==========================================
-elif opcion == "🔄 Actualizar Datos":
+elif st.session_state.page == "🔄 Actualizar Datos":
     st.write("### 🔄 Sincronización con NBA API")
-    st.write("Pulsa el botón para descargar los últimos partidos y los IDs necesarios para los enlaces.")
     if st.button("Descargar y Actualizar Ahora"):
         with st.spinner("Conectando con servidores NBA..."):
             success = download_data()
             if success:
-                st.success("¡Base de datos regenerada! Ya puedes analizar.")
+                st.success("¡Base de datos regenerada!")
                 st.rerun()
 
 # ==========================================
 # PÁGINA JUGADOR
 # ==========================================
-elif opcion == "👤 Jugador":
+elif st.session_state.page == "👤 Jugador":
     st.header("👤 Buscador de Jugadores")
     if df.empty:
         st.error("Primero actualiza los datos.")
@@ -451,17 +390,18 @@ elif opcion == "👤 Jugador":
         todos_jugadores = sorted(df['player_name'].unique())
         todos_equipos = sorted(df['team_abbreviation'].unique())
 
-        # Lógica de preselección desde click
-        idx_player = todos_jugadores.index(st.session_state.selected_player) if st.session_state.selected_player in todos_jugadores else None
-
-        jugador = st.selectbox("Escribe el nombre del Jugador:", todos_jugadores, index=idx_player, placeholder="Ej: Kevin Love")
+        # Preselección automática si venimos de un click
+        idx_sel = todos_jugadores.index(st.session_state.selected_player) if st.session_state.selected_player in todos_jugadores else None
         
-        if jugador:
-            # Actualizamos el estado por si el usuario cambia manualmente
+        jugador = st.selectbox("Nombre del Jugador:", todos_jugadores, index=idx_sel)
+        
+        # Actualizamos estado si cambia manual
+        if jugador != st.session_state.selected_player:
             st.session_state.selected_player = jugador
-            
+
+        if jugador:
             player_data = df[df['player_name'] == jugador].sort_values('game_date', ascending=False)
-            rival = st.selectbox("Filtrar vs Rival (Opcional):", todos_equipos, index=None, placeholder="Selecciona equipo rival...")
+            rival = st.selectbox("Filtrar vs Rival (Opcional):", todos_equipos, index=None)
             
             c1, c2, c3, c4 = st.columns(4)
             c1.metric("PTS", f"{player_data['pts'].mean():.1f}")
@@ -504,7 +444,7 @@ elif opcion == "👤 Jugador":
 # ==========================================
 # PÁGINA ANALIZAR PARTIDO
 # ==========================================
-elif opcion == "⚔️ Analizar Partido":
+elif st.session_state.page == "⚔️ Analizar Partido":
     st.header("⚔️ Análisis de Choque")
     if df.empty:
         st.error("Datos no disponibles.")
@@ -555,7 +495,7 @@ elif opcion == "⚔️ Analizar Partido":
             if 'game_id' not in df.columns: st.warning("⚠️ Faltan enlaces. Actualiza datos.")
             mostrar_tabla_bonita(df_games, None)
 
-            # --- ESTADÍSTICAS DE EQUIPO ---
+            # Estadísticas Equipo
             team_totals = history.groupby(['game_date', 'team_abbreviation'])[['pts', 'reb', 'ast']].sum().reset_index()
             team_avgs = team_totals.groupby('team_abbreviation')[['pts', 'reb', 'ast']].mean().reset_index()
             team_avgs = team_avgs[team_avgs['team_abbreviation'].isin([t1, t2])]
@@ -563,7 +503,6 @@ elif opcion == "⚔️ Analizar Partido":
             if not team_avgs.empty:
                 st.write("---")
                 st.subheader("📊 Estadísticas de Equipo (H2H)")
-                
                 st.caption("Promedios de los últimos enfrentamientos:")
                 v_avgs = team_avgs.copy()
                 v_avgs.columns = ['EQUIPO', 'PTS', 'REB', 'AST']
@@ -586,13 +525,11 @@ elif opcion == "⚔️ Analizar Partido":
                         row[f'{t2} REB'] = t2_d['reb'].values[0] if not t2_d.empty else 0
                         row[f'{t2} AST'] = t2_d['ast'].values[0] if not t2_d.empty else 0
                         game_stats.append(row)
-                
                 if game_stats:
                     df_comparative = pd.DataFrame(game_stats)
                     cols_ordered = ['FECHA', f'{t1} PTS', f'{t2} PTS', f'{t1} REB', f'{t2} REB', f'{t1} AST', f'{t2} AST']
                     final_cols = [c for c in cols_ordered if c in df_comparative.columns]
-                    df_final_comp = df_comparative[final_cols]
-                    mostrar_tabla_bonita(df_final_comp, None, simple_mode=True)
+                    mostrar_tabla_bonita(df_comparative[final_cols], None, simple_mode=True)
 
             recent_players = history[history['game_date'].isin(last_dates)].sort_values('game_date', ascending=False)
             
@@ -608,20 +545,49 @@ elif opcion == "⚔️ Analizar Partido":
 
             stats = stats[stats['player_name'].apply(lambda x: latest_teams_map.get(x) in [t1, t2])]
 
+            # Status visual
+            status_list = []
+            for idx, row in stats.iterrows():
+                p_name, p_team = row['player_name'], row['team_abbreviation']
+                real_team = latest_teams_map.get(p_name, p_team)
+                player_games = recent_players[(recent_players['player_name'] == p_name) & (recent_players['team_abbreviation'] == p_team)]
+                dates_played = player_games['game_date'].unique()
+                html_str = ""
+                for d in last_dates:
+                    d_short = d.strftime('%d/%m')
+                    if d in dates_played: html_str += f"<div class='status-cell'><span class='status-played'>✅</span><span class='status-date'>{d_short}</span></div>"
+                    else:
+                        if real_team != p_team: html_str += f"<div class='status-cell'><span class='status-date'>N/A</span></div>"
+                        else: html_str += f"<div class='status-cell'><span class='status-missed'>❌</span><span class='status-date'>{d_short}</span></div>"
+                status_list.append(html_str)
+            stats['STATUS_HTML'] = status_list
+
             st.write("---")
             
-            # --- TABLAS INTERACTIVAS ---
-            st.subheader("🔥 Top Reboteadores")
-            reb_df = stats.sort_values('reb', ascending=False).head(10).copy()
-            render_interactive_player_table(reb_df, 'REB')
+            # --- TABLAS CON SELECTOR DE JUGADOR ABAJO (SOLUCIÓN TABLET/MOVIL) ---
             
-            st.subheader("🎯 Top Anotadores")
-            pts_df = stats.sort_values('pts', ascending=False).head(10).copy()
-            render_interactive_player_table(pts_df, 'PTS')
-            
-            st.subheader("🤝 Top Asistentes")
-            ast_df = stats.sort_values('ast', ascending=False).head(10).copy()
-            render_interactive_player_table(ast_df, 'AST')
+            def render_player_section(title, df_sorted, stat_col):
+                st.subheader(title)
+                if not df_sorted.empty:
+                    df_view = df_sorted[['player_name', 'team_abbreviation', 'STATUS_HTML', stat_col.lower(), f'trend_{stat_col.lower()}', 'trend_min']].copy()
+                    df_view.columns = ['JUGADOR', 'EQUIPO', 'STATUS', stat_col, 'RACHA', 'MIN (SEQ)']
+                    mostrar_tabla_bonita(df_view, stat_col)
+                    
+                    # Selector Rápido
+                    top_players = df_sorted['player_name'].head(8).tolist()
+                    st.write("👇 **Analizar Jugador:**")
+                    cols = st.columns(len(top_players))
+                    for i, p in enumerate(top_players):
+                        # Usamos st.button normales que funcionan perfecto
+                        if st.button(p, key=f"btn_{stat_col}_{i}_{p}"):
+                            navegar_a_jugador(p)
+                            st.rerun()
+                else:
+                    st.info("Sin datos.")
+
+            render_player_section("🔥 Top Reboteadores", stats.sort_values('reb', ascending=False).head(10), 'REB')
+            render_player_section("🎯 Top Anotadores", stats.sort_values('pts', ascending=False).head(10), 'PTS')
+            render_player_section("🤝 Top Asistentes", stats.sort_values('ast', ascending=False).head(10), 'AST')
             
             # Bajas
             st.write("---")
