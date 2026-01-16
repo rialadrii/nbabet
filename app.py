@@ -366,7 +366,10 @@ def render_clickable_player_table(df_stats, stat_col, jersey_map):
             # AJUSTE DE ANCHOS PARA QUE QUEPA TODO
             stat_col: st.column_config.NumberColumn(stat_col, format="%.1f", width=50),
             "RACHA": st.column_config.TextColumn("RACHA (Últ. Partidos)", width=150), 
-            "MIN": st.column_config.TextColumn("MIN", width=90)
+            
+            # --- CAMBIO AQUÍ: Aumentado de 90 a 115 px ---
+            "MIN": st.column_config.TextColumn("MIN", width=115) 
+            # ---------------------------------------------
         }
     )
     
@@ -804,4 +807,5 @@ elif st.session_state.page == "⚔️ Analizar Partido":
                 st.markdown(render_ticket("PTS", risky_legs_pts, "🏀", "#ff5252", "parlay-box"), unsafe_allow_html=True)
                 if risky_legs_reb: st.markdown(render_ticket("REB", risky_legs_reb, "🖐", "#ff5252", "parlay-box"), unsafe_allow_html=True)
                 if risky_legs_ast: st.markdown(render_ticket("AST", risky_legs_ast, "🎁", "#ff5252", "parlay-box"), unsafe_allow_html=True)
+
 
