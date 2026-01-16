@@ -177,9 +177,18 @@ st.markdown("""
     .pat-stars { color: #ffbd45; font-weight: bold; }
     .pat-impact { color: #4caf50; font-weight: bold; }
 
-    /* --- OCULTAR TOOLBAR DE DATAFRAME --- */
-    [data-testid="stElementToolbar"] {
-        display: none;
+    /* --- OCULTAR TOOLBAR Y FORZAR CENTRADO DATAFRAME --- */
+    [data-testid="stElementToolbar"] { display: none !important; }
+    
+    /* Forzar centrado de celdas en st.dataframe */
+    .stDataFrame div[data-testid="stTable"] div[role="row"] div[role="gridcell"] {
+        justify-content: center !important;
+        text-align: center !important;
+    }
+    /* Forzar centrado de cabeceras en st.dataframe */
+    .stDataFrame div[data-testid="stTable"] div[role="row"] div[role="columnheader"] {
+        justify-content: center !important;
+        text-align: center !important;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -256,14 +265,15 @@ def get_nba_schedule():
     except:
         return []
 
-# --- FUNCIÓN NUEVA: OBTENER DORSALES ---
+# --- FUNCIÓN OBTENER DORSALES ---
 @st.cache_data(ttl=3600)
 def get_team_roster_numbers(team_id):
-    """Obtiene el diccionario {Jugador: Numero} para un equipo"""
     try:
         roster = commonteamroster.CommonTeamRoster(team_id=team_id)
         df_roster = roster.get_data_frames()[0]
         # Crear diccionario Nombre -> Numero
+        # IMPORTANTE: A veces NUM es float o int, forzamos string sin decimales
+        df_roster['NUM'] = df_roster['NUM'].astype(str).str.replace('.0', '', regex=False)
         return dict(zip(df_roster['PLAYER'], df_roster['NUM']))
     except:
         return {}
@@ -329,7 +339,6 @@ def apply_custom_color(column, avg, col_name):
         tolerance = 2 
     else:
         tolerance = 5 
-        
     for val in column:
         text_color = "white"
         if val > avg: 
@@ -341,7 +350,6 @@ def apply_custom_color(column, avg, col_name):
             text_color = "black"
         else: 
             color = '#d32f2f'
-            
         styles.append(f'background-color: {color}; color: {text_color}; font-weight: bold;')
     return styles
 
@@ -388,7 +396,6 @@ def render_clickable_player_table(df_stats, stat_col, jersey_map):
         st.info("Sin datos.")
         return
 
-    # Añadimos el dorsal
     df_stats['#'] = df_stats['player_name'].map(jersey_map).fillna('-')
 
     df_interactive = df_stats[['#', 'player_name', 'team_abbreviation', stat_col.lower(), f'trend_{stat_col.lower()}', 'trend_min']].copy()
@@ -401,10 +408,12 @@ def render_clickable_player_table(df_stats, stat_col, jersey_map):
         on_select="rerun", 
         selection_mode="single-row",
         column_config={
-            "#": st.column_config.TextColumn("#", width="small"), # Dorsal primero
-            "JUGADOR": st.column_config.TextColumn("JUGADOR (Click para analizar)", width="medium"),
-            "EQ": st.column_config.TextColumn("EQ", width="small"),
-            stat_col: st.column_config.NumberColumn(stat_col, format="%.1f")
+            "#": st.column_config.TextColumn("#", width="small", disabled=True), 
+            "JUGADOR": st.column_config.TextColumn("JUGADOR (Click para analizar)", width="medium", disabled=True),
+            "EQ": st.column_config.TextColumn("EQ", width="small", disabled=True),
+            stat_col: st.column_config.NumberColumn(stat_col, format="%.1f", disabled=True),
+            "RACHA": st.column_config.TextColumn("RACHA", disabled=True),
+            "MIN": st.column_config.TextColumn("MIN", disabled=True)
         }
     )
     
@@ -592,17 +601,12 @@ elif st.session_state.page == "⚔️ Analizar Partido":
         if t2 and t2 != st.session_state.selected_visitor: st.session_state.selected_visitor = t2
         
         if t1 and t2:
-            # --- OBTENER DORSALES ---
             nba_teams = nba_static_teams.get_teams()
             team_map_id = {t['abbreviation']: t['id'] for t in nba_teams}
-            
-            # Recuperamos dorsales de ambos equipos
             roster_t1 = {}
             roster_t2 = {}
             if t1 in team_map_id: roster_t1 = get_team_roster_numbers(team_map_id[t1])
             if t2 in team_map_id: roster_t2 = get_team_roster_numbers(team_map_id[t2])
-            
-            # Unimos diccionarios
             full_roster_map = {**roster_t1, **roster_t2}
 
             with st.spinner("Buscando próximo enfrentamiento..."):
@@ -722,7 +726,6 @@ elif st.session_state.page == "⚔️ Analizar Partido":
 
             st.write("---")
             
-            # --- TABLAS CLICABLES CON DORSAL ---
             st.subheader("🔥 Top Reboteadores")
             render_clickable_player_table(stats.sort_values('reb', ascending=False).head(10), 'REB', full_roster_map)
             
@@ -759,7 +762,7 @@ elif st.session_state.page == "⚔️ Analizar Partido":
                 st.markdown(f"<div class='table-wrapper'>{html_dnp}</div>", unsafe_allow_html=True)
             else: st.success("✅ No hubo bajas importantes.")
 
-            # Patrones y Parlay... (Resto del código igual)
+            # Patrones y Parlay se mantienen igual...
             # (Mantén la parte de Patrones y Parlay del código anterior aquí)
             st.write("---")
             st.subheader("🕵️ Detección de Patrones")
