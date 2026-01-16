@@ -4,7 +4,7 @@ import sqlite3
 import os
 import time
 import requests
-import json  # <--- NUEVO: Para guardar los datos
+import json
 from datetime import datetime, timedelta
 from nba_api.stats.endpoints import leaguegamelog, scoreboardv2, commonteamroster
 from nba_api.stats.static import teams as nba_static_teams
@@ -337,18 +337,27 @@ def render_clickable_player_table(df_stats, stat_col, jersey_map):
 
 # --- FUNCIONES DE API DE CUOTAS Y CACHÉ ---
 def get_sports_odds(api_key, market_key):
+    # --- CORRECCIÓN ERROR 422 ---
+    # Si pedimos player_points en 'eu', la API gratuita suele fallar o no tener datos.
+    # Forzamos 'us' (USA) para player props, ya que ahí si suele haber datos (FanDuel, etc).
+    region = 'eu'
+    if market_key == 'player_points':
+        region = 'us' 
+    
     try:
         odds_response = requests.get(
             f'https://api.the-odds-api.com/v4/sports/basketball_nba/odds',
             params={
                 'api_key': api_key,
-                'regions': 'eu',
+                'regions': region,
                 'markets': market_key, 
                 'oddsFormat': 'decimal',
                 'dateFormat': 'iso',
             }
         )
         if odds_response.status_code != 200:
+            if odds_response.status_code == 422:
+                return None, "Error 422: Tu plan gratuito no soporta este mercado o región. Prueba 'Ganador Partido'."
             return None, f"Error API: {odds_response.status_code}"
         return odds_response.json(), None
     except Exception as e:
@@ -623,7 +632,7 @@ elif st.session_state.page == "💰 Buscador de Cuotas":
                     st.divider()
             
             if not found:
-                st.warning("No hay datos de jugadores disponibles en este momento.")
+                st.warning("No hay datos de jugadores disponibles en este momento. Puede que el mercado esté cerrado.")
 
 # --- PÁGINA ANALIZAR PARTIDO ---
 elif st.session_state.page == "⚔️ Analizar Partido":
