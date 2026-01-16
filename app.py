@@ -304,17 +304,38 @@ def obtener_partidos():
 # ==========================================
 def apply_custom_color(column, avg, col_name):
     styles = []
-    # Tolerancia menor para Triples (FG3M)
-    tolerance = 1 if col_name == 'FG3M' else (2 if col_name in ['REB', 'AST'] else 5)
     
+    # 1. Definir Tolerancias según petición
+    if col_name in ['FG3M', '3PM']:
+        tolerance = 1
+    elif col_name == 'PTS':
+        tolerance = 3
+    elif col_name in ['REB', 'AST', 'MIN']: 
+        tolerance = 2
+    else:
+        tolerance = 5 # Default para otros casos
+
+    # 2. Definir Límites (Rango Simétrico)
+    upper_bound = avg + tolerance
+    lower_bound = avg - tolerance
+
     for val in column:
         text_color = "white"
-        if val > avg: color = '#2962ff'
-        elif val == avg: color = '#00c853'
-        elif val >= (avg - tolerance): 
-            color = '#fff176'
-            text_color = "black"
-        else: color = '#d32f2f'
+        
+        # 3. Aplicar Lógica de Rango
+        if val > upper_bound: 
+            color = '#2962ff'      # Azul (Supera el rango superior)
+        elif val < lower_bound: 
+            color = '#d32f2f'      # Rojo (Debajo del rango inferior)
+        else:
+            # Zona "Cerca/Igual" (Dentro del rango [avg-tol, avg+tol])
+            # Mantenemos verde si iguala/supera la media, amarillo si está un poco por debajo
+            if val >= avg:
+                color = '#00c853'  # Verde
+            else:
+                color = '#fff176'  # Amarillo
+                text_color = "black"
+
         styles.append(f'background-color: {color}; color: {text_color}; font-weight: bold; text-align: center;')
     return styles
 
@@ -340,7 +361,7 @@ def mostrar_tabla_bonita(df_raw, col_principal_espanol, simple_mode=False, means
     else:
         styler = df_raw.style.format("{:.1f}", subset=cols_numericas)
         if means_dict:
-            for c in ['PTS', 'REB', 'AST', 'FG3M', 'MIN', '3PM']: # Añadido FG3M y 3PM
+            for c in ['PTS', 'REB', 'AST', 'FG3M', 'MIN', '3PM']: 
                 if c in df_raw.columns and c in means_dict:
                     styler.apply(apply_custom_color, avg=means_dict[c], col_name=c, subset=[c])
         else:
@@ -475,19 +496,18 @@ elif st.session_state.page == "👤 Jugador":
             mean_pts = player_data['pts'].mean()
             mean_reb = player_data['reb'].mean()
             mean_ast = player_data['ast'].mean()
-            # Añadimos media de Triples
             mean_3pm = player_data['fg3m'].mean()
             mean_min = player_data['min'].mean()
             
             # Actualizamos diccionario para colorear tabla
             means_dict = {'PTS': mean_pts, 'REB': mean_reb, 'AST': mean_ast, '3PM': mean_3pm, 'MIN': mean_min}
 
-            # Ahora mostramos 5 columnas en vez de 4
+            # Ahora mostramos 5 columnas
             c1, c2, c3, c4, c5 = st.columns(5)
             c1.metric("PTS", f"{mean_pts:.1f}")
             c2.metric("REB", f"{mean_reb:.1f}")
             c3.metric("AST", f"{mean_ast:.1f}")
-            c4.metric("3PM", f"{mean_3pm:.1f}") # NUEVA METRICA
+            c4.metric("3PM", f"{mean_3pm:.1f}") 
             c5.metric("MIN", f"{mean_min:.1f}")
             
             st.subheader("Últimos 5 Partidos")
