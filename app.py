@@ -18,7 +18,7 @@ st.set_page_config(
 )
 
 # ==========================================
-# 2. CSS DEFINITIVO (CENTRADO Y MÓVIL)
+# 2. CSS DEFINITIVO (CENTRADO, MÓVIL Y FIX ANCHOS)
 # ==========================================
 st.markdown("""
 <style>
@@ -27,8 +27,8 @@ st.markdown("""
 /* --- CENTRADO GLOBAL --- */
 .main .block-container {
     max-width: 1300px !important;
-    padding-left: 1rem !important;
-    padding-right: 1rem !important;
+    padding-left: 0.5rem !important; /* Reducido padding lateral en móvil */
+    padding-right: 0.5rem !important;
     margin: 0 auto !important;
     display: flex;
     flex-direction: column;
@@ -42,16 +42,13 @@ h1, h2, h3, h4, p, span, label, div.stMarkdown {
 }
 
 /* --- FIX TABLAS INTERACTIVAS (TOP JUGADORES) --- */
-/* Esto centra las tablas st.dataframe */
 [data-testid="stDataFrame"] {
-    margin-left: auto !important;
-    margin-right: auto !important;
-    width: auto !important;
+    width: 100% !important;
     max-width: 100% !important;
+    margin: 0 auto !important;
 }
 
 /* --- FIX TABLAS HTML (COLORES / H2H) --- */
-/* Contenedor flexible para scroll horizontal en móvil y centrado en PC */
 .table-responsive {
     display: flex !important;
     justify-content: center !important;
@@ -66,29 +63,32 @@ table.custom-table {
     margin-right: auto !important;
     border-collapse: collapse;
     font-size: 14px;
-    min-width: 600px; /* Fuerza el scroll en pantallas pequeñas */
+    min-width: 350px; /* Reducido para pantallas muy pequeñas */
+    width: 100%;
 }
 
 table.custom-table th {
     background-color: #31333F;
     color: white;
     text-align: center !important;
-    padding: 10px;
+    padding: 8px; /* Padding reducido */
     border-bottom: 2px solid #555;
     white-space: nowrap;
+    font-size: 13px; /* Fuente ajustada */
 }
 
 table.custom-table td {
     text-align: center !important;
-    padding: 8px;
+    padding: 6px;
     border-bottom: 1px solid #444;
     color: white;
+    font-size: 13px;
 }
 
 /* --- ESTILOS VISUALES --- */
 h1 {
     font-family: 'Teko', sans-serif !important;
-    font-size: 60px !important;
+    font-size: 55px !important; /* Ajustado para móvil */
     text-transform: uppercase;
     color: white;
     line-height: 1;
@@ -96,7 +96,7 @@ h1 {
 }
 h3 {
     font-family: 'Teko', sans-serif !important;
-    font-size: 30px !important;
+    font-size: 28px !important;
     text-transform: uppercase;
     color: #ffbd45;
     margin-top: 30px;
@@ -113,7 +113,7 @@ h3 {
     text-align: center;
 }
 .game-matchup { display: flex; justify-content: center; align-items: center; gap: 10px; margin-bottom: 5px; }
-.team-logo { width: 50px; height: 50px; object-fit: contain; }
+.team-logo { width: 45px; height: 45px; object-fit: contain; }
 .game-time { color: #ffbd45; font-size: 22px; font-family: 'Teko', sans-serif; }
 
 /* Botones */
@@ -327,7 +327,6 @@ def mostrar_leyenda_colores():
     """, unsafe_allow_html=True)
 
 def mostrar_tabla_bonita(df_raw, col_principal_espanol, simple_mode=False, means_dict=None):
-    # Asegura centrado mediante Pandas Styler + Wrapper CSS
     if simple_mode:
         html = df_raw.style\
             .format("{:.0f}", subset=[c for c in df_raw.columns if 'PTS' in c or 'REB' in c or 'AST' in c])\
@@ -356,6 +355,7 @@ def render_clickable_player_table(df_stats, stat_col, jersey_map):
     df_interactive = df_stats[['NUM', 'JUGADOR', 'player_name', stat_col.lower(), f'trend_{stat_col.lower()}', 'trend_min']].copy()
     df_interactive.columns = ['#', 'JUGADOR', 'player_name_hidden', stat_col, 'RACHA', 'MIN']
     
+    # AQUI ESTA EL CAMBIO IMPORTANTE: RACHA width="small"
     selection = st.dataframe(
         df_interactive,
         use_container_width=True,
@@ -367,7 +367,7 @@ def render_clickable_player_table(df_stats, stat_col, jersey_map):
             "JUGADOR": st.column_config.TextColumn("JUGADOR", width="medium"),
             "player_name_hidden": None,
             stat_col: st.column_config.NumberColumn(stat_col, format="%.1f", width="small"),
-            "RACHA": st.column_config.TextColumn("RACHA", width="medium"),
+            "RACHA": st.column_config.TextColumn("RACHA", width="small"), # <-- CORREGIDO A SMALL
             "MIN": st.column_config.TextColumn("MIN", width="small")
         }
     )
