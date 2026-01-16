@@ -9,34 +9,6 @@ from nba_api.stats.endpoints import leaguegamelog, scoreboardv2, commonteamroste
 from nba_api.stats.static import teams as nba_static_teams
 
 # ==========================================
-# GESTIÓN DE ESTADO (NAVEGACIÓN)
-# ==========================================
-if 'page' not in st.session_state:
-    st.session_state.page = "🏠 Inicio"
-if 'selected_home' not in st.session_state:
-    st.session_state.selected_home = None
-if 'selected_visitor' not in st.session_state:
-    st.session_state.selected_visitor = None
-if 'selected_player' not in st.session_state:
-    st.session_state.selected_player = None
-
-# --- FUNCIONES DE NAVEGACIÓN ---
-def navegar_a_partido(home, visitor):
-    st.session_state.selected_home = home
-    st.session_state.selected_visitor = visitor
-    st.session_state.page = "⚔️ Analizar Partido"
-
-def navegar_a_jugador(player_name):
-    st.session_state.selected_player = player_name
-    st.session_state.page = "👤 Jugador"
-
-def volver_inicio():
-    st.session_state.page = "🏠 Inicio"
-
-def volver_a_partido():
-    st.session_state.page = "⚔️ Analizar Partido"
-
-# ==========================================
 # CONFIGURACIÓN DE LA PÁGINA
 # ==========================================
 st.set_page_config(
@@ -46,138 +18,67 @@ st.set_page_config(
 )
 
 # ==========================================
-# CSS GLOBAL (TU CÓDIGO PROPORCIONADO)
+# CSS GLOBAL (REFORZADO)
 # ==========================================
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Teko:wght@300..700&display=swap');
 
-/* ===============================
-   CONTENEDOR GLOBAL CENTRADO
-   =============================== */
-
-section.main {
-    display: flex;
-    justify-content: center;
-}
-
-section.main > div {
-    width: 100%;
-}
-
+/* --- CONTENEDOR GLOBAL --- */
+section.main { display: flex; justify-content: center; }
+section.main > div { width: 100%; }
 section.main > div.block-container {
     max-width: 1300px !important;
-    margin-left: auto !important;
-    margin-right: auto !important;
-    padding-left: 1rem !important;
-    padding-right: 1rem !important;
+    padding-left: 1rem !important; padding-right: 1rem !important;
 }
 
-@media (min-width: 1400px) {
-    section.main > div.block-container {
-        max-width: 1200px !important;
-    }
-}
-
-@media (max-width: 768px) {
-    section.main > div.block-container {
-        padding-left: 0.5rem !important;
-        padding-right: 0.5rem !important;
-    }
-}
-
-/* ===============================
-   TIPOGRAFÍA
-   =============================== */
-
+/* --- TIPOGRAFÍA --- */
 h1 {
     font-family: 'Teko', sans-serif !important;
     font-size: 55px !important;
     text-transform: uppercase;
     text-align: center;
-    margin-bottom: 20px;
     color: white;
+    margin-bottom: 20px;
     line-height: 1;
 }
-
 h3 {
     font-family: 'Teko', sans-serif !important;
     font-size: 30px !important;
     text-transform: uppercase;
-    letter-spacing: 1px;
     margin-top: 20px;
     color: #ffbd45;
 }
 
-@media (max-width: 768px) {
-    h1 { font-size: 38px !important; }
-    h3 { font-size: 22px !important; }
-}
-
-/* ===============================
-   DATAFRAME STREAMLIT
-   =============================== */
-
-[data-testid="stDataFrame"] {
-    width: 100% !important;
-}
-
-[data-testid="stDataFrame"] th {
-    text-align: center !important;
-    font-size: 13px !important;
-    padding: 6px !important;
-}
-
-[data-testid="stDataFrame"] td {
-    text-align: center !important;
-    font-size: 13px !important;
-    padding: 4px 6px !important;
-    line-height: 1.2 !important;
-    vertical-align: middle !important;
-}
-
-/* ===============================
-   TABLAS HTML PERSONALIZADAS
-   =============================== */
-
+/* --- ESTILOS PARA TABLAS HTML (BAJAS / HISTORIAL) --- */
+/* Esto centra las tablas creadas con .to_html() */
 table.custom-table {
     width: 100%;
-    table-layout: fixed;
     border-collapse: collapse;
-    text-align: center;
-    font-size: 13px;
+    margin: 0 auto; /* Centrar la tabla en sí */
+    font-size: 14px;
 }
-
 table.custom-table th {
     background-color: #31333F;
-    padding: 6px;
+    color: white;
+    text-align: center !important; /* FORZAR CENTRADO */
+    padding: 8px;
     border-bottom: 2px solid #555;
+    vertical-align: middle !important;
 }
-
 table.custom-table td {
-    padding: 6px;
+    text-align: center !important; /* FORZAR CENTRADO */
+    padding: 8px;
     border-bottom: 1px solid #444;
-    line-height: 1.2;
+    vertical-align: middle !important;
+    color: white;
+}
+div.table-wrapper {
+    text-align: center;
+    overflow-x: auto;
 }
 
-@media (max-width: 768px) {
-    table.custom-table th, 
-    table.custom-table td {
-        font-size: 12px !important;
-        padding: 4px !important;
-    }
-
-    [data-testid="stDataFrame"] th,
-    [data-testid="stDataFrame"] td {
-        font-size: 12px !important;
-        padding: 4px !important;
-    }
-}
-
-/* ===============================
-   UI / TARJETAS
-   =============================== */
-
+/* --- UI CARDS --- */
 .game-card {
     background-color: #2d2d2d;
     border: 1px solid #444;
@@ -186,29 +87,11 @@ table.custom-table td {
     text-align: center;
     margin-bottom: 10px;
 }
+.game-matchup { display: flex; justify-content: center; align-items: center; gap: 10px; }
+.team-logo { width: 40px; height: 40px; object-fit: contain; }
+.game-time { color: #ffbd45; font-size: 20px; font-family: 'Teko', sans-serif; }
 
-.game-matchup {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 10px;
-}
-
-.team-logo {
-    width: 40px;
-    height: 40px;
-}
-
-.game-time {
-    color: #ffbd45;
-    font-size: 20px;
-    font-family: 'Teko', sans-serif;
-}
-
-/* ===============================
-   BOTONES
-   =============================== */
-
+/* --- BOTONES --- */
 div.stButton > button {
     width: 100%;
     border-radius: 6px !important;
@@ -217,29 +100,17 @@ div.stButton > button {
     color: #fff;
     border: 1px solid #444;
 }
+div.stButton > button:hover { border-color: #4caf50; color: #4caf50; }
 
-div.stButton > button:hover {
-    border-color: #4caf50;
-    color: #4caf50;
-}
-
-/* Estilos extra para elementos funcionales */
+/* --- EXTRAS --- */
+[data-testid="stElementToolbar"] { display: none !important; }
+footer { display: none !important; }
 .dnp-missing { color: #ff5252; font-weight:bold; }
 .dnp-full { color: #4caf50; font-weight:bold; }
-.pat-stars { color: #ffbd45; font-weight: bold; }
-.pat-impact { color: #4caf50; font-weight: bold; }
-
-/* Parlay */
 .parlay-box { background-color: #1e1e1e; border: 1px solid #444; border-radius: 10px; padding: 10px; margin-bottom: 15px; }
 .parlay-header { font-size: 18px; font-weight: bold; margin-bottom: 10px; text-transform: uppercase; border-bottom: 1px solid #444; padding-bottom: 5px; text-align: center; color:white; }
 .parlay-leg { background-color: #2d2d2d; margin: 5px 0; padding: 8px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; font-size: 13px; color: white; }
 
-/* ===============================
-   OCULTAR ELEMENTOS STREAMLIT
-   =============================== */
-
-[data-testid="stElementToolbar"] { display: none !important; }
-footer { display: none !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -390,7 +261,7 @@ def apply_custom_color(column, avg, col_name):
             color = '#fff176'
             text_color = "black"
         else: color = '#d32f2f'
-        styles.append(f'background-color: {color}; color: {text_color}; font-weight: bold;')
+        styles.append(f'background-color: {color}; color: {text_color}; font-weight: bold; text-align: center;')
     return styles
 
 def mostrar_leyenda_colores():
@@ -417,10 +288,15 @@ def mostrar_tabla_bonita(df_raw, col_principal_espanol, simple_mode=False, means
                     styler.apply(apply_custom_color, avg=means_dict[c], col_name=c, subset=[c])
         else:
             styler.background_gradient(subset=[col_principal_espanol] if col_principal_espanol else None, cmap='Greens')
+        
+        # Inyectar estilos centrados directamente
+        styler.set_properties(**{'text-align': 'center'})
+        
         html = styler.hide(axis="index").to_html(classes="custom-table", escape=False)
+    
     st.markdown(f"<div class='table-wrapper'>{html}</div>", unsafe_allow_html=True)
 
-# --- FUNCIÓN TABLA INTERACTIVA ---
+# --- FUNCIÓN TABLA INTERACTIVA (CENTRADO FORZADO EN PYTHON) ---
 def render_clickable_player_table(df_stats, stat_col, jersey_map):
     if df_stats.empty:
         st.info("Sin datos.")
@@ -430,14 +306,14 @@ def render_clickable_player_table(df_stats, stat_col, jersey_map):
     df_stats['NUM'] = df_stats['player_name'].map(jersey_map).fillna('-')
     df_stats['JUGADOR'] = df_stats['player_name'] + ' (' + df_stats['team_abbreviation'] + ')'
 
-    # 2. Selección limpia de columnas
+    # 2. Seleccionar columnas
     df_interactive = df_stats[['NUM', 'JUGADOR', 'player_name', stat_col.lower(), f'trend_{stat_col.lower()}', 'trend_min']].copy()
     
-    # 3. Renombrado para la tabla visual
-    # Col 1: '#' (Dorsal), Col 2: JUGADOR, ...
+    # 3. Renombrar
     df_interactive.columns = ['#', 'JUGADOR', 'player_name_hidden', stat_col, 'RACHA', 'MIN']
     
-    # 4. Configuración (Usa el CSS para centrar)
+    # 4. CONFIGURACIÓN CRÍTICA: USAR alignment="center" EN CADA COLUMNA
+    # Esto es lo que sobreescribe el comportamiento por defecto de Streamlit
     selection = st.dataframe(
         df_interactive,
         use_container_width=True,
@@ -445,12 +321,12 @@ def render_clickable_player_table(df_stats, stat_col, jersey_map):
         on_select="rerun", 
         selection_mode="single-row",
         column_config={
-            "#": st.column_config.TextColumn("#", width="small"),
-            "JUGADOR": st.column_config.TextColumn("JUGADOR", width="medium"),
+            "#": st.column_config.TextColumn("#", width="small", alignment="center"),
+            "JUGADOR": st.column_config.TextColumn("JUGADOR", width="medium", alignment="center"),
             "player_name_hidden": None,
-            stat_col: st.column_config.NumberColumn(stat_col, format="%.1f", width="small"),
-            "RACHA": st.column_config.TextColumn("RACHA", width="small"),
-            "MIN": st.column_config.TextColumn("MIN", width="small")
+            stat_col: st.column_config.NumberColumn(stat_col, format="%.1f", width="small", alignment="center"),
+            "RACHA": st.column_config.TextColumn("RACHA", width="small", alignment="center"),
+            "MIN": st.column_config.TextColumn("MIN", width="small", alignment="center")
         }
     )
     
