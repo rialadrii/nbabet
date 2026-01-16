@@ -3,7 +3,7 @@ import pandas as pd
 import sqlite3
 import os
 import time
-import requests # Nuevo import necesario para el calendario
+import requests
 from datetime import datetime, timedelta
 from nba_api.stats.endpoints import leaguegamelog, scoreboardv2
 from nba_api.stats.static import teams as nba_static_teams
@@ -103,8 +103,19 @@ st.markdown("""
         margin-bottom: 20px;
         color: #fff;
     }
-    .next-game-title { color: #4caf50; font-weight: bold; font-size: 18px; margin-bottom: 5px; }
-    .next-game-info { font-size: 16px; }
+    .next-game-title { color: #4caf50; font-weight: bold; font-size: 22px; margin-bottom: 5px; font-family: 'Teko', sans-serif; }
+    .next-game-info { font-size: 16px; margin-bottom: 10px; }
+    
+    .next-game-btn {
+        background-color: #4caf50;
+        color: white !important;
+        padding: 8px 15px;
+        text-decoration: none;
+        border-radius: 5px;
+        font-weight: bold;
+        font-size: 14px;
+    }
+    .next-game-btn:hover { background-color: #45a049; }
 
     .credits { 
         font-family: 'Teko', sans-serif; 
@@ -219,10 +230,9 @@ def get_basketball_date():
         return now.date() - timedelta(days=1)
     return now.date()
 
-@st.cache_data(ttl=86400) # Cachear el calendario 24h para no saturar
+@st.cache_data(ttl=86400) 
 def get_nba_schedule():
     try:
-        # Descargamos el calendario oficial
         url = "https://cdn.nba.com/static/json/staticData/scheduleLeagueV2.json"
         response = requests.get(url, timeout=5).json()
         return response['leagueSchedule']['gameDates']
@@ -230,11 +240,10 @@ def get_nba_schedule():
         return []
 
 def get_next_matchup_info(t1_abv, t2_abv):
-    """Busca el próximo partido entre dos equipos en el calendario oficial"""
+    """Busca el próximo partido y devuelve también el GAME_ID para el link"""
     dates = get_nba_schedule()
     if not dates: return None
     
-    # Mapa de equipos (Abreviatura -> ID)
     nba_teams = nba_static_teams.get_teams()
     team_map = {t['abbreviation']: t['id'] for t in nba_teams}
     
@@ -247,22 +256,20 @@ def get_next_matchup_info(t1_abv, t2_abv):
     
     for day in dates:
         try:
-            # La fecha en el JSON suele ser "MM/DD/YYYY 00:00:00"
             game_dt = datetime.strptime(day['gameDate'], "%m/%d/%Y %H:%M:%S").date()
-            if game_dt < today: continue # Saltamos el pasado
+            if game_dt < today: continue 
             
             for game in day['games']:
                 h_id = game['homeTeam']['teamId']
                 v_id = game['awayTeam']['teamId']
                 
-                # Si el partido es entre estos dos equipos (en cualquier orden)
                 if (h_id == id1 and v_id == id2) or (h_id == id2 and v_id == id1):
-                    # Encontramos el siguiente
                     return {
                         'date': game_dt.strftime("%d/%m/%Y"),
                         'home': t1_abv if h_id == id1 else t2_abv,
                         'away': t2_abv if h_id == id1 else t1_abv,
-                        'arena': game.get('arenaName', 'Estadio NBA')
+                        'arena': game.get('arenaName', 'Estadio NBA'),
+                        'game_id': game['gameId'] # ID necesario para el link
                     }
         except: continue
     return None
@@ -313,7 +320,7 @@ st.markdown("<h1>🏀 NBA PRO ANALYZER 🏀</h1>", unsafe_allow_html=True)
 opcion = st.sidebar.radio("Menú:", ["🏠 Inicio", "👤 Jugador", "⚔️ Analizar Partido", "🔄 Actualizar Datos"], key="page")
 df = load_data()
 
-# --- DEFINICIÓN DE MAPA DE EQUIPOS (ESTO ES VITAL) ---
+# --- DEFINICIÓN DE MAPA DE EQUIPOS ---
 latest_teams_map = {}
 if not df.empty:
     latest_entries = df.sort_values('game_date').drop_duplicates('player_name', keep='last')
@@ -471,11 +478,14 @@ elif opcion == "⚔️ Analizar Partido":
         t2 = col2.selectbox("Equipo Visitante", equipos, index=idx_t2)
         
         if t1 and t2:
-            # --- NUEVA FUNCIÓN: MOSTRAR PRÓXIMO PARTIDO ---
+            # --- NUEVA FUNCIÓN: PRÓXIMO PARTIDO ---
             with st.spinner("Buscando próximo enfrentamiento..."):
                 next_game = get_next_matchup_info(t1, t2)
             
             if next_game:
+                # Botón a la ficha oficial
+                link_btn = f"<a href='https://www.nba.com/game/{next_game['game_id']}' target='_blank' class='next-game-btn'>🏥 Ver Ficha / Bajas</a>"
+                
                 st.markdown(f"""
                 <div class='next-game-box'>
                     <div class='next-game-title'>📅 PRÓXIMO ENFRENTAMIENTO CONFIRMADO</div>
@@ -483,6 +493,7 @@ elif opcion == "⚔️ Analizar Partido":
                         <b>{next_game['date']}</b> - {next_game['away']} @ {next_game['home']}
                         <br><span style='font-size:14px; color:#ccc'>{next_game['arena']}</span>
                     </div>
+                    {link_btn}
                 </div>
                 """, unsafe_allow_html=True)
             
