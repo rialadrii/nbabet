@@ -201,6 +201,7 @@ def download_data():
 
     if all_seasons_data:
         full_df = pd.concat(all_seasons_data, ignore_index=True)
+        # NOS ASEGURAMOS DE BAJAR 'WL'
         cols_needed = ['PLAYER_ID', 'PLAYER_NAME', 'TEAM_ABBREVIATION', 'GAME_DATE', 'MATCHUP', 'PTS', 'REB', 'AST', 'MIN', 'WL', 'GAME_ID']
         cols_final = [c for c in cols_needed if c in full_df.columns]
         df_clean = full_df[cols_final].copy()
@@ -305,33 +306,31 @@ def obtener_partidos():
         except: pass
     return agenda
 
-# --- LÓGICA DE COLORES PERSONALIZADA (NUEVA: Amarillo Claro) ---
+# --- LÓGICA DE COLORES PERSONALIZADA ---
 def apply_custom_color(column, avg, col_name):
-    """Aplica el color según la lógica del usuario con tolerancia dinámica"""
     styles = []
     
-    # Determinar tolerancia
     if col_name in ['REB', 'AST']:
         tolerance = 2 
     else:
         tolerance = 5 
         
     for val in column:
-        text_color = "white" # Default
+        text_color = "white"
         if val > avg: 
-            color = '#2962ff' # Azul Eléctrico (Supera media)
+            color = '#2962ff'
         elif val == avg: 
-            color = '#00c853' # Verde Brillante (Iguala media)
+            color = '#00c853'
         elif val >= (avg - tolerance): 
-            color = '#fff176' # Amarillo Claro (Suave, no fosforito)
-            text_color = "black" # Texto negro para que se lea sobre amarillo
+            color = '#fff176'
+            text_color = "black"
         else: 
-            color = '#d32f2f' # Rojo (Mal partido, debajo de tolerancia)
+            color = '#d32f2f'
             
         styles.append(f'background-color: {color}; color: {text_color}; font-weight: bold;')
     return styles
 
-# --- FUNCIÓN LEYENDA (ACTUALIZADA) ---
+# --- FUNCIÓN LEYENDA ---
 def mostrar_leyenda_colores():
     st.markdown("""
         <div style='display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 15px; margin-bottom: 20px; font-family: sans-serif;'>
@@ -353,11 +352,9 @@ def mostrar_tabla_bonita(df_raw, col_principal_espanol, simple_mode=False, means
             .hide(axis="index")\
             .to_html(classes="custom-table", escape=False)
     else:
-        # Modo con colores personalizados
         styler = df_raw.style.format("{:.1f}", subset=[c for c in df_raw.columns if c in ['PTS', 'REB', 'AST', 'MIN'] or '_PTS' in c or '_REB' in c or '_AST' in c])
         
         if means_dict:
-            # Aplicamos la lógica a cada columna relevante
             if 'PTS' in df_raw.columns and 'PTS' in means_dict:
                 styler.apply(apply_custom_color, avg=means_dict['PTS'], col_name='PTS', subset=['PTS'])
             if 'REB' in df_raw.columns and 'REB' in means_dict:
@@ -367,14 +364,13 @@ def mostrar_tabla_bonita(df_raw, col_principal_espanol, simple_mode=False, means
             if 'MIN' in df_raw.columns and 'MIN' in means_dict:
                 styler.apply(apply_custom_color, avg=means_dict['MIN'], col_name='MIN', subset=['MIN'])
         else:
-            # Fallback simple
             styler.background_gradient(subset=[col_principal_espanol] if col_principal_espanol else None, cmap='Greens')
             
         html = styler.hide(axis="index").to_html(classes="custom-table", escape=False)
         
     st.markdown(f"<div class='table-wrapper'>{html}</div>", unsafe_allow_html=True)
 
-# --- FUNCIÓN TABLA INTERACTIVA (DATA EDITOR) ---
+# --- FUNCIÓN TABLA INTERACTIVA ---
 def render_clickable_player_table(df_stats, stat_col):
     if df_stats.empty:
         st.info("Sin datos.")
@@ -472,7 +468,6 @@ elif st.session_state.page == "🔄 Actualizar Datos":
 # ==========================================
 elif st.session_state.page == "👤 Jugador":
     
-    # --- BOTÓN VOLVER ---
     c_back, c_title = st.columns([1, 6])
     with c_back:
         if st.session_state.selected_home and st.session_state.selected_visitor:
@@ -500,12 +495,10 @@ elif st.session_state.page == "👤 Jugador":
             player_data = df[df['player_name'] == jugador].sort_values('game_date', ascending=False)
             rival = st.selectbox("Filtrar vs Rival (Opcional):", todos_equipos, index=None)
             
-            # CALCULAR MEDIAS TOTALES
             mean_pts = player_data['pts'].mean()
             mean_reb = player_data['reb'].mean()
             mean_ast = player_data['ast'].mean()
             mean_min = player_data['min'].mean()
-            
             means_dict = {'PTS': mean_pts, 'REB': mean_reb, 'AST': mean_ast, 'MIN': mean_min}
 
             c1, c2, c3, c4 = st.columns(4)
@@ -516,22 +509,26 @@ elif st.session_state.page == "👤 Jugador":
             
             st.subheader("Últimos 5 Partidos")
             
-            cols = ['game_date', 'matchup', 'min', 'pts', 'reb', 'ast']
+            cols = ['game_date', 'wl', 'matchup', 'min', 'pts', 'reb', 'ast'] # Incluimos 'wl'
             if 'game_id' in player_data.columns: cols.append('game_id')
             view = player_data[cols].head(5).copy()
             view['min'] = view['min'].astype(int)
             
+            # --- GENERAR COLUMNA RES CON TICKS ---
+            view['RES'] = view['wl'].map({'W': '✅', 'L': '❌'})
+            
             if 'game_id' in view.columns:
                 view['FICHA'] = view['game_id'].apply(lambda x: f"<a href='https://www.nba.com/game/{x}' target='_blank' class='match-link'>📊 Ver</a>" if pd.notnull(x) else "-")
                 view = view.drop(columns=['game_id'])
-                view = view[['game_date', 'matchup', 'FICHA', 'min', 'pts', 'reb', 'ast']]
+                # Reordenamos para mostrar RES
+                view = view[['game_date', 'RES', 'matchup', 'FICHA', 'min', 'pts', 'reb', 'ast']]
             else: view['FICHA'] = "-"
                 
-            view.columns = ['FECHA', 'PARTIDO', 'FICHA', 'MIN', 'PTS', 'REB', 'AST']
+            view.columns = ['FECHA', 'RES', 'PARTIDO', 'FICHA', 'MIN', 'PTS', 'REB', 'AST']
             view['FECHA'] = view['FECHA'].dt.strftime('%d/%m/%Y') 
             
             mostrar_tabla_bonita(view, None, means_dict=means_dict)
-            mostrar_leyenda_colores() # NUEVA LEYENDA AQUI
+            mostrar_leyenda_colores() 
             
             if rival:
                 st.subheader(f"Historial vs {rival}")
@@ -539,14 +536,17 @@ elif st.session_state.page == "👤 Jugador":
                 if not h2h.empty:
                     view_h2h = h2h[cols].copy()
                     view_h2h['min'] = view_h2h['min'].astype(int)
+                    view_h2h['RES'] = view_h2h['wl'].map({'W': '✅', 'L': '❌'}) # Ticks en H2H tambien
+                    
                     if 'game_id' in view_h2h.columns:
                         view_h2h['FICHA'] = view_h2h['game_id'].apply(lambda x: f"<a href='https://www.nba.com/game/{x}' target='_blank' class='match-link'>📊 Ver</a>" if pd.notnull(x) else "-")
                         view_h2h = view_h2h.drop(columns=['game_id'])
-                        view_h2h = view_h2h[['game_date', 'matchup', 'FICHA', 'min', 'pts', 'reb', 'ast']]
-                    view_h2h.columns = ['FECHA', 'PARTIDO', 'FICHA', 'MIN', 'PTS', 'REB', 'AST']
+                        view_h2h = view_h2h[['game_date', 'RES', 'matchup', 'FICHA', 'min', 'pts', 'reb', 'ast']]
+                    
+                    view_h2h.columns = ['FECHA', 'RES', 'PARTIDO', 'FICHA', 'MIN', 'PTS', 'REB', 'AST']
                     view_h2h['FECHA'] = view_h2h['FECHA'].dt.strftime('%d/%m/%Y')
                     mostrar_tabla_bonita(view_h2h, None, means_dict=means_dict)
-                    mostrar_leyenda_colores() # NUEVA LEYENDA AQUI TAMBIEN
+                    mostrar_leyenda_colores()
                 else: st.info(f"No hay registros recientes contra {rival}.")
 
 # ==========================================
@@ -554,7 +554,6 @@ elif st.session_state.page == "👤 Jugador":
 # ==========================================
 elif st.session_state.page == "⚔️ Analizar Partido":
     
-    # --- BOTÓN VOLVER ---
     c_back, c_title = st.columns([1, 6])
     with c_back:
         st.markdown("<div class='back-btn-container'>", unsafe_allow_html=True)
@@ -607,10 +606,33 @@ elif st.session_state.page == "⚔️ Analizar Partido":
             
             games_summary = []
             for date in last_dates:
-                row = history[history['game_date'] == date].iloc[0]
+                # --- LÓGICA TICKS EN ENFRENTAMIENTO ---
+                day_data = history[history['game_date'] == date]
+                if day_data.empty: continue
+                
+                # Intentamos sacar info de T1
+                row_t1 = day_data[day_data['team_abbreviation'] == t1]
+                if not row_t1.empty:
+                    wl_t1 = row_t1.iloc[0]['wl']
+                    icon1 = '✅' if wl_t1 == 'W' else '❌'
+                    icon2 = '❌' if wl_t1 == 'W' else '✅'
+                else:
+                    # Si falta T1, miramos T2
+                    row_t2 = day_data[day_data['team_abbreviation'] == t2]
+                    if not row_t2.empty:
+                        wl_t2 = row_t2.iloc[0]['wl']
+                        icon2 = '✅' if wl_t2 == 'W' else '❌'
+                        icon1 = '❌' if wl_t2 == 'W' else '✅'
+                    else:
+                        icon1, icon2 = '', ''
+
+                match_str = f"{t1} {icon1} vs {t2} {icon2}"
+                
+                # Usamos cualquier fila para ID y link
+                row = day_data.iloc[0]
                 g_id = row.get('game_id')
                 link = f"<a href='https://www.nba.com/game/{g_id}' target='_blank' class='match-link'>📊 Ver Ficha</a>" if pd.notnull(g_id) else "-"
-                games_summary.append({'FECHA': date.strftime('%d/%m/%Y'), 'ENFRENTAMIENTO': row['matchup'], 'FICHA': link})
+                games_summary.append({'FECHA': date.strftime('%d/%m/%Y'), 'ENFRENTAMIENTO': match_str, 'FICHA': link})
             
             df_games = pd.DataFrame(games_summary)
             if 'game_id' not in df.columns: st.warning("⚠️ Faltan enlaces. Actualiza datos.")
