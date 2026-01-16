@@ -18,9 +18,8 @@ st.set_page_config(
 )
 
 # ==========================================
-# GESTIÓN DE ESTADO (RECUPERADO)
+# GESTIÓN DE ESTADO (IMPORTANTE)
 # ==========================================
-# ESTO FALTABA Y CAUSABA EL ERROR
 if 'page' not in st.session_state:
     st.session_state.page = "🏠 Inicio"
 if 'selected_home' not in st.session_state:
@@ -47,13 +46,13 @@ def volver_a_partido():
     st.session_state.page = "⚔️ Analizar Partido"
 
 # ==========================================
-# CSS GLOBAL (CENTRADO OK)
+# CSS GLOBAL (CENTRADO VIA CSS)
 # ==========================================
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Teko:wght@300..700&display=swap');
 
-/* --- CONTENEDOR GLOBAL --- */
+/* --- CONTENEDOR PRINCIPAL --- */
 section.main { display: flex; justify-content: center; }
 section.main > div { width: 100%; }
 section.main > div.block-container {
@@ -79,7 +78,23 @@ h3 {
     color: #ffbd45;
 }
 
-/* --- ESTILOS PARA TABLAS HTML (BAJAS / HISTORIAL) --- */
+/* --- FORZAR CENTRADO EN DATAFRAME (SIN ROMPERLO) --- */
+[data-testid="stDataFrame"] th {
+    text-align: center !important;
+    justify-content: center !important;
+}
+[data-testid="stDataFrame"] td {
+    text-align: center !important;
+    justify-content: center !important;
+}
+[data-testid="stDataFrame"] div[role="columnheader"] {
+    justify-content: center !important;
+}
+[data-testid="stDataFrame"] div[role="gridcell"] {
+    justify-content: center !important;
+}
+
+/* --- TABLAS HTML PERSONALIZADAS --- */
 table.custom-table {
     width: 100%;
     border-collapse: collapse;
@@ -92,21 +107,15 @@ table.custom-table th {
     text-align: center !important;
     padding: 8px;
     border-bottom: 2px solid #555;
-    vertical-align: middle !important;
 }
 table.custom-table td {
     text-align: center !important;
     padding: 8px;
     border-bottom: 1px solid #444;
-    vertical-align: middle !important;
     color: white;
 }
-div.table-wrapper {
-    text-align: center;
-    overflow-x: auto;
-}
 
-/* --- UI CARDS --- */
+/* --- TARJETAS --- */
 .game-card {
     background-color: #2d2d2d;
     border: 1px solid #444;
@@ -317,14 +326,11 @@ def mostrar_tabla_bonita(df_raw, col_principal_espanol, simple_mode=False, means
         else:
             styler.background_gradient(subset=[col_principal_espanol] if col_principal_espanol else None, cmap='Greens')
         
-        # Inyectar estilos centrados directamente
-        styler.set_properties(**{'text-align': 'center'})
-        
         html = styler.hide(axis="index").to_html(classes="custom-table", escape=False)
     
     st.markdown(f"<div class='table-wrapper'>{html}</div>", unsafe_allow_html=True)
 
-# --- FUNCIÓN TABLA INTERACTIVA (CENTRADO FORZADO EN PYTHON) ---
+# --- FUNCIÓN TABLA INTERACTIVA (FIXED PARA TU VERSIÓN) ---
 def render_clickable_player_table(df_stats, stat_col, jersey_map):
     if df_stats.empty:
         st.info("Sin datos.")
@@ -340,7 +346,7 @@ def render_clickable_player_table(df_stats, stat_col, jersey_map):
     # 3. Renombrar
     df_interactive.columns = ['#', 'JUGADOR', 'player_name_hidden', stat_col, 'RACHA', 'MIN']
     
-    # 4. CONFIGURACIÓN CRÍTICA: USAR alignment="center" EN CADA COLUMNA
+    # 4. CONFIGURACIÓN (Sin alignment para evitar error, usando CSS)
     selection = st.dataframe(
         df_interactive,
         use_container_width=True,
@@ -348,12 +354,12 @@ def render_clickable_player_table(df_stats, stat_col, jersey_map):
         on_select="rerun", 
         selection_mode="single-row",
         column_config={
-            "#": st.column_config.TextColumn("#", width="small", alignment="center"),
-            "JUGADOR": st.column_config.TextColumn("JUGADOR", width="medium", alignment="center"),
+            "#": st.column_config.TextColumn("#", width="small"),
+            "JUGADOR": st.column_config.TextColumn("JUGADOR", width="medium"),
             "player_name_hidden": None,
-            stat_col: st.column_config.NumberColumn(stat_col, format="%.1f", width="small", alignment="center"),
-            "RACHA": st.column_config.TextColumn("RACHA", width="small", alignment="center"),
-            "MIN": st.column_config.TextColumn("MIN", width="small", alignment="center")
+            stat_col: st.column_config.NumberColumn(stat_col, format="%.1f", width="small"),
+            "RACHA": st.column_config.TextColumn("RACHA", width="small"),
+            "MIN": st.column_config.TextColumn("MIN", width="small")
         }
     )
     
