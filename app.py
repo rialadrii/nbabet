@@ -18,7 +18,7 @@ st.set_page_config(
 )
 
 # ==========================================
-# 2. CSS DEFINITIVO (SOLUCIÓN AGRESIVA PARA ICONOS)
+# 2. CSS DEFINITIVO
 # ==========================================
 st.markdown("""
 <style>
@@ -42,7 +42,6 @@ h1, h2, h3, h4, p, span, label, div.stMarkdown {
 }
 
 /* --- OCULTAR ANCHOR LINKS (SOLUCIÓN NUCLEAR) --- */
-/* Oculta el contenedor de acciones del header */
 [data-testid="stHeaderAction"] {
     display: none !important;
     visibility: hidden !important;
@@ -51,16 +50,12 @@ h1, h2, h3, h4, p, span, label, div.stMarkdown {
     width: 0 !important;
     pointer-events: none !important;
 }
-
-/* Oculta cualquier enlace 'a' dentro de los headers (h1-h6) */
 h1 a, h2 a, h3 a, h4 a, h5 a, h6 a {
     display: none !important;
     visibility: hidden !important;
     pointer-events: none !important;
     color: transparent !important;
 }
-
-/* Oculta enlaces generados por markdown directamente */
 .css-10trblm, .css-16idsys, a.anchor-link {
     display: none !important;
 }
@@ -159,6 +154,11 @@ div.stButton > button:hover { border-color: #ffbd45; color: #ffbd45; }
 .pat-stars { color: #ff5252; font-weight: bold; }
 .pat-impact { color: #4caf50; }
 
+/* Estilos para cuotas */
+.odds-box { background-color: #263238; border-radius: 5px; padding: 10px; margin: 5px 0; border: 1px solid #37474f; }
+.odds-best { border: 1px solid #00e676; box-shadow: 0 0 5px rgba(0,230,118,0.5); }
+.odds-diff { color: #00e676; font-weight: bold; font-size: 14px; }
+
 [data-testid="stElementToolbar"] { display: none !important; }
 footer { display: none !important; }
 </style>
@@ -167,10 +167,14 @@ footer { display: none !important; }
 # ==========================================
 # 3. GESTIÓN DE ESTADO
 # ==========================================
+# API KEY INTEGRADA
+API_KEY_DEFAULT = "ae1dd866651d5f06c234f972b0004084"
+
 if 'page' not in st.session_state: st.session_state.page = "🏠 Inicio"
 if 'selected_home' not in st.session_state: st.session_state.selected_home = None
 if 'selected_visitor' not in st.session_state: st.session_state.selected_visitor = None
 if 'selected_player' not in st.session_state: st.session_state.selected_player = None
+if 'odds_api_key' not in st.session_state: st.session_state.odds_api_key = API_KEY_DEFAULT
 
 def navegar_a_partido(home, visitor):
     st.session_state.selected_home = home
@@ -209,7 +213,6 @@ def download_data():
 
     if all_seasons_data:
         full_df = pd.concat(all_seasons_data, ignore_index=True)
-        # --- COLUMNAS (INCLUYE TRIPLES - FG3M) ---
         cols_needed = ['PLAYER_ID', 'PLAYER_NAME', 'TEAM_ABBREVIATION', 'GAME_DATE', 'MATCHUP', 'PTS', 'REB', 'AST', 'FG3M', 'MIN', 'WL', 'GAME_ID']
         cols_final = [c for c in cols_needed if c in full_df.columns]
         df_clean = full_df[cols_final].copy()
@@ -390,25 +393,19 @@ def mostrar_tabla_bonita(df_raw, col_principal_espanol, simple_mode=False, means
     
     st.markdown(f"<div class='table-responsive'>{html}</div>", unsafe_allow_html=True)
 
-# --- FUNCIÓN TABLA INTERACTIVA REPARADA ---
 def render_clickable_player_table(df_stats, stat_col, jersey_map):
     if df_stats.empty:
         st.info("Sin datos.")
         return
 
-    # 1. Preparamos los datos
-    # Creamos las columnas separadas
     df_stats['JUGADOR_SOLO'] = df_stats['player_name']
     df_stats['EQ'] = df_stats['team_abbreviation']
     
-    # 2. Seleccionamos y ordenamos las columnas
     cols_to_show = ['JUGADOR_SOLO', 'EQ', stat_col.lower(), f'trend_{stat_col.lower()}', 'trend_min']
     df_interactive = df_stats[cols_to_show].copy()
     
-    # 3. Renombramos para la visualización final
     df_interactive.columns = ['JUGADOR', 'EQ', stat_col, 'RACHA', 'MIN']
     
-    # 4. Renderizamos SIN styler para evitar el bloqueo, pero configurando las columnas
     selection = st.dataframe(
         df_interactive,
         use_container_width=True,
@@ -417,31 +414,43 @@ def render_clickable_player_table(df_stats, stat_col, jersey_map):
         selection_mode="single-row",
         column_config={
             "JUGADOR": st.column_config.TextColumn("JUGADOR", width=None),
-            
-            # Configuramos EQ para que sea estrecha y centrada
             "EQ": st.column_config.TextColumn("EQ", width="small"),
-            
-            # Ajuste de anchos y formatos
             stat_col: st.column_config.NumberColumn(stat_col, format="%.1f", width=60),
             "RACHA": st.column_config.TextColumn("RACHA (Últ. Partidos)", width=150), 
             "MIN": st.column_config.TextColumn("MIN", width=115) 
         }
     )
     
-    # 5. Lógica de selección
     if len(selection.selection.rows) > 0:
         row_idx = selection.selection.rows[0]
-        # Obtenemos el nombre directamente del DataFrame subyacente usando el índice seleccionado
         player_name = df_interactive.iloc[row_idx]['JUGADOR']
         navegar_a_jugador(player_name)
         st.rerun()
+
+def get_sports_odds(api_key):
+    try:
+        odds_response = requests.get(
+            f'https://api.the-odds-api.com/v4/sports/basketball_nba/odds',
+            params={
+                'api_key': api_key,
+                'regions': 'eu', # Europa para pillar Winamax, Bet365, etc
+                'markets': 'h2h', # Ganador partido
+                'oddsFormat': 'decimal',
+                'dateFormat': 'iso',
+            }
+        )
+        if odds_response.status_code != 200:
+            return None, f"Error API: {odds_response.status_code}"
+        return odds_response.json(), None
+    except Exception as e:
+        return None, str(e)
 
 # ==========================================
 # 6. APP PRINCIPAL
 # ==========================================
 st.markdown("<h1>🏀 NBA PRO ANALYZER 🏀</h1>", unsafe_allow_html=True)
 
-pages = ["🏠 Inicio", "👤 Jugador", "⚔️ Analizar Partido", "🔄 Actualizar Datos"]
+pages = ["🏠 Inicio", "👤 Jugador", "⚔️ Analizar Partido", "💰 Buscador de Cuotas", "🔄 Actualizar Datos"]
 if st.session_state.page not in pages: st.session_state.page = "🏠 Inicio"
 current_index = pages.index(st.session_state.page)
 opcion = st.sidebar.radio("Menú:", pages, index=current_index)
@@ -575,6 +584,97 @@ elif st.session_state.page == "👤 Jugador":
                     mostrar_tabla_bonita(view_h2h, None, means_dict=means_dict)
                     mostrar_leyenda_colores()
                 else: st.info(f"No hay registros recientes contra {rival}.")
+
+# --- PÁGINA CUOTAS ---
+elif st.session_state.page == "💰 Buscador de Cuotas":
+    st.header("💰 Buscador de Errores en Cuotas")
+    st.caption("Compara Winamax, Bet365, Bwin y otras casas para encontrar errores de valoración.")
+
+    api_key_input = st.text_input("Introduce tu API Key de 'The-Odds-API' (Gratis):", value=st.session_state.odds_api_key, type="password")
+    if api_key_input:
+        st.session_state.odds_api_key = api_key_input
+
+    if st.button("🔎 Buscar Oportunidades"):
+        if not st.session_state.odds_api_key:
+            st.error("Necesitas una API Key gratuita de https://the-odds-api.com")
+        else:
+            with st.spinner("Escaneando casas de apuestas..."):
+                odds_data, error = get_sports_odds(st.session_state.odds_api_key)
+                
+                if error:
+                    st.error(error)
+                elif not odds_data:
+                    st.info("No hay partidos de NBA disponibles con cuotas ahora mismo.")
+                else:
+                    found_something = False
+                    for game in odds_data:
+                        home_team = game['home_team']
+                        away_team = game['away_team']
+                        
+                        bookmakers = game.get('bookmakers', [])
+                        if not bookmakers: continue
+                        
+                        best_home = {'price': 0, 'bookie': ''}
+                        best_away = {'price': 0, 'bookie': ''}
+                        worst_home = {'price': 100, 'bookie': ''}
+                        worst_away = {'price': 100, 'bookie': ''}
+                        
+                        match_odds = []
+                        
+                        for bm in bookmakers:
+                            bm_name = bm['title']
+                            markets = bm.get('markets', [])
+                            if not markets: continue
+                            
+                            outcomes = markets[0].get('outcomes', [])
+                            if len(outcomes) < 2: continue
+                            
+                            o_home = next((x for x in outcomes if x['name'] == home_team), None)
+                            o_away = next((x for x in outcomes if x['name'] == away_team), None)
+                            
+                            if o_home and o_away:
+                                p_h = o_home['price']
+                                p_a = o_away['price']
+                                match_odds.append({'bookie': bm_name, 'home': p_h, 'away': p_a})
+                                
+                                if p_h > best_home['price']: best_home = {'price': p_h, 'bookie': bm_name}
+                                if p_h < worst_home['price']: worst_home = {'price': p_h, 'bookie': bm_name}
+                                
+                                if p_a > best_away['price']: best_away = {'price': p_a, 'bookie': bm_name}
+                                if p_a < worst_away['price']: worst_away = {'price': p_a, 'bookie': bm_name}
+
+                        diff_home = 0
+                        diff_away = 0
+                        if worst_home['price'] > 0:
+                            diff_home = ((best_home['price'] - worst_home['price']) / worst_home['price']) * 100
+                        if worst_away['price'] > 0:
+                            diff_away = ((best_away['price'] - worst_away['price']) / worst_away['price']) * 100
+                            
+                        if diff_home > 5 or diff_away > 5 or True: 
+                            found_something = True
+                            st.markdown(f"#### 🏀 {away_team} @ {home_team}")
+                            
+                            c1, c2 = st.columns(2)
+                            
+                            color_h = "green" if diff_home > 8 else "white"
+                            c1.markdown(f"**🏠 {home_team}**")
+                            c1.markdown(f"- Mejor: **{best_home['price']}** ({best_home['bookie']})")
+                            c1.markdown(f"- Peor: {worst_home['price']} ({worst_home['bookie']})")
+                            c1.markdown(f"- Diferencia: <span style='color:{color_h}; font-weight:bold'>{diff_home:.1f}%</span>", unsafe_allow_html=True)
+                            
+                            color_a = "green" if diff_away > 8 else "white"
+                            c2.markdown(f"**✈️ {away_team}**")
+                            c2.markdown(f"- Mejor: **{best_away['price']}** ({best_away['bookie']})")
+                            c2.markdown(f"- Peor: {worst_away['price']} ({worst_away['bookie']})")
+                            c2.markdown(f"- Diferencia: <span style='color:{color_a}; font-weight:bold'>{diff_away:.1f}%</span>", unsafe_allow_html=True)
+                            
+                            with st.expander("Ver todas las casas"):
+                                st.dataframe(pd.DataFrame(match_odds))
+                            st.divider()
+                            
+                    if not found_something:
+                        st.info("No se encontraron diferencias significativas de cuotas.")
+
 
 # --- PÁGINA ANALIZAR PARTIDO ---
 elif st.session_state.page == "⚔️ Analizar Partido":
