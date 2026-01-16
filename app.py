@@ -312,9 +312,9 @@ def apply_custom_color(column, avg, col_name):
     
     # Determinar tolerancia
     if col_name in ['REB', 'AST']:
-        tolerance = 2 # Tolerancia corta para stats bajas
+        tolerance = 2 
     else:
-        tolerance = 5 # Tolerancia normal para PTS y MIN
+        tolerance = 5 
         
     for val in column:
         if val > avg: 
@@ -328,6 +328,20 @@ def apply_custom_color(column, avg, col_name):
             
         styles.append(f'background-color: {color}; color: white; font-weight: bold;')
     return styles
+
+# --- FUNCIÓN LEYENDA ---
+def mostrar_leyenda_colores():
+    st.markdown("""
+        <div style='display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 15px; margin-bottom: 20px; font-family: sans-serif;'>
+            <div style='background-color: #2962ff; color: white; padding: 5px 12px; border-radius: 4px; font-weight: bold; font-size: 13px;'>🔵 Supera Media</div>
+            <div style='background-color: #00c853; color: white; padding: 5px 12px; border-radius: 4px; font-weight: bold; font-size: 13px;'>🟢 Iguala Media</div>
+            <div style='background-color: #388e3c; color: white; padding: 5px 12px; border-radius: 4px; font-weight: bold; font-size: 13px;'>🌲 Cerca de Media</div>
+            <div style='background-color: #d32f2f; color: white; padding: 5px 12px; border-radius: 4px; font-weight: bold; font-size: 13px;'>🔴 Muy por debajo</div>
+        </div>
+        <div style='text-align: center; color: #888; font-size: 11px; margin-top: -15px; margin-bottom: 15px;'>
+            * Tolerancia "Cerca": -5 en PTS/MIN | -2 en REB/AST
+        </div>
+    """, unsafe_allow_html=True)
 
 # --- FUNCIÓN TABLA HTML ---
 def mostrar_tabla_bonita(df_raw, col_principal_espanol, simple_mode=False, means_dict=None):
@@ -515,6 +529,7 @@ elif st.session_state.page == "👤 Jugador":
             view['FECHA'] = view['FECHA'].dt.strftime('%d/%m/%Y') 
             
             mostrar_tabla_bonita(view, None, means_dict=means_dict)
+            mostrar_leyenda_colores() # NUEVA LEYENDA AQUI
             
             if rival:
                 st.subheader(f"Historial vs {rival}")
@@ -529,6 +544,7 @@ elif st.session_state.page == "👤 Jugador":
                     view_h2h.columns = ['FECHA', 'PARTIDO', 'FICHA', 'MIN', 'PTS', 'REB', 'AST']
                     view_h2h['FECHA'] = view_h2h['FECHA'].dt.strftime('%d/%m/%Y')
                     mostrar_tabla_bonita(view_h2h, None, means_dict=means_dict)
+                    mostrar_leyenda_colores() # NUEVA LEYENDA AQUI TAMBIEN
                 else: st.info(f"No hay registros recientes contra {rival}.")
 
 # ==========================================
@@ -647,6 +663,22 @@ elif st.session_state.page == "⚔️ Analizar Partido":
 
             stats = stats[stats['player_name'].apply(lambda x: latest_teams_map.get(x) in [t1, t2])]
 
+            status_list = []
+            for idx, row in stats.iterrows():
+                p_name, p_team = row['player_name'], row['team_abbreviation']
+                real_team = latest_teams_map.get(p_name, p_team)
+                player_games = recent_players[(recent_players['player_name'] == p_name) & (recent_players['team_abbreviation'] == p_team)]
+                dates_played = player_games['game_date'].unique()
+                html_str = ""
+                for d in last_dates:
+                    d_short = d.strftime('%d/%m')
+                    if d in dates_played: html_str += f"<div class='status-cell'><span class='status-played'>✅</span><span class='status-date'>{d_short}</span></div>"
+                    else:
+                        if real_team != p_team: html_str += f"<div class='status-cell'><span class='status-date'>N/A</span></div>"
+                        else: html_str += f"<div class='status-cell'><span class='status-missed'>❌</span><span class='status-date'>{d_short}</span></div>"
+                status_list.append(html_str)
+            stats['STATUS_HTML'] = status_list
+
             st.write("---")
             
             st.subheader("🔥 Top Reboteadores")
@@ -685,13 +717,7 @@ elif st.session_state.page == "⚔️ Analizar Partido":
                 st.markdown(f"<div class='table-wrapper'>{html_dnp}</div>", unsafe_allow_html=True)
             else: st.success("✅ No hubo bajas importantes.")
 
-            # Patrones y Parlay...
-            # (El resto del código se mantiene igual para ahorrar espacio en la respuesta)
-            # COPIA Y PEGA LA PARTE DE PATRONES Y PARLAY DEL CÓDIGO ANTERIOR AQUI SI ES NECESARIO
-            # O USA EL CÓDIGO ANTERIOR Y SOLO REEMPLAZA LAS FUNCIONES 'apply_custom_color' y 'mostrar_tabla_bonita'
-            # Y LA SECCIÓN 'PÁGINA JUGADOR'
-            
-            # --- Para que el código esté 100% completo, añado el final ---
+            # Patrones
             st.write("---")
             st.subheader("🕵️ Detección de Patrones")
             global_means = df.groupby('player_name')[['pts', 'reb', 'ast']].mean()
@@ -740,6 +766,7 @@ elif st.session_state.page == "⚔️ Analizar Partido":
                 st.markdown(f"<div class='table-wrapper'>{html_pat}</div>", unsafe_allow_html=True)
             else: st.write("No se detectaron impactos significativos.")
 
+            # Parlay
             st.write("---")
             st.subheader("🎲 GENERADOR DE PARLAY (Dual Strategy)")
             min_games_needed = max(3, int(len(last_dates) * 0.6))
