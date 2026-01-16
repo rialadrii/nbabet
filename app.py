@@ -641,7 +641,7 @@ elif st.session_state.page == "⚔️ Analizar Partido":
                     vals = []
                     for v in row:
                         if pd.isna(v) or v == 0: 
-                            vals.append("-")
+                            vals.append("❌") # <--- CAMBIO AQUÍ
                         else:
                             vals.append(str(int(v)))
                     return "/".join(vals)
