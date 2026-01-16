@@ -185,7 +185,8 @@ def download_data():
 
     if all_seasons_data:
         full_df = pd.concat(all_seasons_data, ignore_index=True)
-        cols_needed = ['PLAYER_ID', 'PLAYER_NAME', 'TEAM_ABBREVIATION', 'GAME_DATE', 'MATCHUP', 'PTS', 'REB', 'AST', 'MIN', 'WL', 'GAME_ID']
+        # --- AÑADIDO 'FG3M' AQUÍ PARA LOS TRIPLES ---
+        cols_needed = ['PLAYER_ID', 'PLAYER_NAME', 'TEAM_ABBREVIATION', 'GAME_DATE', 'MATCHUP', 'PTS', 'REB', 'AST', 'FG3M', 'MIN', 'WL', 'GAME_ID']
         cols_final = [c for c in cols_needed if c in full_df.columns]
         df_clean = full_df[cols_final].copy()
         df_clean.columns = df_clean.columns.str.lower()
@@ -208,6 +209,8 @@ def load_data():
         if 'game_date' in df.columns: df['game_date'] = pd.to_datetime(df['game_date'])
         if 'game_id' in df.columns: df['game_id'] = df['game_id'].astype(str).str.zfill(10)
         else: df['game_id'] = None
+        # Pequeño hack por si la columna de triples aun no existe en el CSV antiguo
+        if 'fg3m' not in df.columns: df['fg3m'] = 0
         return df
     return pd.DataFrame()
 
@@ -301,7 +304,9 @@ def obtener_partidos():
 # ==========================================
 def apply_custom_color(column, avg, col_name):
     styles = []
-    tolerance = 2 if col_name in ['REB', 'AST'] else 5
+    # Tolerancia menor para Triples (FG3M)
+    tolerance = 1 if col_name == 'FG3M' else (2 if col_name in ['REB', 'AST'] else 5)
+    
     for val in column:
         text_color = "white"
         if val > avg: color = '#2962ff'
@@ -324,15 +329,18 @@ def mostrar_leyenda_colores():
     """, unsafe_allow_html=True)
 
 def mostrar_tabla_bonita(df_raw, col_principal_espanol, simple_mode=False, means_dict=None):
+    # Definimos columnas numericas a formatear (incluyendo FG3M ahora)
+    cols_numericas = [c for c in df_raw.columns if c in ['PTS', 'REB', 'AST', 'FG3M', 'MIN', '3PM'] or '_PTS' in c or '_REB' in c]
+    
     if simple_mode:
         html = df_raw.style\
-            .format("{:.0f}", subset=[c for c in df_raw.columns if 'PTS' in c or 'REB' in c or 'AST' in c])\
+            .format("{:.0f}", subset=[c for c in cols_numericas])\
             .hide(axis="index")\
             .to_html(classes="custom-table", escape=False)
     else:
-        styler = df_raw.style.format("{:.1f}", subset=[c for c in df_raw.columns if c in ['PTS', 'REB', 'AST', 'MIN'] or '_PTS' in c or '_REB' in c or '_AST' in c])
+        styler = df_raw.style.format("{:.1f}", subset=cols_numericas)
         if means_dict:
-            for c in ['PTS', 'REB', 'AST', 'MIN']:
+            for c in ['PTS', 'REB', 'AST', 'FG3M', 'MIN', '3PM']: # Añadido FG3M y 3PM
                 if c in df_raw.columns and c in means_dict:
                     styler.apply(apply_custom_color, avg=means_dict[c], col_name=c, subset=[c])
         else:
@@ -349,8 +357,6 @@ def render_clickable_player_table(df_stats, stat_col, jersey_map):
     df_stats['NUM'] = df_stats['player_name'].map(jersey_map).fillna('-')
     df_stats['JUGADOR'] = df_stats['player_name'] + ' (' + df_stats['team_abbreviation'] + ')'
 
-    # Solo mostramos columnas críticas
-    # trend_{stat_col} ya viene alineado con guiones si se usa la nueva lógica
     df_interactive = df_stats[['JUGADOR', 'player_name', stat_col.lower(), f'trend_{stat_col.lower()}', 'trend_min']].copy()
     df_interactive.columns = ['JUGADOR', 'player_name_hidden', stat_col, 'RACHA', 'MIN']
     
@@ -363,13 +369,9 @@ def render_clickable_player_table(df_stats, stat_col, jersey_map):
         column_config={
             "JUGADOR": st.column_config.TextColumn("JUGADOR", width=None),
             "player_name_hidden": None,
-            # AJUSTE DE ANCHOS PARA QUE QUEPA TODO
             stat_col: st.column_config.NumberColumn(stat_col, format="%.1f", width=50),
             "RACHA": st.column_config.TextColumn("RACHA (Últ. Partidos)", width=150), 
-            
-            # --- CAMBIO AQUÍ: Aumentado de 90 a 115 px ---
             "MIN": st.column_config.TextColumn("MIN", width=115) 
-            # ---------------------------------------------
         }
     )
     
@@ -435,19 +437,25 @@ elif st.session_state.page == "🔄 Actualizar Datos":
         with st.spinner("Conectando con servidores NBA..."):
             success = download_data()
             if success:
-                st.success("¡Datos actualizados!")
+                st.success("¡Datos actualizados con Triples!")
                 st.rerun()
 
-# --- PÁGINA JUGADOR ---
+# --- PÁGINA JUGADOR (CON TRIPLES Y CENTRADO) ---
 elif st.session_state.page == "👤 Jugador":
-    c_back, c_title = st.columns([1, 6])
+    
+    # === CORRECCIÓN DE ALINEACIÓN DEL TÍTULO ===
+    c_back, c_title, c_dummy = st.columns([1, 10, 1])
     with c_back:
+        st.write("")
         if st.session_state.selected_home and st.session_state.selected_visitor:
             if st.button(f"⬅️ Volver"):
                 volver_a_partido()
                 st.rerun()
     with c_title:
-        st.header("👤 Buscador de Jugadores")
+        st.markdown("<h2 style='text-align: center; margin-top: 0; padding-top: 0;'>👤 Buscador de Jugadores</h2>", unsafe_allow_html=True)
+    with c_dummy:
+        st.write("")
+    # ===========================================
 
     if df.empty:
         st.error("Primero actualiza los datos.")
@@ -467,17 +475,24 @@ elif st.session_state.page == "👤 Jugador":
             mean_pts = player_data['pts'].mean()
             mean_reb = player_data['reb'].mean()
             mean_ast = player_data['ast'].mean()
+            # Añadimos media de Triples
+            mean_3pm = player_data['fg3m'].mean()
             mean_min = player_data['min'].mean()
-            means_dict = {'PTS': mean_pts, 'REB': mean_reb, 'AST': mean_ast, 'MIN': mean_min}
+            
+            # Actualizamos diccionario para colorear tabla
+            means_dict = {'PTS': mean_pts, 'REB': mean_reb, 'AST': mean_ast, '3PM': mean_3pm, 'MIN': mean_min}
 
-            c1, c2, c3, c4 = st.columns(4)
+            # Ahora mostramos 5 columnas en vez de 4
+            c1, c2, c3, c4, c5 = st.columns(5)
             c1.metric("PTS", f"{mean_pts:.1f}")
             c2.metric("REB", f"{mean_reb:.1f}")
             c3.metric("AST", f"{mean_ast:.1f}")
-            c4.metric("MIN", f"{mean_min:.1f}")
+            c4.metric("3PM", f"{mean_3pm:.1f}") # NUEVA METRICA
+            c5.metric("MIN", f"{mean_min:.1f}")
             
             st.subheader("Últimos 5 Partidos")
-            cols = ['game_date', 'wl', 'matchup', 'min', 'pts', 'reb', 'ast']
+            # Añadimos 'fg3m' a las columnas seleccionadas
+            cols = ['game_date', 'wl', 'matchup', 'min', 'pts', 'reb', 'ast', 'fg3m']
             if 'game_id' in player_data.columns: cols.append('game_id')
             view = player_data[cols].head(5).copy()
             view['min'] = view['min'].astype(int)
@@ -486,10 +501,11 @@ elif st.session_state.page == "👤 Jugador":
             if 'game_id' in view.columns:
                 view['FICHA'] = view['game_id'].apply(lambda x: f"<a href='https://www.nba.com/game/{x}' target='_blank' class='match-link'>📊</a>" if pd.notnull(x) else "-")
                 view = view.drop(columns=['game_id'])
-                view = view[['game_date', 'RES', 'matchup', 'FICHA', 'min', 'pts', 'reb', 'ast']]
+                view = view[['game_date', 'RES', 'matchup', 'FICHA', 'min', 'pts', 'reb', 'ast', 'fg3m']]
             else: view['FICHA'] = "-"
-                
-            view.columns = ['FECHA', 'RES', 'PARTIDO', 'FICHA', 'MIN', 'PTS', 'REB', 'AST']
+            
+            # Renombramos fg3m a 3PM
+            view.columns = ['FECHA', 'RES', 'PARTIDO', 'FICHA', 'MIN', 'PTS', 'REB', 'AST', '3PM']
             view['FECHA'] = view['FECHA'].dt.strftime('%d/%m') 
             
             mostrar_tabla_bonita(view, None, means_dict=means_dict)
@@ -505,32 +521,26 @@ elif st.session_state.page == "👤 Jugador":
                     if 'game_id' in view_h2h.columns:
                         view_h2h['FICHA'] = view_h2h['game_id'].apply(lambda x: f"<a href='https://www.nba.com/game/{x}' target='_blank' class='match-link'>📊</a>" if pd.notnull(x) else "-")
                         view_h2h = view_h2h.drop(columns=['game_id'])
-                        view_h2h = view_h2h[['game_date', 'RES', 'matchup', 'FICHA', 'min', 'pts', 'reb', 'ast']]
-                    view_h2h.columns = ['FECHA', 'RES', 'PARTIDO', 'FICHA', 'MIN', 'PTS', 'REB', 'AST']
+                        view_h2h = view_h2h[['game_date', 'RES', 'matchup', 'FICHA', 'min', 'pts', 'reb', 'ast', 'fg3m']]
+                    view_h2h.columns = ['FECHA', 'RES', 'PARTIDO', 'FICHA', 'MIN', 'PTS', 'REB', 'AST', '3PM']
                     view_h2h['FECHA'] = view_h2h['FECHA'].dt.strftime('%d/%m')
                     mostrar_tabla_bonita(view_h2h, None, means_dict=means_dict)
                     mostrar_leyenda_colores()
                 else: st.info(f"No hay registros recientes contra {rival}.")
 
-# --- PÁGINA ANALIZAR PARTIDO (CÓDIGO COMPLETO) ---
+# --- PÁGINA ANALIZAR PARTIDO ---
 elif st.session_state.page == "⚔️ Analizar Partido":
     
-    # CAMBIO AQUÍ: Usamos 3 columnas [1, 10, 1] para que el título quede en el centro real
     c_back, c_title, c_dummy = st.columns([1, 10, 1])
-    
     with c_back:
-        # Añadimos un poco de margen superior (padding-top) si el botón se ve muy arriba respecto al texto
         st.write("") 
         if st.button("⬅️ Volver", key="back_btn_matchup"):
             volver_inicio()
             st.rerun()
-            
     with c_title:
-        # Usamos markdown directo para asegurar el alineado y quitar márgenes extraños
         st.markdown("<h2 style='text-align: center; margin-top: 0; padding-top: 0;'>⚔️ Análisis de Choque</h2>", unsafe_allow_html=True)
-        
     with c_dummy:
-        st.write("") # Esta columna vacía equilibra el layout
+        st.write("") 
 
     if df.empty:
         st.error("Datos no disponibles.")
@@ -653,7 +663,7 @@ elif st.session_state.page == "⚔️ Analizar Partido":
                     vals = []
                     for v in row:
                         if pd.isna(v) or v == 0: 
-                            vals.append("❌") # <--- CAMBIO AQUÍ
+                            vals.append("❌") 
                         else:
                             vals.append(str(int(v)))
                     return "/".join(vals)
@@ -807,5 +817,3 @@ elif st.session_state.page == "⚔️ Analizar Partido":
                 st.markdown(render_ticket("PTS", risky_legs_pts, "🏀", "#ff5252", "parlay-box"), unsafe_allow_html=True)
                 if risky_legs_reb: st.markdown(render_ticket("REB", risky_legs_reb, "🖐", "#ff5252", "parlay-box"), unsafe_allow_html=True)
                 if risky_legs_ast: st.markdown(render_ticket("AST", risky_legs_ast, "🎁", "#ff5252", "parlay-box"), unsafe_allow_html=True)
-
-
