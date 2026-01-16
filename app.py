@@ -41,69 +41,64 @@ def volver_a_partido():
 # ==========================================
 st.set_page_config(page_title="NBA Analyzer Pro", page_icon="🏀", layout="wide")
 
-# --- CSS AGRESIVO PARA CENTRADO Y COMPACTACIÓN MÓVIL ---
+# --- CSS LIMPIO Y ORDENADO (SIN ROMPER TABLAS) ---
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Teko:wght@300..700&display=swap');
 
     /* Títulos */
     h1 { font-family: 'Teko', sans-serif !important; font-size: 55px !important; text-transform: uppercase; text-align: center; margin-bottom: 20px; color: white; line-height: 1; }
-    h3 { font-family: 'Teko', sans-serif !important; font-size: 30px !important; text-transform: uppercase; letter-spacing: 1px; margin-top: 20px; }
+    h3 { font-family: 'Teko', sans-serif !important; font-size: 30px !important; text-transform: uppercase; letter-spacing: 1px; margin-top: 20px; color: #ffbd45; }
 
-    /* --- FORZAR ALINEACIÓN EN TABLAS (DATAFRAME) --- */
-    /* Encabezados y celdas centrados vertical y horizontalmente */
-    [data-testid="stDataFrame"] th, [data-testid="stDataFrame"] td {
+    /* --- AJUSTES DE TABLA (COMPACTA PERO ORDENADA) --- */
+    /* Forzar alineación de texto en cabeceras y celdas sin romper flexbox */
+    [data-testid="stDataFrame"] th {
         text-align: center !important;
-        justify-content: center !important;
-        display: flex !important;
-        align-items: center !important;
+        vertical-align: middle !important;
+        font-size: 14px !important;
     }
     
-    /* Ajustes internos de las celdas para asegurar el centrado */
-    [data-testid="stDataFrame"] div[role="columnheader"], [data-testid="stDataFrame"] div[role="gridcell"] {
-        justify-content: center !important; 
+    [data-testid="stDataFrame"] td {
         text-align: center !important;
-    }
-    
-    /* Reducir padding lateral para ganar espacio en móvil */
-    [data-testid="stDataFrame"] div[data-testid="stTable"] {
-        width: 100% !important;
+        vertical-align: middle !important;
+        font-size: 14px !important;
+        padding-top: 4px !important;
+        padding-bottom: 4px !important;
     }
 
-    /* --- ESTILO DE TARJETAS Y BOTONES --- */
+    /* Reducir márgenes de la tabla para aprovechar espacio */
+    [data-testid="stDataFrame"] { width: 100% !important; }
+
+    /* --- TARJETAS Y UI --- */
     .game-card { background-color: #2d2d2d; border: 1px solid #444; border-radius: 8px; padding: 10px; text-align: center; margin-bottom: 10px; }
     .game-matchup { display: flex; justify-content: center; align-items: center; gap: 10px; margin-bottom: 5px; }
     .team-logo { width: 40px; height: 40px; object-fit: contain; }
     .game-time { color: #ffbd45; font-size: 20px; font-weight: bold; font-family: 'Teko', sans-serif; }
     
+    /* Botones */
     div.stButton > button {
-        width: 100%; border-radius: 8px !important; font-weight: bold;
+        width: 100%; border-radius: 6px !important; font-weight: bold;
         background-color: #1e1e1e; color: #fff; border: 1px solid #444;
-        padding: 0.5rem 1rem; margin-top: 5px;
+        padding: 0.5rem 1rem;
     }
     div.stButton > button:hover { border-color: #4caf50; color: #4caf50; }
-
     .back-btn-container div.stButton > button { width: auto !important; }
 
-    /* Ocultar elementos innecesarios */
+    /* Ocultar elementos extra */
     [data-testid="stElementToolbar"] { display: none !important; }
     footer { display: none !important; }
     
-    /* Ajuste para tablas HTML simples (Historial/Bajas) */
-    table.custom-table { width: 100%; font-size: 13px; border-collapse: collapse; }
-    table.custom-table th { background-color: #31333F; padding: 6px; text-align: center !important; border-bottom: 2px solid #555; }
-    table.custom-table td { padding: 6px; text-align: center !important; border-bottom: 1px solid #444; }
+    /* Tablas HTML personalizadas (Historial/Bajas) */
+    table.custom-table { width: 100%; font-size: 13px; border-collapse: collapse; text-align: center; }
+    table.custom-table th { background-color: #31333F; padding: 8px; border-bottom: 2px solid #555; text-align: center; }
+    table.custom-table td { padding: 8px; border-bottom: 1px solid #444; text-align: center; }
     
-    /* Parlay */
+    /* Estilos Parlay y Status */
+    .dnp-missing { color: #ff5252; font-weight:bold; }
+    .dnp-full { color: #4caf50; font-weight:bold; }
     .parlay-box { background-color: #1e1e1e; border: 1px solid #444; border-radius: 10px; padding: 10px; margin-bottom: 15px; }
     .parlay-header { font-size: 18px; font-weight: bold; margin-bottom: 10px; text-transform: uppercase; border-bottom: 1px solid #444; padding-bottom: 5px; text-align: center; }
     .parlay-leg { background-color: #2d2d2d; margin: 5px 0; padding: 8px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; font-size: 13px; }
-    
-    /* Status y Patrones */
-    .dnp-missing { color: #ff5252; font-weight:bold; }
-    .dnp-full { color: #4caf50; font-weight:bold; }
-    .pat-stars { color: #ffbd45; font-weight: bold; }
-    .pat-impact { color: #4caf50; font-weight: bold; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -115,7 +110,7 @@ CSV_FOLDER = "csv"
 if not os.path.exists(CSV_FOLDER): os.makedirs(CSV_FOLDER)
 
 def download_data():
-    progress_text = "Descargando datos completos..."
+    progress_text = "Descargando datos..."
     my_bar = st.progress(0, text=progress_text)
     target_seasons = ['2024-25', '2025-26']
     all_seasons_data = []
@@ -124,7 +119,7 @@ def download_data():
             gamelogs = leaguegamelog.LeagueGameLog(season=season, player_or_team_abbreviation='P')
             df = gamelogs.get_data_frames()[0]
             if not df.empty: all_seasons_data.append(df)
-            my_bar.progress((i + 1) * 50, text=f"Temporada {season} descargada...")
+            my_bar.progress((i + 1) * 50, text=f"Temporada {season} lista...")
         except Exception as e: st.error(f"Error: {e}")
 
     if all_seasons_data:
@@ -139,7 +134,7 @@ def download_data():
             df_clean.to_sql('player', conn, if_exists='replace', index=False)
             conn.close()
         except: pass
-        my_bar.progress(100, text="¡Datos actualizados!")
+        my_bar.progress(100, text="Completado")
         time.sleep(1)
         my_bar.empty()
         return True
@@ -243,7 +238,6 @@ def obtener_partidos():
         except: pass
     return agenda
 
-# --- LÓGICA DE COLORES ---
 def apply_custom_color(column, avg, col_name):
     styles = []
     tolerance = 2 if col_name in ['REB', 'AST'] else 5
@@ -285,23 +279,23 @@ def mostrar_tabla_bonita(df_raw, col_principal_espanol, simple_mode=False, means
         html = styler.hide(axis="index").to_html(classes="custom-table", escape=False)
     st.markdown(f"<div class='table-wrapper'>{html}</div>", unsafe_allow_html=True)
 
-# --- FUNCIÓN TABLA INTERACTIVA (COMPACTA Y CORREGIDA) ---
+# --- FUNCIÓN TABLA INTERACTIVA (ESTRUCTURA CORREGIDA) ---
 def render_clickable_player_table(df_stats, stat_col, jersey_map):
     if df_stats.empty:
         st.info("Sin datos.")
         return
 
     # 1. Preparar datos
-    df_stats['dorsal_temp'] = df_stats['player_name'].map(jersey_map).fillna('-')
+    df_stats['NUM'] = df_stats['player_name'].map(jersey_map).fillna('-')
     df_stats['JUGADOR'] = df_stats['player_name'] + ' (' + df_stats['team_abbreviation'] + ')'
 
-    # 2. Seleccionar columnas: Dorsal va primero (👇)
-    df_interactive = df_stats[['dorsal_temp', 'JUGADOR', 'player_name', stat_col.lower(), f'trend_{stat_col.lower()}', 'trend_min']].copy()
+    # 2. Selección limpia de columnas
+    df_interactive = df_stats[['NUM', 'JUGADOR', 'player_name', stat_col.lower(), f'trend_{stat_col.lower()}', 'trend_min']].copy()
     
-    # 3. Renombrar columnas
-    df_interactive.columns = ['👇', 'JUGADOR', 'player_name_hidden', stat_col, 'RACHA', 'MIN']
+    # 3. Renombrado para la tabla visual
+    df_interactive.columns = ['#', 'JUGADOR', 'player_name_hidden', stat_col, 'RACHA', 'MIN']
     
-    # 4. Configurar tabla (compacta para móvil)
+    # 4. Configuración COMPACTA y CENTRADA
     selection = st.dataframe(
         df_interactive,
         use_container_width=True,
@@ -309,12 +303,12 @@ def render_clickable_player_table(df_stats, stat_col, jersey_map):
         on_select="rerun", 
         selection_mode="single-row",
         column_config={
-            "👇": st.column_config.TextColumn("👇", width="small", disabled=True),
-            "JUGADOR": st.column_config.TextColumn("JUGADOR", width="medium", disabled=True),
-            "player_name_hidden": None,
-            stat_col: st.column_config.NumberColumn(stat_col, format="%.1f", width="small", disabled=True),
-            "RACHA": st.column_config.TextColumn("RACHA", width="small", disabled=True),
-            "MIN": st.column_config.TextColumn("MIN", width="small", disabled=True)
+            "#": st.column_config.TextColumn("#", width="small"), # Dorsal centrado por defecto
+            "JUGADOR": st.column_config.TextColumn("JUGADOR", width="medium"), # Nombre
+            "player_name_hidden": None, # Oculto
+            stat_col: st.column_config.NumberColumn(stat_col, format="%.1f", width="small"), # Dato principal
+            "RACHA": st.column_config.TextColumn("RACHA", width="small"), # Racha
+            "MIN": st.column_config.TextColumn("MIN", width="small") # Minutos
         }
     )
     
@@ -374,19 +368,18 @@ if st.session_state.page == "🏠 Inicio":
 
     render_block(c1, "HOY", agenda.get("HOY", []), "#4caf50")
     render_block(c2, "MAÑANA", agenda.get("MAÑANA", []), "#2196f3")
-
     st.markdown("<div class='credits'>Creado por ad.ri.</div>", unsafe_allow_html=True)
 
 # ==========================================
 # PÁGINA ACTUALIZAR
 # ==========================================
 elif st.session_state.page == "🔄 Actualizar Datos":
-    st.write("### 🔄 Sincronización con NBA API")
+    st.write("### 🔄 Sincronización")
     if st.button("Descargar y Actualizar Ahora"):
         with st.spinner("Conectando con servidores NBA..."):
             success = download_data()
             if success:
-                st.success("¡Base de datos regenerada!")
+                st.success("¡Datos actualizados!")
                 st.rerun()
 
 # ==========================================
@@ -509,7 +502,7 @@ elif st.session_state.page == "⚔️ Analizar Partido":
             if t2 in team_map_id: roster_t2 = get_team_roster_numbers(team_map_id[t2])
             full_roster_map = {**roster_t1, **roster_t2}
 
-            with st.spinner("Buscando próximo enfrentamiento..."):
+            with st.spinner("Cargando..."):
                 next_game = get_next_matchup_info(t1, t2)
             if next_game:
                 link_btn = f"<a href='https://www.nba.com/game/{next_game['game_id']}' target='_blank' class='next-game-btn'>🏥 Ver Ficha</a>"
@@ -606,17 +599,15 @@ elif st.session_state.page == "⚔️ Analizar Partido":
             stats = stats[stats['player_name'].apply(lambda x: latest_teams_map.get(x) in [t1, t2])]
 
             st.write("---")
-            
-            st.subheader("🔥 Top Anotadores")
+            st.subheader("🔥 Top Anotadores 👇")
             render_clickable_player_table(stats.sort_values('pts', ascending=False).head(10), 'PTS', full_roster_map)
             
-            st.subheader("🔥 Top Reboteadores")
+            st.subheader("🔥 Top Reboteadores 👇")
             render_clickable_player_table(stats.sort_values('reb', ascending=False).head(10), 'REB', full_roster_map)
             
-            st.subheader("🤝 Top Asistentes")
+            st.subheader("🤝 Top Asistentes 👇")
             render_clickable_player_table(stats.sort_values('ast', ascending=False).head(10), 'AST', full_roster_map)
             
-            # Bajas
             st.write("---")
             st.subheader("🏥 Historial Bajas")
             avg_mins = recent_players.groupby(['player_name', 'team_abbreviation'])['min'].mean()
