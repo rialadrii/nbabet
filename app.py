@@ -41,170 +41,69 @@ def volver_a_partido():
 # ==========================================
 st.set_page_config(page_title="NBA Analyzer Pro", page_icon="🏀", layout="wide")
 
-# --- CSS MEJORADO PARA CENTRADO TOTAL ---
+# --- CSS AGRESIVO PARA CENTRADO Y COMPACTACIÓN MÓVIL ---
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Teko:wght@300..700&display=swap');
 
-    h1 {
-        font-family: 'Teko', sans-serif !important;
-        font-size: 65px !important;
-        text-transform: uppercase;
-        letter-spacing: 3px;
-        text-align: center;
-        margin-bottom: 30px;
-        color: white;
-    }
+    /* Títulos */
+    h1 { font-family: 'Teko', sans-serif !important; font-size: 55px !important; text-transform: uppercase; text-align: center; margin-bottom: 20px; color: white; line-height: 1; }
+    h3 { font-family: 'Teko', sans-serif !important; font-size: 30px !important; text-transform: uppercase; letter-spacing: 1px; margin-top: 20px; }
 
-    h3 {
-        font-family: 'Teko', sans-serif !important;
-        font-size: 35px !important;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-    }
-
-    /* --- FUERZA BRUTA DE ALINEACIÓN CENTRAL PARA TABLAS (DATAFRAME) --- */
-    /* Centrar encabezados de columna */
-    [data-testid="stDataFrame"] th {
-        text-align: center !important;
-        justify-content: center !important;
-        display: flex !important;
-        align-items: center !important;
-    }
-    /* Centrar contenido de celdas */
-    [data-testid="stDataFrame"] td {
+    /* --- FORZAR ALINEACIÓN EN TABLAS (DATAFRAME) --- */
+    /* Encabezados y celdas centrados vertical y horizontalmente */
+    [data-testid="stDataFrame"] th, [data-testid="stDataFrame"] td {
         text-align: center !important;
         justify-content: center !important;
         display: flex !important;
         align-items: center !important;
     }
     
-    /* Asegurar que los contenedores internos también se centren */
-    [data-testid="stDataFrame"] div[role="columnheader"] {
+    /* Ajustes internos de las celdas para asegurar el centrado */
+    [data-testid="stDataFrame"] div[role="columnheader"], [data-testid="stDataFrame"] div[role="gridcell"] {
         justify-content: center !important; 
         text-align: center !important;
-    }
-    [data-testid="stDataFrame"] div[role="gridcell"] {
-        justify-content: center !important; 
-        text-align: center !important;
-    }
-
-    /* --- TARJETA DEL PARTIDO --- */
-    .game-card {
-        background-color: #2d2d2d;
-        border: 1px solid #444;
-        border-bottom: 0px; 
-        border-radius: 12px 12px 0 0; 
-        padding: 15px;
-        text-align: center;
-        margin-bottom: 0px !important; 
-    }
-    .game-matchup { display: flex; justify-content: center; align-items: center; gap: 15px; margin-bottom: 10px; }
-    .team-logo { width: 45px; height: 45px; object-fit: contain; }
-    .game-time { 
-        color: #ffbd45; 
-        font-size: 24px; 
-        font-weight: bold; 
-        font-family: 'Teko', sans-serif; 
-        margin-top: 5px;
     }
     
-    .injuries-link {
-        font-size: 13px; color: #4caf50; text-decoration: none;
-        border: 1px solid #4caf50; padding: 5px 10px;
-        border-radius: 5px; margin-top: 10px; display: inline-block;
+    /* Reducir padding lateral para ganar espacio en móvil */
+    [data-testid="stDataFrame"] div[data-testid="stTable"] {
+        width: 100% !important;
     }
 
-    /* --- BOTÓN DE ANÁLISIS --- */
+    /* --- ESTILO DE TARJETAS Y BOTONES --- */
+    .game-card { background-color: #2d2d2d; border: 1px solid #444; border-radius: 8px; padding: 10px; text-align: center; margin-bottom: 10px; }
+    .game-matchup { display: flex; justify-content: center; align-items: center; gap: 10px; margin-bottom: 5px; }
+    .team-logo { width: 40px; height: 40px; object-fit: contain; }
+    .game-time { color: #ffbd45; font-size: 20px; font-weight: bold; font-family: 'Teko', sans-serif; }
+    
     div.stButton > button {
-        width: 100%;
-        border-radius: 0 0 12px 12px !important; 
-        font-weight: bold;
-        border: 1px solid #444;
-        border-top: 0px; 
-        background-color: #1e1e1e;
-        color: #fff;
-        padding: 10px;
-        margin-top: -16px !important; 
-        position: relative;
-        z-index: 1;
-        transition: all 0.2s;
+        width: 100%; border-radius: 8px !important; font-weight: bold;
+        background-color: #1e1e1e; color: #fff; border: 1px solid #444;
+        padding: 0.5rem 1rem; margin-top: 5px;
     }
-    div.stButton > button:hover {
-        background-color: #4caf50;
-        color: white;
-        border-color: #4caf50;
-    }
+    div.stButton > button:hover { border-color: #4caf50; color: #4caf50; }
+
+    .back-btn-container div.stButton > button { width: auto !important; }
+
+    /* Ocultar elementos innecesarios */
+    [data-testid="stElementToolbar"] { display: none !important; }
+    footer { display: none !important; }
     
-    /* Botón Volver */
-    .back-btn-container div.stButton > button {
-        width: auto !important;
-        margin-top: 0 !important;
-        border-radius: 5px !important;
-        background-color: #444 !important;
-        border: 1px solid #666 !important;
-        font-size: 14px !important;
-        padding: 5px 15px !important;
-    }
-    .back-btn-container div.stButton > button:hover {
-        background-color: #666 !important;
-        border-color: #888 !important;
-    }
-
-    /* Enlace tabla */
-    a.match-link {
-        color: #fff !important; background-color: #2196f3;
-        text-decoration: none; font-weight: bold;
-        padding: 4px 10px; border-radius: 4px;
-        font-size: 12px; display: inline-block; width: 80px; text-align: center;
-    }
-    a.match-link:hover { background-color: #1976d2; }
-    .no-link { color: #666; font-size: 11px; font-style: italic; }
-
-    /* Aviso Próximo Partido */
-    .next-game-box {
-        background-color: #1a2e1a; border: 2px solid #4caf50;
-        border-radius: 10px; padding: 15px; text-align: center;
-        margin-bottom: 20px; color: #fff;
-    }
-    .next-game-title { color: #4caf50; font-weight: bold; font-size: 22px; font-family: 'Teko', sans-serif; }
-    .next-game-btn {
-        background-color: #4caf50; color: white !important;
-        padding: 8px 15px; text-decoration: none; border-radius: 5px;
-        font-weight: bold; font-size: 14px;
-    }
-
-    .credits { 
-        font-family: 'Teko', sans-serif; font-size: 24px; color: #666; 
-        text-align: center; margin-top: 40px; 
-    }
-    
-    /* TABLAS HTML */
-    table { width: 100%; border-collapse: collapse; margin-bottom: 5px; color: white; font-family: sans-serif; }
-    th { background-color: #31333F; color: white; font-weight: bold; text-align: center !important; padding: 10px; border-bottom: 2px solid #464b5f; text-transform: uppercase; }
-    td { text-align: center !important; padding: 8px; border-bottom: 1px solid #464b5f; font-size: 14px; vertical-align: middle; }
-    div.table-wrapper { overflow-x: auto; margin-bottom: 10px; }
+    /* Ajuste para tablas HTML simples (Historial/Bajas) */
+    table.custom-table { width: 100%; font-size: 13px; border-collapse: collapse; }
+    table.custom-table th { background-color: #31333F; padding: 6px; text-align: center !important; border-bottom: 2px solid #555; }
+    table.custom-table td { padding: 6px; text-align: center !important; border-bottom: 1px solid #444; }
     
     /* Parlay */
-    .parlay-box { background-color: #1e1e1e; border: 1px solid #444; border-radius: 15px; padding: 15px; margin-bottom: 20px; }
-    .parlay-header { font-size: 20px; font-weight: bold; margin-bottom: 15px; text-transform: uppercase; border-bottom: 1px solid #444; padding-bottom: 10px; text-align: center; }
-    .parlay-leg { background-color: #2d2d2d; margin: 10px 0; padding: 10px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; }
-    .leg-player { font-weight: bold; font-size: 14px; }
-    .leg-val { font-weight: bold; font-size: 18px; text-align: right; }
-    .leg-stat { color: #aaaaaa; font-size: 11px; text-align: right; }
+    .parlay-box { background-color: #1e1e1e; border: 1px solid #444; border-radius: 10px; padding: 10px; margin-bottom: 15px; }
+    .parlay-header { font-size: 18px; font-weight: bold; margin-bottom: 10px; text-transform: uppercase; border-bottom: 1px solid #444; padding-bottom: 5px; text-align: center; }
+    .parlay-leg { background-color: #2d2d2d; margin: 5px 0; padding: 8px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; font-size: 13px; }
     
     /* Status y Patrones */
-    .status-played { color: #4caf50; font-weight: bold; font-size: 16px; }
-    .status-missed { color: #ff5252; font-weight: bold; font-size: 16px; }
-    .status-date { font-size: 10px; color: #aaaaaa; display: block; }
-    .status-cell { display: inline-block; margin: 0 4px; text-align: center; }
-    .dnp-full { color: #4caf50; font-weight: bold; }
-    .dnp-missing { color: #ff5252; }
+    .dnp-missing { color: #ff5252; font-weight:bold; }
+    .dnp-full { color: #4caf50; font-weight:bold; }
     .pat-stars { color: #ffbd45; font-weight: bold; }
     .pat-impact { color: #4caf50; font-weight: bold; }
-
-    /* --- OCULTAR TOOLBAR --- */
-    [data-testid="stElementToolbar"] { display: none !important; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -280,13 +179,11 @@ def get_nba_schedule():
     except:
         return []
 
-# --- FUNCIÓN OBTENER DORSALES ---
 @st.cache_data(ttl=3600)
 def get_team_roster_numbers(team_id):
     try:
         roster = commonteamroster.CommonTeamRoster(team_id=team_id)
         df_roster = roster.get_data_frames()[0]
-        # Crear diccionario Nombre -> Numero
         df_roster['NUM'] = df_roster['NUM'].astype(str).str.replace('.0', '', regex=False)
         return dict(zip(df_roster['PLAYER'], df_roster['NUM']))
     except:
@@ -346,42 +243,31 @@ def obtener_partidos():
         except: pass
     return agenda
 
-# --- LÓGICA DE COLORES PERSONALIZADA ---
+# --- LÓGICA DE COLORES ---
 def apply_custom_color(column, avg, col_name):
     styles = []
-    if col_name in ['REB', 'AST']:
-        tolerance = 2 
-    else:
-        tolerance = 5 
+    tolerance = 2 if col_name in ['REB', 'AST'] else 5
     for val in column:
         text_color = "white"
-        if val > avg: 
-            color = '#2962ff'
-        elif val == avg: 
-            color = '#00c853'
+        if val > avg: color = '#2962ff'
+        elif val == avg: color = '#00c853'
         elif val >= (avg - tolerance): 
             color = '#fff176'
             text_color = "black"
-        else: 
-            color = '#d32f2f'
+        else: color = '#d32f2f'
         styles.append(f'background-color: {color}; color: {text_color}; font-weight: bold;')
     return styles
 
-# --- FUNCIÓN LEYENDA ---
 def mostrar_leyenda_colores():
     st.markdown("""
-        <div style='display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 15px; margin-bottom: 20px; font-family: sans-serif;'>
-            <div style='background-color: #2962ff; color: white; padding: 5px 12px; border-radius: 4px; font-weight: bold; font-size: 13px;'>🔵 Supera Media</div>
-            <div style='background-color: #00c853; color: white; padding: 5px 12px; border-radius: 4px; font-weight: bold; font-size: 13px;'>🟢 Iguala Media</div>
-            <div style='background-color: #fff176; color: black; padding: 5px 12px; border-radius: 4px; font-weight: bold; font-size: 13px;'>⚠️ Cerca de Media</div>
-            <div style='background-color: #d32f2f; color: white; padding: 5px 12px; border-radius: 4px; font-weight: bold; font-size: 13px;'>🔴 Muy por debajo</div>
-        </div>
-        <div style='text-align: center; color: #888; font-size: 11px; margin-top: -15px; margin-bottom: 15px;'>
-            * Tolerancia "Cerca": -5 en PTS/MIN | -2 en REB/AST
+        <div style='display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin: 10px 0; font-family: sans-serif;'>
+            <div style='background-color: #2962ff; color: white; padding: 4px 10px; border-radius: 4px; font-weight: bold; font-size: 11px;'>🔵 Supera</div>
+            <div style='background-color: #00c853; color: white; padding: 4px 10px; border-radius: 4px; font-weight: bold; font-size: 11px;'>🟢 Iguala</div>
+            <div style='background-color: #fff176; color: black; padding: 4px 10px; border-radius: 4px; font-weight: bold; font-size: 11px;'>⚠️ Cerca</div>
+            <div style='background-color: #d32f2f; color: white; padding: 4px 10px; border-radius: 4px; font-weight: bold; font-size: 11px;'>🔴 Debajo</div>
         </div>
     """, unsafe_allow_html=True)
 
-# --- FUNCIÓN TABLA HTML ---
 def mostrar_tabla_bonita(df_raw, col_principal_espanol, simple_mode=False, means_dict=None):
     if simple_mode:
         html = df_raw.style\
@@ -391,39 +277,31 @@ def mostrar_tabla_bonita(df_raw, col_principal_espanol, simple_mode=False, means
     else:
         styler = df_raw.style.format("{:.1f}", subset=[c for c in df_raw.columns if c in ['PTS', 'REB', 'AST', 'MIN'] or '_PTS' in c or '_REB' in c or '_AST' in c])
         if means_dict:
-            if 'PTS' in df_raw.columns and 'PTS' in means_dict:
-                styler.apply(apply_custom_color, avg=means_dict['PTS'], col_name='PTS', subset=['PTS'])
-            if 'REB' in df_raw.columns and 'REB' in means_dict:
-                styler.apply(apply_custom_color, avg=means_dict['REB'], col_name='REB', subset=['REB'])
-            if 'AST' in df_raw.columns and 'AST' in means_dict:
-                styler.apply(apply_custom_color, avg=means_dict['AST'], col_name='AST', subset=['AST'])
-            if 'MIN' in df_raw.columns and 'MIN' in means_dict:
-                styler.apply(apply_custom_color, avg=means_dict['MIN'], col_name='MIN', subset=['MIN'])
+            for c in ['PTS', 'REB', 'AST', 'MIN']:
+                if c in df_raw.columns and c in means_dict:
+                    styler.apply(apply_custom_color, avg=means_dict[c], col_name=c, subset=[c])
         else:
             styler.background_gradient(subset=[col_principal_espanol] if col_principal_espanol else None, cmap='Greens')
         html = styler.hide(axis="index").to_html(classes="custom-table", escape=False)
     st.markdown(f"<div class='table-wrapper'>{html}</div>", unsafe_allow_html=True)
 
-# --- FUNCIÓN TABLA INTERACTIVA (CORREGIDA PARA TU IMAGEN) ---
+# --- FUNCIÓN TABLA INTERACTIVA (COMPACTA Y CORREGIDA) ---
 def render_clickable_player_table(df_stats, stat_col, jersey_map):
     if df_stats.empty:
         st.info("Sin datos.")
         return
 
-    # Asignar dorsal o guion si no hay
-    df_stats['#'] = df_stats['player_name'].map(jersey_map).fillna('-')
-    
-    # Fusión nombre + (equipo) para mostrar en la celda
-    df_stats['JUGADOR_FULL'] = df_stats['player_name'] + ' (' + df_stats['team_abbreviation'] + ')'
+    # 1. Preparar datos
+    df_stats['dorsal_temp'] = df_stats['player_name'].map(jersey_map).fillna('-')
+    df_stats['JUGADOR'] = df_stats['player_name'] + ' (' + df_stats['team_abbreviation'] + ')'
 
-    # Selección de columnas base
-    df_interactive = df_stats[['#', 'JUGADOR_FULL', 'player_name', stat_col.lower(), f'trend_{stat_col.lower()}', 'trend_min']].copy()
+    # 2. Seleccionar columnas: Dorsal va primero (👇)
+    df_interactive = df_stats[['dorsal_temp', 'JUGADOR', 'player_name', stat_col.lower(), f'trend_{stat_col.lower()}', 'trend_min']].copy()
     
-    # RENOMBRAMIENTO DE COLUMNAS (Ajustado a tu petición)
-    # Columna 1: '👇' (Emoji)
-    # Columna 2: 'JUGADOR' (Texto)
+    # 3. Renombrar columnas
     df_interactive.columns = ['👇', 'JUGADOR', 'player_name_hidden', stat_col, 'RACHA', 'MIN']
     
+    # 4. Configurar tabla (compacta para móvil)
     selection = st.dataframe(
         df_interactive,
         use_container_width=True,
@@ -431,11 +309,11 @@ def render_clickable_player_table(df_stats, stat_col, jersey_map):
         on_select="rerun", 
         selection_mode="single-row",
         column_config={
-            "👇": st.column_config.TextColumn("👇", width="small", disabled=True), # Emoji, ancho pequeño
-            "JUGADOR": st.column_config.TextColumn("JUGADOR", width="medium", disabled=True), # Texto, sin tanto espacio
-            "player_name_hidden": None, # Columna oculta necesaria para la lógica
-            stat_col: st.column_config.NumberColumn(stat_col, format="%.1f", disabled=True),
-            "RACHA": st.column_config.TextColumn("RACHA", width="medium", disabled=True),
+            "👇": st.column_config.TextColumn("👇", width="small", disabled=True),
+            "JUGADOR": st.column_config.TextColumn("JUGADOR", width="medium", disabled=True),
+            "player_name_hidden": None,
+            stat_col: st.column_config.NumberColumn(stat_col, format="%.1f", width="small", disabled=True),
+            "RACHA": st.column_config.TextColumn("RACHA", width="small", disabled=True),
             "MIN": st.column_config.TextColumn("MIN", width="small", disabled=True)
         }
     )
@@ -494,8 +372,8 @@ if st.session_state.page == "🏠 Inicio":
                     st.rerun()
                 st.write("")
 
-    render_block(c1, "JORNADA DE HOY (Madrugada)", agenda.get("HOY", []), "#4caf50")
-    render_block(c2, "JORNADA DE MAÑANA", agenda.get("MAÑANA", []), "#2196f3")
+    render_block(c1, "HOY", agenda.get("HOY", []), "#4caf50")
+    render_block(c2, "MAÑANA", agenda.get("MAÑANA", []), "#2196f3")
 
     st.markdown("<div class='credits'>Creado por ad.ri.</div>", unsafe_allow_html=True)
 
@@ -515,12 +393,11 @@ elif st.session_state.page == "🔄 Actualizar Datos":
 # PÁGINA JUGADOR
 # ==========================================
 elif st.session_state.page == "👤 Jugador":
-    
     c_back, c_title = st.columns([1, 6])
     with c_back:
         if st.session_state.selected_home and st.session_state.selected_visitor:
             st.markdown("<div class='back-btn-container'>", unsafe_allow_html=True)
-            if st.button(f"⬅️ Volver a {st.session_state.selected_home} vs {st.session_state.selected_visitor}"):
+            if st.button(f"⬅️ Volver"):
                 volver_a_partido()
                 st.rerun()
             st.markdown("</div>", unsafe_allow_html=True)
@@ -565,13 +442,13 @@ elif st.session_state.page == "👤 Jugador":
             view['RES'] = view['wl'].map({'W': '✅', 'L': '❌'})
             
             if 'game_id' in view.columns:
-                view['FICHA'] = view['game_id'].apply(lambda x: f"<a href='https://www.nba.com/game/{x}' target='_blank' class='match-link'>📊 Ver</a>" if pd.notnull(x) else "-")
+                view['FICHA'] = view['game_id'].apply(lambda x: f"<a href='https://www.nba.com/game/{x}' target='_blank' class='match-link'>📊</a>" if pd.notnull(x) else "-")
                 view = view.drop(columns=['game_id'])
                 view = view[['game_date', 'RES', 'matchup', 'FICHA', 'min', 'pts', 'reb', 'ast']]
             else: view['FICHA'] = "-"
                 
             view.columns = ['FECHA', 'RES', 'PARTIDO', 'FICHA', 'MIN', 'PTS', 'REB', 'AST']
-            view['FECHA'] = view['FECHA'].dt.strftime('%d/%m/%Y') 
+            view['FECHA'] = view['FECHA'].dt.strftime('%d/%m') 
             
             mostrar_tabla_bonita(view, None, means_dict=means_dict)
             mostrar_leyenda_colores() 
@@ -584,11 +461,11 @@ elif st.session_state.page == "👤 Jugador":
                     view_h2h['min'] = view_h2h['min'].astype(int)
                     view_h2h['RES'] = view_h2h['wl'].map({'W': '✅', 'L': '❌'})
                     if 'game_id' in view_h2h.columns:
-                        view_h2h['FICHA'] = view_h2h['game_id'].apply(lambda x: f"<a href='https://www.nba.com/game/{x}' target='_blank' class='match-link'>📊 Ver</a>" if pd.notnull(x) else "-")
+                        view_h2h['FICHA'] = view_h2h['game_id'].apply(lambda x: f"<a href='https://www.nba.com/game/{x}' target='_blank' class='match-link'>📊</a>" if pd.notnull(x) else "-")
                         view_h2h = view_h2h.drop(columns=['game_id'])
                         view_h2h = view_h2h[['game_date', 'RES', 'matchup', 'FICHA', 'min', 'pts', 'reb', 'ast']]
                     view_h2h.columns = ['FECHA', 'RES', 'PARTIDO', 'FICHA', 'MIN', 'PTS', 'REB', 'AST']
-                    view_h2h['FECHA'] = view_h2h['FECHA'].dt.strftime('%d/%m/%Y')
+                    view_h2h['FECHA'] = view_h2h['FECHA'].dt.strftime('%d/%m')
                     mostrar_tabla_bonita(view_h2h, None, means_dict=means_dict)
                     mostrar_leyenda_colores()
                 else: st.info(f"No hay registros recientes contra {rival}.")
@@ -601,7 +478,7 @@ elif st.session_state.page == "⚔️ Analizar Partido":
     c_back, c_title = st.columns([1, 6])
     with c_back:
         st.markdown("<div class='back-btn-container'>", unsafe_allow_html=True)
-        if st.button("⬅️ Volver al Calendario"):
+        if st.button("⬅️ Volver"):
             volver_inicio()
             st.rerun()
         st.markdown("</div>", unsafe_allow_html=True)
@@ -617,8 +494,8 @@ elif st.session_state.page == "⚔️ Analizar Partido":
         idx_t1 = equipos.index(st.session_state.selected_home) if st.session_state.selected_home in equipos else None
         idx_t2 = equipos.index(st.session_state.selected_visitor) if st.session_state.selected_visitor in equipos else None
         
-        t1 = col1.selectbox("Equipo Local", equipos, index=idx_t1)
-        t2 = col2.selectbox("Equipo Visitante", equipos, index=idx_t2)
+        t1 = col1.selectbox("Local", equipos, index=idx_t1)
+        t2 = col2.selectbox("Visitante", equipos, index=idx_t2)
         
         if t1 and t1 != st.session_state.selected_home: st.session_state.selected_home = t1
         if t2 and t2 != st.session_state.selected_visitor: st.session_state.selected_visitor = t2
@@ -635,13 +512,12 @@ elif st.session_state.page == "⚔️ Analizar Partido":
             with st.spinner("Buscando próximo enfrentamiento..."):
                 next_game = get_next_matchup_info(t1, t2)
             if next_game:
-                link_btn = f"<a href='https://www.nba.com/game/{next_game['game_id']}' target='_blank' class='next-game-btn'>🏥 Ver Ficha / Bajas</a>"
+                link_btn = f"<a href='https://www.nba.com/game/{next_game['game_id']}' target='_blank' class='next-game-btn'>🏥 Ver Ficha</a>"
                 st.markdown(f"""
                 <div class='next-game-box'>
-                    <div class='next-game-title'>📅 PRÓXIMO ENFRENTAMIENTO CONFIRMADO</div>
+                    <div class='next-game-title'>📅 PRÓXIMO ENFRENTAMIENTO</div>
                     <div class='next-game-info'>
                         <b>{next_game['date']}</b> - {next_game['away']} @ {next_game['home']}
-                        <br><span style='font-size:14px; color:#ccc'>{next_game['arena']}</span>
                     </div>
                     {link_btn}
                 </div>
@@ -654,7 +530,7 @@ elif st.session_state.page == "⚔️ Analizar Partido":
             last_dates = sorted(history['game_date'].unique(), reverse=True)[:5]
             
             st.write("---")
-            st.subheader("📅 Historial Reciente")
+            st.subheader("📅 Historial H2H")
             
             games_summary = []
             for date in last_dates:
@@ -676,8 +552,8 @@ elif st.session_state.page == "⚔️ Analizar Partido":
                 match_str = f"{t1} {icon1} vs {t2} {icon2}"
                 row = day_data.iloc[0]
                 g_id = row.get('game_id')
-                link = f"<a href='https://www.nba.com/game/{g_id}' target='_blank' class='match-link'>📊 Ver Ficha</a>" if pd.notnull(g_id) else "-"
-                games_summary.append({'FECHA': date.strftime('%d/%m/%Y'), 'ENFRENTAMIENTO': match_str, 'FICHA': link})
+                link = f"<a href='https://www.nba.com/game/{g_id}' target='_blank' class='match-link'>📊</a>" if pd.notnull(g_id) else "-"
+                games_summary.append({'FECHA': date.strftime('%d/%m'), 'ENFRENTAMIENTO': match_str, 'FICHA': link})
             
             df_games = pd.DataFrame(games_summary)
             if 'game_id' not in df.columns: st.warning("⚠️ Faltan enlaces. Actualiza datos.")
@@ -689,20 +565,18 @@ elif st.session_state.page == "⚔️ Analizar Partido":
             team_avgs = team_avgs[team_avgs['team_abbreviation'].isin([t1, t2])]
             if not team_avgs.empty:
                 st.write("---")
-                st.subheader("📊 Estadísticas de Equipo (H2H)")
-                st.caption("Promedios de los últimos enfrentamientos:")
+                st.subheader("📊 Comparativa H2H")
                 v_avgs = team_avgs.copy()
                 v_avgs.columns = ['EQUIPO', 'PTS', 'REB', 'AST']
                 mostrar_tabla_bonita(v_avgs, 'PTS')
                 
-                st.caption("📝 Desglose Comparativo por Partido:")
                 filtered_totals = team_totals[team_totals['team_abbreviation'].isin([t1, t2])].copy()
                 game_stats = []
                 unique_game_dates = filtered_totals['game_date'].unique()
                 for d in sorted(unique_game_dates, reverse=True):
                     day_data = filtered_totals[filtered_totals['game_date'] == d]
                     if not day_data.empty:
-                        row = {'FECHA': pd.to_datetime(d).strftime('%d/%m/%Y')}
+                        row = {'FECHA': pd.to_datetime(d).strftime('%d/%m')}
                         t1_d = day_data[day_data['team_abbreviation'] == t1]
                         row[f'{t1} PTS'] = t1_d['pts'].values[0] if not t1_d.empty else 0
                         row[f'{t1} REB'] = t1_d['reb'].values[0] if not t1_d.empty else 0
@@ -744,13 +618,13 @@ elif st.session_state.page == "⚔️ Analizar Partido":
             
             # Bajas
             st.write("---")
-            st.subheader("🏥 Historial de Bajas (Por Equipo)")
+            st.subheader("🏥 Historial Bajas")
             avg_mins = recent_players.groupby(['player_name', 'team_abbreviation'])['min'].mean()
             active_key_players = [p for p in avg_mins[avg_mins > 12.0].index.tolist() if latest_teams_map.get(p[0]) in [t1, t2]]
             
             dnp_table_data = []
             for date in last_dates:
-                date_str = date.strftime('%d/%m/%Y')
+                date_str = date.strftime('%d/%m')
                 played_on_date = recent_players[recent_players['game_date'] == date]['player_name'].unique()
                 missing_t1, missing_t2 = [], []
                 for p_name, p_team in active_key_players:
@@ -760,16 +634,17 @@ elif st.session_state.page == "⚔️ Analizar Partido":
                     if team_played and (p_name not in played_on_date):
                         if p_team == t1: missing_t1.append(p_name)
                         elif p_team == t2: missing_t2.append(p_name)
-                cell_t1 = f"<span class='dnp-missing'>{', '.join(missing_t1)}</span>" if missing_t1 else "<span class='dnp-full'>✅ Completo</span>"
-                cell_t2 = f"<span class='dnp-missing'>{', '.join(missing_t2)}</span>" if missing_t2 else "<span class='dnp-full'>✅ Completo</span>"
+                cell_t1 = f"<span class='dnp-missing'>{', '.join(missing_t1)}</span>" if missing_t1 else "<span class='dnp-full'>OK</span>"
+                cell_t2 = f"<span class='dnp-missing'>{', '.join(missing_t2)}</span>" if missing_t2 else "<span class='dnp-full'>OK</span>"
                 dnp_table_data.append({'FECHA': date_str, f'BAJAS {t1}': cell_t1, f'BAJAS {t2}': cell_t2})
             if dnp_table_data:
                 df_dnp = pd.DataFrame(dnp_table_data)
                 html_dnp = df_dnp.style.hide(axis="index").to_html(classes="custom-table")
                 st.markdown(f"<div class='table-wrapper'>{html_dnp}</div>", unsafe_allow_html=True)
-            else: st.success("✅ No hubo bajas importantes.")
+            else: st.success("✅ Sin bajas importantes.")
+            
             st.write("---")
-            st.subheader("🕵️ Detección de Patrones")
+            st.subheader("🕵️ Patrones")
             global_means = df.groupby('player_name')[['pts', 'reb', 'ast']].mean()
             star_scorers = global_means[global_means['pts'] > 18].index.tolist()
             star_rebounders = global_means[global_means['reb'] > 7].index.tolist()
@@ -799,25 +674,25 @@ elif st.session_state.page == "⚔️ Analizar Partido":
                             diff_ast = row['ast'] - avg_p['ast']
                             impact_msgs = []
                             if any(s in star_scorers for s in missing_stars_today):
-                                if row['pts'] >= 15 and diff_pts >= 8: impact_msgs.append(f"🏀 +{int(diff_pts)} PTS")
+                                if row['pts'] >= 15 and diff_pts >= 8: impact_msgs.append(f"🏀+{int(diff_pts)}")
                             if any(s in star_rebounders for s in missing_stars_today):
-                                if row['reb'] >= 7 and diff_reb >= 4: impact_msgs.append(f"🖐 +{int(diff_reb)} REB")
+                                if row['reb'] >= 7 and diff_reb >= 4: impact_msgs.append(f"🖐+{int(diff_reb)}")
                             if any(s in star_assisters for s in missing_stars_today):
-                                if row['ast'] >= 5 and diff_ast >= 4: impact_msgs.append(f"🎁 +{int(diff_ast)} AST")
+                                if row['ast'] >= 5 and diff_ast >= 4: impact_msgs.append(f"🎁+{int(diff_ast)}")
                             if impact_msgs: beneficiaries.append(f"<b>{p_name}</b> ({', '.join(impact_msgs)})")
                         if beneficiaries:
                             date_str = date.strftime('%d/%m')
                             missing_str = ", ".join(missing_stars_today)
                             impact_str = "<br>".join(beneficiaries)
-                            patterns_data.append({'FECHA': date_str, 'EQUIPO': team, 'BAJAS ESTELARES': f"<span class='pat-stars'>{missing_str}</span>", 'IMPACTO': f"<span class='pat-impact'>{impact_str}</span>"})
+                            patterns_data.append({'FECHA': date_str, 'EQUIPO': team, 'FALTA': f"<span class='pat-stars'>{missing_str}</span>", 'IMPACTO': f"<span class='pat-impact'>{impact_str}</span>"})
             if patterns_data:
                 df_patterns = pd.DataFrame(patterns_data)
                 html_pat = df_patterns.style.hide(axis="index").to_html(classes="custom-table")
                 st.markdown(f"<div class='table-wrapper'>{html_pat}</div>", unsafe_allow_html=True)
-            else: st.write("No se detectaron impactos significativos.")
+            else: st.write("Sin impactos.")
 
             st.write("---")
-            st.subheader("🎲 GENERADOR DE PARLAY (Dual Strategy)")
+            st.subheader("🎲 Parlay Generator")
             min_games_needed = max(3, int(len(last_dates) * 0.6))
             candidates = stats[stats['gp'] >= min_games_needed].copy()
             
@@ -837,19 +712,19 @@ elif st.session_state.page == "⚔️ Analizar Partido":
                 smart_min_ast = ast_vals[1] if len(ast_vals) >= 4 else ast_vals[0]
                 avg_pts, avg_reb, avg_ast = row['pts'], row['reb'], row['ast']
 
-                if smart_min_pts >= 12: safe_legs_pts.append({'player': p_name, 'val': int(smart_min_pts), 'score': avg_pts, 'desc': f"Suelo vs Rival"})
-                if smart_min_reb >= 6: safe_legs_reb.append({'player': p_name, 'val': int(smart_min_reb), 'score': avg_reb, 'desc': f"Suelo vs Rival"})
-                if smart_min_ast >= 4: safe_legs_ast.append({'player': p_name, 'val': int(smart_min_ast), 'score': avg_ast, 'desc': f"Suelo vs Rival"})
+                if smart_min_pts >= 12: safe_legs_pts.append({'player': p_name, 'val': int(smart_min_pts), 'score': avg_pts, 'desc': f"Suelo"})
+                if smart_min_reb >= 6: safe_legs_reb.append({'player': p_name, 'val': int(smart_min_reb), 'score': avg_reb, 'desc': f"Suelo"})
+                if smart_min_ast >= 4: safe_legs_ast.append({'player': p_name, 'val': int(smart_min_ast), 'score': avg_ast, 'desc': f"Suelo"})
 
-                if avg_pts >= 15 and avg_pts > (smart_min_pts + 1.0): risky_legs_pts.append({'player': p_name, 'val': int(avg_pts), 'score': avg_pts, 'desc': f"Media vs Rival (Alto Valor)"})
-                if avg_reb >= 8 and avg_reb > (smart_min_reb + 1.0): risky_legs_reb.append({'player': p_name, 'val': int(avg_reb), 'score': avg_reb, 'desc': f"Media vs Rival (Alto Valor)"})
-                if avg_ast >= 6 and avg_ast > (smart_min_ast + 1.0): risky_legs_ast.append({'player': p_name, 'val': int(avg_ast), 'score': avg_ast, 'desc': f"Media vs Rival (Alto Valor)"})
+                if avg_pts >= 15 and avg_pts > (smart_min_pts + 1.0): risky_legs_pts.append({'player': p_name, 'val': int(avg_pts), 'score': avg_pts, 'desc': f"Media"})
+                if avg_reb >= 8 and avg_reb > (smart_min_reb + 1.0): risky_legs_reb.append({'player': p_name, 'val': int(avg_reb), 'score': avg_reb, 'desc': f"Media"})
+                if avg_ast >= 6 and avg_ast > (smart_min_ast + 1.0): risky_legs_ast.append({'player': p_name, 'val': int(avg_ast), 'score': avg_ast, 'desc': f"Media"})
 
             for l in [safe_legs_pts, safe_legs_reb, safe_legs_ast, risky_legs_pts, risky_legs_reb, risky_legs_ast]: l.sort(key=lambda x: x['score'], reverse=True)
 
             def render_ticket(title, legs, icon, color_border, css_class):
                 final_legs = legs[:5] 
-                if not final_legs: return f"<div class='{css_class}' style='border:1px solid {color_border};'><div class='parlay-header' style='color:{color_border};'>{title}</div><div style='color:#888; text-align:center;'>Sin opciones claras</div></div>"
+                if not final_legs: return f"<div class='{css_class}' style='border:1px solid {color_border};'><div class='parlay-header' style='color:{color_border};'>{title}</div><div style='color:#888; text-align:center;'>---</div></div>"
                 html_legs = ""
                 for leg in final_legs:
                     html_legs += f"<div class='parlay-leg' style='border-left: 5px solid {color_border};'><div class='leg-player'>{icon} {leg['player']}</div><div class='leg-info'><div class='leg-val'>+{leg['val']}</div><div class='leg-stat'>{leg['desc']}</div></div></div>"
@@ -858,11 +733,11 @@ elif st.session_state.page == "⚔️ Analizar Partido":
             col_safe, col_risky = st.columns(2)
             with col_safe:
                 st.markdown("### 🛡️ CONSERVADOR")
-                st.markdown(render_ticket("PTS (Seguro)", safe_legs_pts, "🏀", "#4caf50", "parlay-box"), unsafe_allow_html=True)
-                if safe_legs_reb: st.markdown(render_ticket("REB (Seguro)", safe_legs_reb, "🖐", "#4caf50", "parlay-box"), unsafe_allow_html=True)
-                if safe_legs_ast: st.markdown(render_ticket("AST (Seguro)", safe_legs_ast, "🎁", "#4caf50", "parlay-box"), unsafe_allow_html=True)
+                st.markdown(render_ticket("PTS", safe_legs_pts, "🏀", "#4caf50", "parlay-box"), unsafe_allow_html=True)
+                if safe_legs_reb: st.markdown(render_ticket("REB", safe_legs_reb, "🖐", "#4caf50", "parlay-box"), unsafe_allow_html=True)
+                if safe_legs_ast: st.markdown(render_ticket("AST", safe_legs_ast, "🎁", "#4caf50", "parlay-box"), unsafe_allow_html=True)
             with col_risky:
                 st.markdown("### 🚀 ARRIESGADO")
-                st.markdown(render_ticket("PTS (High Value)", risky_legs_pts, "🏀", "#ff5252", "parlay-box"), unsafe_allow_html=True)
-                if risky_legs_reb: st.markdown(render_ticket("REB (High Value)", risky_legs_reb, "🖐", "#ff5252", "parlay-box"), unsafe_allow_html=True)
-                if risky_legs_ast: st.markdown(render_ticket("AST (High Value)", risky_legs_ast, "🎁", "#ff5252", "parlay-box"), unsafe_allow_html=True)
+                st.markdown(render_ticket("PTS", risky_legs_pts, "🏀", "#ff5252", "parlay-box"), unsafe_allow_html=True)
+                if risky_legs_reb: st.markdown(render_ticket("REB", risky_legs_reb, "🖐", "#ff5252", "parlay-box"), unsafe_allow_html=True)
+                if risky_legs_ast: st.markdown(render_ticket("AST", risky_legs_ast, "🎁", "#ff5252", "parlay-box"), unsafe_allow_html=True)
