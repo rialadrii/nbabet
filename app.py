@@ -3,6 +3,7 @@ import pandas as pd
 import sqlite3
 import os
 import time
+import requests # Nuevo import necesario para el calendario
 from datetime import datetime, timedelta
 from nba_api.stats.endpoints import leaguegamelog, scoreboardv2
 from nba_api.stats.static import teams as nba_static_teams
@@ -28,7 +29,7 @@ def ir_a_analisis(home, visitor):
 # ==========================================
 st.set_page_config(page_title="NBA Analyzer Pro", page_icon="🏀", layout="wide")
 
-# --- CSS: FUENTE TEKO + DISEÑO LIMPIO ---
+# --- CSS ---
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Teko:wght@300..700&display=swap');
@@ -56,40 +57,26 @@ st.markdown("""
         border: 1px solid #444;
         border-radius: 12px;
         padding: 15px;
-        margin-bottom: 10px;
+        margin-bottom: 15px;
         text-align: center;
     }
-    .game-matchup { display: flex; justify-content: center; align-items: center; gap: 15px; margin-bottom: 5px; }
+    .game-matchup { display: flex; justify-content: center; align-items: center; gap: 15px; margin-bottom: 10px; }
     .team-logo { width: 45px; height: 45px; object-fit: contain; }
     .game-time { 
         color: #ffbd45; 
-        font-size: 20px; 
+        font-size: 24px; 
         font-weight: bold; 
         font-family: 'Teko', sans-serif; 
         margin-top: 5px;
     }
     
     .injuries-link {
-        font-size: 12px; color: #aaa; text-decoration: underline;
-        display: block; margin-top: 5px; margin-bottom: 10px;
-    }
-    .injuries-link:hover { color: #fff; }
-
-    /* Estilo para el botón de analizar dentro de la tarjeta */
-    div.stButton > button {
-        width: 100%;
-        border-radius: 8px;
-        font-weight: bold;
-        border: 1px solid #464b5f;
-        background-color: #31333F;
-        color: white;
-    }
-    div.stButton > button:hover {
-        border-color: #ffbd45;
-        color: #ffbd45;
+        font-size: 13px; color: #4caf50; text-decoration: none;
+        border: 1px solid #4caf50; padding: 5px 10px;
+        border-radius: 5px; margin-top: 10px; display: inline-block;
     }
 
-    /* Enlace tabla */
+    /* Enlace de la ficha del partido en la tabla */
     a.match-link {
         color: #fff !important;
         background-color: #2196f3;
@@ -103,7 +90,21 @@ st.markdown("""
         text-align: center;
     }
     a.match-link:hover { background-color: #1976d2; }
+    
     .no-link { color: #666; font-size: 11px; font-style: italic; }
+
+    /* Estilo para el aviso de próximo partido */
+    .next-game-box {
+        background-color: #1a2e1a;
+        border: 2px solid #4caf50;
+        border-radius: 10px;
+        padding: 15px;
+        text-align: center;
+        margin-bottom: 20px;
+        color: #fff;
+    }
+    .next-game-title { color: #4caf50; font-weight: bold; font-size: 18px; margin-bottom: 5px; }
+    .next-game-info { font-size: 16px; }
 
     .credits { 
         font-family: 'Teko', sans-serif; 
@@ -111,19 +112,47 @@ st.markdown("""
         text-align: center; margin-top: 40px; 
     }
     
-    /* Ajustes generales */
+    /* Estilo para el botón de analizar dentro de la tarjeta */
+    div.stButton > button {
+        width: 100%;
+        border-radius: 8px;
+        font-weight: bold;
+        border: 1px solid #464b5f;
+        background-color: #31333F;
+        color: white;
+    }
+    div.stButton > button:hover {
+        border-color: #ffbd45;
+        color: #ffbd45;
+    }
+    
+    /* Ajustes tabla */
     table { width: 100%; border-collapse: collapse; margin-bottom: 20px; color: white; font-family: sans-serif; }
     th { background-color: #31333F; color: white; font-weight: bold; text-align: center !important; padding: 10px; border-bottom: 2px solid #464b5f; text-transform: uppercase; }
     td { text-align: center !important; padding: 8px; border-bottom: 1px solid #464b5f; font-size: 14px; vertical-align: middle; }
     div[data-testid="stMetric"] { background-color: #262730; border: 1px solid #464b5f; border-radius: 10px; padding: 10px; }
     
-    /* Parlay Styles */
+    /* Parlay Boxes */
     .parlay-box { background-color: #1e1e1e; border: 1px solid #444; border-radius: 15px; padding: 15px; margin-bottom: 20px; }
     .parlay-header { font-size: 20px; font-weight: bold; margin-bottom: 15px; text-transform: uppercase; border-bottom: 1px solid #444; padding-bottom: 10px; text-align: center; }
     .parlay-leg { background-color: #2d2d2d; margin: 10px 0; padding: 10px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; }
     .leg-player { font-weight: bold; font-size: 14px; }
     .leg-val { font-weight: bold; font-size: 18px; text-align: right; }
     .leg-stat { color: #aaaaaa; font-size: 11px; text-align: right; }
+    
+    /* Estilos para Patrones */
+    .pat-stars { color: #ffbd45; font-weight: bold; }
+    .pat-impact { color: #4caf50; font-weight: bold; }
+    
+    /* Status cells */
+    .status-played { color: #4caf50; font-weight: bold; font-size: 16px; }
+    .status-missed { color: #ff5252; font-weight: bold; font-size: 16px; }
+    .status-date { font-size: 10px; color: #aaaaaa; display: block; }
+    .status-cell { display: inline-block; margin: 0 4px; text-align: center; }
+    
+    /* Bajas */
+    .dnp-full { color: #4caf50; font-weight: bold; }
+    .dnp-missing { color: #ff5252; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -190,6 +219,54 @@ def get_basketball_date():
         return now.date() - timedelta(days=1)
     return now.date()
 
+@st.cache_data(ttl=86400) # Cachear el calendario 24h para no saturar
+def get_nba_schedule():
+    try:
+        # Descargamos el calendario oficial
+        url = "https://cdn.nba.com/static/json/staticData/scheduleLeagueV2.json"
+        response = requests.get(url, timeout=5).json()
+        return response['leagueSchedule']['gameDates']
+    except:
+        return []
+
+def get_next_matchup_info(t1_abv, t2_abv):
+    """Busca el próximo partido entre dos equipos en el calendario oficial"""
+    dates = get_nba_schedule()
+    if not dates: return None
+    
+    # Mapa de equipos (Abreviatura -> ID)
+    nba_teams = nba_static_teams.get_teams()
+    team_map = {t['abbreviation']: t['id'] for t in nba_teams}
+    
+    id1 = team_map.get(t1_abv)
+    id2 = team_map.get(t2_abv)
+    
+    if not id1 or not id2: return None
+    
+    today = datetime.now().date()
+    
+    for day in dates:
+        try:
+            # La fecha en el JSON suele ser "MM/DD/YYYY 00:00:00"
+            game_dt = datetime.strptime(day['gameDate'], "%m/%d/%Y %H:%M:%S").date()
+            if game_dt < today: continue # Saltamos el pasado
+            
+            for game in day['games']:
+                h_id = game['homeTeam']['teamId']
+                v_id = game['awayTeam']['teamId']
+                
+                # Si el partido es entre estos dos equipos (en cualquier orden)
+                if (h_id == id1 and v_id == id2) or (h_id == id2 and v_id == id1):
+                    # Encontramos el siguiente
+                    return {
+                        'date': game_dt.strftime("%d/%m/%Y"),
+                        'home': t1_abv if h_id == id1 else t2_abv,
+                        'away': t2_abv if h_id == id1 else t1_abv,
+                        'arena': game.get('arenaName', 'Estadio NBA')
+                    }
+        except: continue
+    return None
+
 def obtener_partidos():
     nba_teams = nba_static_teams.get_teams()
     team_map = {t['id']: t['abbreviation'] for t in nba_teams}
@@ -236,7 +313,7 @@ st.markdown("<h1>🏀 NBA PRO ANALYZER 🏀</h1>", unsafe_allow_html=True)
 opcion = st.sidebar.radio("Menú:", ["🏠 Inicio", "👤 Jugador", "⚔️ Analizar Partido", "🔄 Actualizar Datos"], key="page")
 df = load_data()
 
-# --- DEFINICIÓN DE MAPA DE EQUIPOS (ESTO FALTABA) ---
+# --- DEFINICIÓN DE MAPA DE EQUIPOS (ESTO ES VITAL) ---
 latest_teams_map = {}
 if not df.empty:
     latest_entries = df.sort_values('game_date').drop_duplicates('player_name', keep='last')
@@ -394,6 +471,21 @@ elif opcion == "⚔️ Analizar Partido":
         t2 = col2.selectbox("Equipo Visitante", equipos, index=idx_t2)
         
         if t1 and t2:
+            # --- NUEVA FUNCIÓN: MOSTRAR PRÓXIMO PARTIDO ---
+            with st.spinner("Buscando próximo enfrentamiento..."):
+                next_game = get_next_matchup_info(t1, t2)
+            
+            if next_game:
+                st.markdown(f"""
+                <div class='next-game-box'>
+                    <div class='next-game-title'>📅 PRÓXIMO ENFRENTAMIENTO CONFIRMADO</div>
+                    <div class='next-game-info'>
+                        <b>{next_game['date']}</b> - {next_game['away']} @ {next_game['home']}
+                        <br><span style='font-size:14px; color:#ccc'>{next_game['arena']}</span>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+            
             mask = ((df['team_abbreviation'] == t1) & (df['matchup'].str.contains(t2))) | \
                    ((df['team_abbreviation'] == t2) & (df['matchup'].str.contains(t1)))
             
@@ -401,7 +493,7 @@ elif opcion == "⚔️ Analizar Partido":
             last_dates = sorted(history['game_date'].unique(), reverse=True)[:5]
             
             st.write("---")
-            st.subheader("📅 Partidos Analizados")
+            st.subheader("📅 Historial Reciente")
             
             games_summary = []
             for date in last_dates:
@@ -436,7 +528,6 @@ elif opcion == "⚔️ Analizar Partido":
                 gp=('game_date', 'count')
             ).reset_index()
 
-            # USO DEL MAPA DE EQUIPOS QUE DABA ERROR
             stats = stats[stats['player_name'].apply(lambda x: latest_teams_map.get(x) in [t1, t2])]
 
             # Status visual
