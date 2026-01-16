@@ -350,6 +350,7 @@ def render_clickable_player_table(df_stats, stat_col, jersey_map):
     df_stats['JUGADOR'] = df_stats['player_name'] + ' (' + df_stats['team_abbreviation'] + ')'
 
     # Solo mostramos columnas críticas
+    # trend_{stat_col} ya viene alineado con guiones si se usa la nueva lógica
     df_interactive = df_stats[['JUGADOR', 'player_name', stat_col.lower(), f'trend_{stat_col.lower()}', 'trend_min']].copy()
     df_interactive.columns = ['JUGADOR', 'player_name_hidden', stat_col, 'RACHA', 'MIN']
     
@@ -364,8 +365,8 @@ def render_clickable_player_table(df_stats, stat_col, jersey_map):
             "player_name_hidden": None,
             # AJUSTE DE ANCHOS PARA QUE QUEPA TODO
             stat_col: st.column_config.NumberColumn(stat_col, format="%.1f", width=50),
-            "RACHA": st.column_config.TextColumn("RACHA", width=100), 
-            "MIN": st.column_config.TextColumn("MIN", width=90) # <-- AUMENTADO A 90PX
+            "RACHA": st.column_config.TextColumn("RACHA (Últ. Partidos)", width=150), 
+            "MIN": st.column_config.TextColumn("MIN", width=90)
         }
     )
     
@@ -618,15 +619,49 @@ elif st.session_state.page == "⚔️ Analizar Partido":
                     mostrar_tabla_bonita(df_comparative[final_cols], None, simple_mode=True)
 
             recent_players = history[history['game_date'].isin(last_dates)].sort_values('game_date', ascending=False)
-            stats = recent_players.groupby(['player_name', 'team_abbreviation']).agg(
-                pts=('pts', 'mean'), reb=('reb', 'mean'), ast=('ast', 'mean'),
-                trend_pts=('pts', lambda x: '/'.join(x.astype(int).astype(str))),
-                trend_reb=('reb', lambda x: '/'.join(x.astype(int).astype(str))),
-                trend_ast=('ast', lambda x: '/'.join(x.astype(int).astype(str))),
-                trend_min=('min', lambda x: '/'.join(x.astype(int).astype(str))),
+            
+            # ==========================================
+            # NUEVA LÓGICA DE ALINEACIÓN DE FECHAS
+            # ==========================================
+            target_dates_str = [d.strftime('%Y-%m-%d') for d in last_dates]
+            recent_players['date_str'] = recent_players['game_date'].dt.strftime('%Y-%m-%d')
+
+            def get_aligned_trend(df_source, val_col):
+                pivoted = df_source.pivot_table(
+                    index=['player_name', 'team_abbreviation'], 
+                    columns='date_str', 
+                    values=val_col, 
+                    aggfunc='sum'
+                )
+                for d in target_dates_str:
+                    if d not in pivoted.columns:
+                        pivoted[d] = float('nan')
+                pivoted = pivoted[target_dates_str]
+                def formatter(row):
+                    vals = []
+                    for v in row:
+                        if pd.isna(v) or v == 0: 
+                            vals.append("-")
+                        else:
+                            vals.append(str(int(v)))
+                    return "/".join(vals)
+                return pivoted.apply(formatter, axis=1)
+
+            base_stats = recent_players.groupby(['player_name', 'team_abbreviation']).agg(
+                pts=('pts', 'mean'), 
+                reb=('reb', 'mean'), 
+                ast=('ast', 'mean'),
                 gp=('game_date', 'count')
-            ).reset_index()
+            )
+
+            trend_pts = get_aligned_trend(recent_players, 'pts').rename('trend_pts')
+            trend_reb = get_aligned_trend(recent_players, 'reb').rename('trend_reb')
+            trend_ast = get_aligned_trend(recent_players, 'ast').rename('trend_ast')
+            trend_min = get_aligned_trend(recent_players, 'min').rename('trend_min')
+
+            stats = base_stats.join([trend_pts, trend_reb, trend_ast, trend_min]).reset_index()
             stats = stats[stats['player_name'].apply(lambda x: latest_teams_map.get(x) in [t1, t2])]
+            # ==========================================
 
             st.write("---")
             st.subheader("🔥 Top Anotadores 👇")
