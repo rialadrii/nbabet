@@ -41,7 +41,7 @@ def volver_a_partido():
 # ==========================================
 st.set_page_config(page_title="NBA Analyzer Pro", page_icon="🏀", layout="wide")
 
-# --- CSS ---
+# --- CSS MEJORADO PARA CENTRADO TOTAL ---
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Teko:wght@300..700&display=swap');
@@ -61,6 +61,32 @@ st.markdown("""
         font-size: 35px !important;
         text-transform: uppercase;
         letter-spacing: 1px;
+    }
+
+    /* --- FUERZA BRUTA DE ALINEACIÓN CENTRAL PARA TABLAS (DATAFRAME) --- */
+    /* Centrar encabezados de columna */
+    [data-testid="stDataFrame"] th {
+        text-align: center !important;
+        justify-content: center !important;
+        display: flex !important;
+        align-items: center !important;
+    }
+    /* Centrar contenido de celdas */
+    [data-testid="stDataFrame"] td {
+        text-align: center !important;
+        justify-content: center !important;
+        display: flex !important;
+        align-items: center !important;
+    }
+    
+    /* Asegurar que los contenedores internos también se centren */
+    [data-testid="stDataFrame"] div[role="columnheader"] {
+        justify-content: center !important; 
+        text-align: center !important;
+    }
+    [data-testid="stDataFrame"] div[role="gridcell"] {
+        justify-content: center !important; 
+        text-align: center !important;
     }
 
     /* --- TARJETA DEL PARTIDO --- */
@@ -177,19 +203,8 @@ st.markdown("""
     .pat-stars { color: #ffbd45; font-weight: bold; }
     .pat-impact { color: #4caf50; font-weight: bold; }
 
-    /* --- OCULTAR TOOLBAR Y FORZAR CENTRADO DATAFRAME --- */
+    /* --- OCULTAR TOOLBAR --- */
     [data-testid="stElementToolbar"] { display: none !important; }
-    
-    /* Forzar centrado de celdas en st.dataframe */
-    .stDataFrame div[data-testid="stTable"] div[role="row"] div[role="gridcell"] {
-        justify-content: center !important;
-        text-align: center !important;
-    }
-    /* Forzar centrado de cabeceras en st.dataframe */
-    .stDataFrame div[data-testid="stTable"] div[role="row"] div[role="columnheader"] {
-        justify-content: center !important;
-        text-align: center !important;
-    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -389,20 +404,25 @@ def mostrar_tabla_bonita(df_raw, col_principal_espanol, simple_mode=False, means
         html = styler.hide(axis="index").to_html(classes="custom-table", escape=False)
     st.markdown(f"<div class='table-wrapper'>{html}</div>", unsafe_allow_html=True)
 
-# --- FUNCIÓN TABLA INTERACTIVA (CON DORSAL Y EQUIPO FUSIONADO) ---
+# --- FUNCIÓN TABLA INTERACTIVA (CORREGIDA PARA TU IMAGEN) ---
 def render_clickable_player_table(df_stats, stat_col, jersey_map):
     if df_stats.empty:
         st.info("Sin datos.")
         return
 
+    # Asignar dorsal o guion si no hay
     df_stats['#'] = df_stats['player_name'].map(jersey_map).fillna('-')
     
-    # Fusión nombre + (equipo)
+    # Fusión nombre + (equipo) para mostrar en la celda
     df_stats['JUGADOR_FULL'] = df_stats['player_name'] + ' (' + df_stats['team_abbreviation'] + ')'
 
-    # Selección de columnas (sin EQ por separado)
+    # Selección de columnas base
     df_interactive = df_stats[['#', 'JUGADOR_FULL', 'player_name', stat_col.lower(), f'trend_{stat_col.lower()}', 'trend_min']].copy()
-    df_interactive.columns = ['#', '👇', 'player_name_hidden', stat_col, 'RACHA', 'MIN']
+    
+    # RENOMBRAMIENTO DE COLUMNAS (Ajustado a tu petición)
+    # Columna 1: '👇' (Emoji)
+    # Columna 2: 'JUGADOR' (Texto)
+    df_interactive.columns = ['👇', 'JUGADOR', 'player_name_hidden', stat_col, 'RACHA', 'MIN']
     
     selection = st.dataframe(
         df_interactive,
@@ -411,18 +431,17 @@ def render_clickable_player_table(df_stats, stat_col, jersey_map):
         on_select="rerun", 
         selection_mode="single-row",
         column_config={
-            "#": st.column_config.TextColumn("#", width="small", disabled=True), 
-            "👇": st.column_config.TextColumn("👇", width="large", disabled=True), # Flecha abajo como título
-            "player_name_hidden": None, # Ocultamos columna auxiliar
+            "👇": st.column_config.TextColumn("👇", width="small", disabled=True), # Emoji, ancho pequeño
+            "JUGADOR": st.column_config.TextColumn("JUGADOR", width="medium", disabled=True), # Texto, sin tanto espacio
+            "player_name_hidden": None, # Columna oculta necesaria para la lógica
             stat_col: st.column_config.NumberColumn(stat_col, format="%.1f", disabled=True),
-            "RACHA": st.column_config.TextColumn("RACHA", disabled=True),
-            "MIN": st.column_config.TextColumn("MIN", disabled=True)
+            "RACHA": st.column_config.TextColumn("RACHA", width="medium", disabled=True),
+            "MIN": st.column_config.TextColumn("MIN", width="small", disabled=True)
         }
     )
     
     if len(selection.selection.rows) > 0:
         row_idx = selection.selection.rows[0]
-        # Recuperamos el nombre limpio de la columna oculta
         player_name = df_interactive.iloc[row_idx]['player_name_hidden']
         navegar_a_jugador(player_name)
         st.rerun()
@@ -714,11 +733,11 @@ elif st.session_state.page == "⚔️ Analizar Partido":
 
             st.write("---")
             
+            st.subheader("🔥 Top Anotadores")
+            render_clickable_player_table(stats.sort_values('pts', ascending=False).head(10), 'PTS', full_roster_map)
+            
             st.subheader("🔥 Top Reboteadores")
             render_clickable_player_table(stats.sort_values('reb', ascending=False).head(10), 'REB', full_roster_map)
-            
-            st.subheader("🎯 Top Anotadores")
-            render_clickable_player_table(stats.sort_values('pts', ascending=False).head(10), 'PTS', full_roster_map)
             
             st.subheader("🤝 Top Asistentes")
             render_clickable_player_table(stats.sort_values('ast', ascending=False).head(10), 'AST', full_roster_map)
@@ -847,4 +866,3 @@ elif st.session_state.page == "⚔️ Analizar Partido":
                 st.markdown(render_ticket("PTS (High Value)", risky_legs_pts, "🏀", "#ff5252", "parlay-box"), unsafe_allow_html=True)
                 if risky_legs_reb: st.markdown(render_ticket("REB (High Value)", risky_legs_reb, "🖐", "#ff5252", "parlay-box"), unsafe_allow_html=True)
                 if risky_legs_ast: st.markdown(render_ticket("AST (High Value)", risky_legs_ast, "🎁", "#ff5252", "parlay-box"), unsafe_allow_html=True)
-
