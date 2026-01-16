@@ -18,7 +18,36 @@ st.set_page_config(
 )
 
 # ==========================================
-# CSS GLOBAL (REFORZADO)
+# GESTIÓN DE ESTADO (RECUPERADO)
+# ==========================================
+# ESTO FALTABA Y CAUSABA EL ERROR
+if 'page' not in st.session_state:
+    st.session_state.page = "🏠 Inicio"
+if 'selected_home' not in st.session_state:
+    st.session_state.selected_home = None
+if 'selected_visitor' not in st.session_state:
+    st.session_state.selected_visitor = None
+if 'selected_player' not in st.session_state:
+    st.session_state.selected_player = None
+
+# --- FUNCIONES DE NAVEGACIÓN ---
+def navegar_a_partido(home, visitor):
+    st.session_state.selected_home = home
+    st.session_state.selected_visitor = visitor
+    st.session_state.page = "⚔️ Analizar Partido"
+
+def navegar_a_jugador(player_name):
+    st.session_state.selected_player = player_name
+    st.session_state.page = "👤 Jugador"
+
+def volver_inicio():
+    st.session_state.page = "🏠 Inicio"
+
+def volver_a_partido():
+    st.session_state.page = "⚔️ Analizar Partido"
+
+# ==========================================
+# CSS GLOBAL (CENTRADO OK)
 # ==========================================
 st.markdown("""
 <style>
@@ -51,23 +80,22 @@ h3 {
 }
 
 /* --- ESTILOS PARA TABLAS HTML (BAJAS / HISTORIAL) --- */
-/* Esto centra las tablas creadas con .to_html() */
 table.custom-table {
     width: 100%;
     border-collapse: collapse;
-    margin: 0 auto; /* Centrar la tabla en sí */
+    margin: 0 auto;
     font-size: 14px;
 }
 table.custom-table th {
     background-color: #31333F;
     color: white;
-    text-align: center !important; /* FORZAR CENTRADO */
+    text-align: center !important;
     padding: 8px;
     border-bottom: 2px solid #555;
     vertical-align: middle !important;
 }
 table.custom-table td {
-    text-align: center !important; /* FORZAR CENTRADO */
+    text-align: center !important;
     padding: 8px;
     border-bottom: 1px solid #444;
     vertical-align: middle !important;
@@ -313,7 +341,6 @@ def render_clickable_player_table(df_stats, stat_col, jersey_map):
     df_interactive.columns = ['#', 'JUGADOR', 'player_name_hidden', stat_col, 'RACHA', 'MIN']
     
     # 4. CONFIGURACIÓN CRÍTICA: USAR alignment="center" EN CADA COLUMNA
-    # Esto es lo que sobreescribe el comportamiento por defecto de Streamlit
     selection = st.dataframe(
         df_interactive,
         use_container_width=True,
