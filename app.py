@@ -57,7 +57,7 @@ st.markdown("""
         letter-spacing: 1px;
     }
 
-    /* --- TARJETA DEL PARTIDO (PARTE SUPERIOR) --- */
+    /* --- TARJETA DEL PARTIDO --- */
     .game-card {
         background-color: #2d2d2d;
         border: 1px solid #444;
@@ -83,7 +83,7 @@ st.markdown("""
         border-radius: 5px; margin-top: 10px; display: inline-block;
     }
 
-    /* --- BOTÓN DE ANÁLISIS (PARTE INFERIOR) --- */
+    /* --- BOTÓN DE ANÁLISIS (ESTILO INTEGRADO) --- */
     div.stButton > button {
         width: 100%;
         border-radius: 0 0 12px 12px !important; 
@@ -93,7 +93,8 @@ st.markdown("""
         background-color: #1e1e1e;
         color: #fff;
         padding: 10px;
-        margin-top: -15px !important; 
+        margin-top: -16px !important; /* Ajuste milimétrico para pegar */
+        position: relative;
         z-index: 1;
         transition: all 0.2s;
     }
@@ -148,8 +149,6 @@ st.markdown("""
     /* Status y Patrones */
     .status-played { color: #4caf50; font-weight: bold; font-size: 16px; }
     .status-missed { color: #ff5252; font-weight: bold; font-size: 16px; }
-    .status-date { font-size: 10px; color: #aaaaaa; display: block; }
-    .status-cell { display: inline-block; margin: 0 4px; text-align: center; }
     .dnp-full { color: #4caf50; font-weight: bold; }
     .dnp-missing { color: #ff5252; }
     .pat-stars { color: #ffbd45; font-weight: bold; }
@@ -300,48 +299,44 @@ def mostrar_tabla_bonita(df_raw, col_principal_espanol, simple_mode=False):
             .to_html(classes="custom-table", escape=False)
     st.markdown(f"<div class='table-wrapper'>{html}</div>", unsafe_allow_html=True)
 
-# --- FUNCIÓN TABLA INTERACTIVA DE JUGADORES (DATA EDITOR) ---
+# --- FUNCIÓN TABLA INTERACTIVA (CLICKABLE) ---
 def render_clickable_player_table(df_stats, stat_col):
     """
-    Usa st.dataframe con selection_mode para detectar clicks en las filas.
-    Es mucho más limpio que botones y funciona como una tabla normal.
+    Muestra una tabla donde las filas son seleccionables.
+    Al seleccionar una fila, te lleva al jugador.
     """
     if df_stats.empty:
         st.info("Sin datos.")
         return
 
-    # Preparamos el DF para mostrar
-    df_view = df_stats[['player_name', 'team_abbreviation', 'STATUS_HTML', stat_col.lower(), f'trend_{stat_col.lower()}', 'trend_min']].copy()
-    # Limpiamos el HTML del status para que se vea texto plano en el dataframe (la tabla bonita HTML no soporta clicks)
-    # Para mantener el status bonito, usamos la tabla HTML pero añadimos el evento de click de otra forma.
+    # Limpiamos para la visualización interactiva
+    # status_list (texto con emojis) en vez de HTML puro para que se vea bien en dataframe
+    # En este caso, usaremos el 'trend' como indicativo
     
-    # NUEVA ESTRATEGIA: Tabla HTML visual + Dataframe invisible o evento de selección
-    # Dado que Streamlit no permite clicks en HTML puro, usaremos st.dataframe con column config de tipo Link no sirve porque recarga.
-    # Usaremos st.dataframe con `on_select`.
+    df_interactive = df_stats[['player_name', 'team_abbreviation', stat_col.lower(), f'trend_{stat_col.lower()}', 'trend_min']].copy()
+    df_interactive.columns = ['JUGADOR', 'EQ', stat_col, 'RACHA', 'MIN']
     
-    # 1. Limpiamos datos para el dataframe interactivo
-    df_interactive = df_stats[['player_name', 'team_abbreviation', stat_col.lower()]].copy()
-    df_interactive.columns = ['JUGADOR', 'EQUIPO', stat_col]
-    
-    # Configuramos la tabla para que sea seleccionable
-    event = st.dataframe(
+    # Renderizamos el dataframe interactivo
+    selection = st.dataframe(
         df_interactive,
-        on_select="rerun",
-        selection_mode="single-row",
         use_container_width=True,
         hide_index=True,
+        on_select="rerun", # Clave para interactividad
+        selection_mode="single-row",
         column_config={
-            "JUGADOR": st.column_config.TextColumn("JUGADOR (Click para analizar)", width="medium"),
-            "EQUIPO": st.column_config.TextColumn("EQ", width="small"),
-            stat_col: st.column_config.NumberColumn(stat_col, format="%.1f")
+            "JUGADOR": st.column_config.TextColumn("JUGADOR (Click para ver)", width="medium"),
+            "EQ": st.column_config.TextColumn("EQ", width="small"),
+            stat_col: st.column_config.NumberColumn(stat_col, format="%.1f"),
+            "RACHA": st.column_config.TextColumn("RACHA RECIENTE"),
+            "MIN": st.column_config.TextColumn("MINUTOS")
         }
     )
     
-    # Detectar selección
-    if len(event.selection.rows) > 0:
-        idx = event.selection.rows[0]
-        selected_player = df_interactive.iloc[idx]['JUGADOR']
-        navegar_a_jugador(selected_player)
+    # Lógica de redirección
+    if len(selection.selection.rows) > 0:
+        row_idx = selection.selection.rows[0]
+        player_name = df_interactive.iloc[row_idx]['JUGADOR']
+        navegar_a_jugador(player_name)
         st.rerun()
 
 # ==========================================
@@ -349,7 +344,6 @@ def render_clickable_player_table(df_stats, stat_col):
 # ==========================================
 st.markdown("<h1>🏀 NBA PRO ANALYZER 🏀</h1>", unsafe_allow_html=True)
 
-# Menú lateral
 pages = ["🏠 Inicio", "👤 Jugador", "⚔️ Analizar Partido", "🔄 Actualizar Datos"]
 if st.session_state.page not in pages: st.session_state.page = "🏠 Inicio"
 current_index = pages.index(st.session_state.page)
@@ -361,7 +355,7 @@ if opcion != st.session_state.page:
 
 df = load_data()
 
-# Mapa de equipos
+# Mapa de equipos (Requerido para análisis)
 latest_teams_map = {}
 if not df.empty:
     latest_entries = df.sort_values('game_date').drop_duplicates('player_name', keep='last')
@@ -439,15 +433,18 @@ elif st.session_state.page == "👤 Jugador":
             c4.metric("MIN", f"{player_data['min'].mean():.1f}")
             
             st.subheader("Últimos 5 Partidos")
+            
             cols = ['game_date', 'matchup', 'min', 'pts', 'reb', 'ast']
             if 'game_id' in player_data.columns: cols.append('game_id')
             view = player_data[cols].head(5).copy()
             view['min'] = view['min'].astype(int)
+            
             if 'game_id' in view.columns:
                 view['FICHA'] = view['game_id'].apply(lambda x: f"<a href='https://www.nba.com/game/{x}' target='_blank' class='match-link'>📊 Ver</a>" if pd.notnull(x) else "-")
                 view = view.drop(columns=['game_id'])
                 view = view[['game_date', 'matchup', 'FICHA', 'min', 'pts', 'reb', 'ast']]
             else: view['FICHA'] = "-"
+                
             view.columns = ['FECHA', 'PARTIDO', 'FICHA', 'MIN', 'PTS', 'REB', 'AST']
             view['FECHA'] = view['FECHA'].dt.strftime('%d/%m/%Y') 
             mostrar_tabla_bonita(view, None)
@@ -557,7 +554,7 @@ elif st.session_state.page == "⚔️ Analizar Partido":
 
             recent_players = history[history['game_date'].isin(last_dates)].sort_values('game_date', ascending=False)
             
-            # Stats Jugadores
+            # Stats Jugadores (ESTO ARREGLA EL KEYERROR ANTERIOR)
             stats = recent_players.groupby(['player_name', 'team_abbreviation']).agg(
                 pts=('pts', 'mean'), reb=('reb', 'mean'), ast=('ast', 'mean'),
                 trend_pts=('pts', lambda x: '/'.join(x.astype(int).astype(str))),
@@ -569,9 +566,26 @@ elif st.session_state.page == "⚔️ Analizar Partido":
 
             stats = stats[stats['player_name'].apply(lambda x: latest_teams_map.get(x) in [t1, t2])]
 
+            # CALCULO DE STATUS (RECUPERADO PARA EVITAR KEYERROR)
+            status_list = []
+            for idx, row in stats.iterrows():
+                p_name, p_team = row['player_name'], row['team_abbreviation']
+                real_team = latest_teams_map.get(p_name, p_team)
+                player_games = recent_players[(recent_players['player_name'] == p_name) & (recent_players['team_abbreviation'] == p_team)]
+                dates_played = player_games['game_date'].unique()
+                html_str = ""
+                for d in last_dates:
+                    d_short = d.strftime('%d/%m')
+                    if d in dates_played: html_str += f"<div class='status-cell'><span class='status-played'>✅</span><span class='status-date'>{d_short}</span></div>"
+                    else:
+                        if real_team != p_team: html_str += f"<div class='status-cell'><span class='status-date'>N/A</span></div>"
+                        else: html_str += f"<div class='status-cell'><span class='status-missed'>❌</span><span class='status-date'>{d_short}</span></div>"
+                status_list.append(html_str)
+            stats['STATUS_HTML'] = status_list
+
             st.write("---")
             
-            # --- TABLAS CLICABLES (NUEVA IMPLEMENTACIÓN) ---
+            # --- TABLAS CLICABLES ---
             st.subheader("🔥 Top Reboteadores")
             render_clickable_player_table(stats.sort_values('reb', ascending=False).head(10), 'REB')
             
@@ -607,6 +621,7 @@ elif st.session_state.page == "⚔️ Analizar Partido":
                 html_dnp = df_dnp.style.hide(axis="index").to_html(classes="custom-table")
                 st.markdown(f"<div class='table-wrapper'>{html_dnp}</div>", unsafe_allow_html=True)
             else: st.success("✅ No hubo bajas importantes.")
+
             # Patrones
             st.write("---")
             st.subheader("🕵️ Detección de Patrones")
@@ -707,4 +722,3 @@ elif st.session_state.page == "⚔️ Analizar Partido":
                 st.markdown(render_ticket("PTS (High Value)", risky_legs_pts, "🏀", "#ff5252", "parlay-box"), unsafe_allow_html=True)
                 if risky_legs_reb: st.markdown(render_ticket("REB (High Value)", risky_legs_reb, "🖐", "#ff5252", "parlay-box"), unsafe_allow_html=True)
                 if risky_legs_ast: st.markdown(render_ticket("AST (High Value)", risky_legs_ast, "🎁", "#ff5252", "parlay-box"), unsafe_allow_html=True)
-
