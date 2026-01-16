@@ -305,7 +305,7 @@ def obtener_partidos():
         except: pass
     return agenda
 
-# --- LÓGICA DE COLORES PERSONALIZADA (ACTUALIZADA) ---
+# --- LÓGICA DE COLORES PERSONALIZADA (NUEVA: Amarillo Claro) ---
 def apply_custom_color(column, avg, col_name):
     """Aplica el color según la lógica del usuario con tolerancia dinámica"""
     styles = []
@@ -317,25 +317,27 @@ def apply_custom_color(column, avg, col_name):
         tolerance = 5 
         
     for val in column:
+        text_color = "white" # Default
         if val > avg: 
             color = '#2962ff' # Azul Eléctrico (Supera media)
         elif val == avg: 
             color = '#00c853' # Verde Brillante (Iguala media)
         elif val >= (avg - tolerance): 
-            color = '#388e3c' # Verde Oscuro (En rango aceptable)
+            color = '#fff176' # Amarillo Claro (Suave, no fosforito)
+            text_color = "black" # Texto negro para que se lea sobre amarillo
         else: 
             color = '#d32f2f' # Rojo (Mal partido, debajo de tolerancia)
             
-        styles.append(f'background-color: {color}; color: white; font-weight: bold;')
+        styles.append(f'background-color: {color}; color: {text_color}; font-weight: bold;')
     return styles
 
-# --- FUNCIÓN LEYENDA ---
+# --- FUNCIÓN LEYENDA (ACTUALIZADA) ---
 def mostrar_leyenda_colores():
     st.markdown("""
         <div style='display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 15px; margin-bottom: 20px; font-family: sans-serif;'>
             <div style='background-color: #2962ff; color: white; padding: 5px 12px; border-radius: 4px; font-weight: bold; font-size: 13px;'>🔵 Supera Media</div>
             <div style='background-color: #00c853; color: white; padding: 5px 12px; border-radius: 4px; font-weight: bold; font-size: 13px;'>🟢 Iguala Media</div>
-            <div style='background-color: #388e3c; color: white; padding: 5px 12px; border-radius: 4px; font-weight: bold; font-size: 13px;'>🌲 Cerca de Media</div>
+            <div style='background-color: #fff176; color: black; padding: 5px 12px; border-radius: 4px; font-weight: bold; font-size: 13px;'>⚠️ Cerca de Media</div>
             <div style='background-color: #d32f2f; color: white; padding: 5px 12px; border-radius: 4px; font-weight: bold; font-size: 13px;'>🔴 Muy por debajo</div>
         </div>
         <div style='text-align: center; color: #888; font-size: 11px; margin-top: -15px; margin-bottom: 15px;'>
