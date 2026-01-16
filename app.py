@@ -10,13 +10,19 @@ from nba_api.stats.static import teams as nba_static_teams
 # ==========================================
 # GESTIÓN DE ESTADO (NAVEGACIÓN)
 # ==========================================
-# Inicializamos variables para la redirección entre páginas
 if 'page' not in st.session_state:
     st.session_state.page = "🏠 Inicio"
 if 'selected_home' not in st.session_state:
     st.session_state.selected_home = None
 if 'selected_visitor' not in st.session_state:
     st.session_state.selected_visitor = None
+
+# --- FUNCIÓN DE NAVEGACIÓN (CALLBACK) ---
+# Esta función se ejecutará al hacer clic en el botón, antes de recargar la página
+def ir_a_analisis(home, visitor):
+    st.session_state.selected_home = home
+    st.session_state.selected_visitor = visitor
+    st.session_state.page = "⚔️ Analizar Partido"
 
 # ==========================================
 # CONFIGURACIÓN DE LA PÁGINA
@@ -70,7 +76,7 @@ st.markdown("""
     }
     .injuries-link:hover { color: #fff; }
 
-    /* Estilo para el botón de analizar dentro de la tarjeta (Streamlit button override) */
+    /* Estilo para el botón de analizar dentro de la tarjeta */
     div.stButton > button {
         width: 100%;
         border-radius: 8px;
@@ -180,13 +186,8 @@ def convertir_hora_espanol(hora_et):
     except: return hora_et
 
 def get_basketball_date():
-    """
-    Lógica de jornada persistente:
-    Si son las 00:00 - 12:00 (mediodía), seguimos considerando que es la jornada de "ayer".
-    Esto evita que a las 00:01 se borren los partidos de la noche.
-    """
     now = datetime.now()
-    if now.hour < 12: # Mantenemos la fecha anterior hasta las 12 del mediodía
+    if now.hour < 12: 
         return now.date() - timedelta(days=1)
     return now.date()
 
@@ -194,7 +195,6 @@ def obtener_partidos():
     nba_teams = nba_static_teams.get_teams()
     team_map = {t['id']: t['abbreviation'] for t in nba_teams}
     
-    # Usamos la fecha calculada de baloncesto
     basket_today = get_basketball_date()
     fechas = [basket_today, basket_today + timedelta(days=1)]
     
@@ -234,7 +234,6 @@ def mostrar_tabla_bonita(df_raw, col_principal_espanol):
 # ==========================================
 st.markdown("<h1>🏀 NBA PRO ANALYZER 🏀</h1>", unsafe_allow_html=True)
 
-# El menú controla st.session_state.page
 opcion = st.sidebar.radio("Menú:", ["🏠 Inicio", "👤 Jugador", "⚔️ Analizar Partido", "🔄 Actualizar Datos"], key="page")
 df = load_data()
 
@@ -253,7 +252,6 @@ if opcion == "🏠 Inicio":
             st.caption("No se encontraron partidos para hoy.")
         
         for g in games_today:
-            # Usamos un contenedor para el diseño visual de la tarjeta
             with st.container():
                 st.markdown(f"""
                 <div class='game-card'>
@@ -266,14 +264,13 @@ if opcion == "🏠 Inicio":
                 </div>
                 """, unsafe_allow_html=True)
                 
-                # BOTÓN DE REDIRECCIÓN
-                # Clave única obligatoria para botones en bucle
-                btn_key = f"btn_hoy_{g['game_id']}"
-                if st.button(f"🔍 ANALIZAR {g['v_abv']} vs {g['h_abv']}", key=btn_key):
-                    st.session_state.selected_home = g['h_abv']
-                    st.session_state.selected_visitor = g['v_abv']
-                    st.session_state.page = "⚔️ Analizar Partido" # Cambia la página
-                    st.rerun() # Recarga inmediata
+                # BOTÓN DE REDIRECCIÓN (CORREGIDO CON CALLBACK)
+                st.button(
+                    f"🔍 ANALIZAR {g['v_abv']} vs {g['h_abv']}", 
+                    key=f"btn_hoy_{g['game_id']}",
+                    on_click=ir_a_analisis,
+                    args=(g['h_abv'], g['v_abv'])
+                )
 
     # COLUMNA MAÑANA
     with c2:
@@ -295,13 +292,13 @@ if opcion == "🏠 Inicio":
                 </div>
                 """, unsafe_allow_html=True)
                 
-                # BOTÓN DE REDIRECCIÓN
-                btn_key = f"btn_tmrw_{g['game_id']}"
-                if st.button(f"🔍 ANALIZAR {g['v_abv']} vs {g['h_abv']}", key=btn_key):
-                    st.session_state.selected_home = g['h_abv']
-                    st.session_state.selected_visitor = g['v_abv']
-                    st.session_state.page = "⚔️ Analizar Partido"
-                    st.rerun()
+                # BOTÓN DE REDIRECCIÓN (CORREGIDO CON CALLBACK)
+                st.button(
+                    f"🔍 ANALIZAR {g['v_abv']} vs {g['h_abv']}", 
+                    key=f"btn_tmrw_{g['game_id']}",
+                    on_click=ir_a_analisis,
+                    args=(g['h_abv'], g['v_abv'])
+                )
 
     st.markdown("<div class='credits'>Creado por ad.ri.</div>", unsafe_allow_html=True)
 
@@ -343,7 +340,6 @@ elif opcion == "👤 Jugador":
             
             st.subheader("Últimos 5 Partidos")
             
-            # Preparar tabla con links
             cols = ['game_date', 'matchup', 'min', 'pts', 'reb', 'ast']
             if 'game_id' in player_data.columns: cols.append('game_id')
             view = player_data[cols].head(5).copy()
@@ -385,8 +381,7 @@ elif opcion == "⚔️ Analizar Partido":
         col1, col2 = st.columns(2)
         equipos = sorted(df['team_abbreviation'].unique())
         
-        # --- LÓGICA DE PRE-SELECCIÓN DESDE EL INICIO ---
-        # Si venimos del botón "Analizar", usamos los equipos guardados en session_state
+        # LÓGICA DE PRE-SELECCIÓN
         idx_t1 = equipos.index(st.session_state.selected_home) if st.session_state.selected_home in equipos else None
         idx_t2 = equipos.index(st.session_state.selected_visitor) if st.session_state.selected_visitor in equipos else None
         
