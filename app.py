@@ -17,12 +17,18 @@ if 'selected_home' not in st.session_state:
     st.session_state.selected_home = None
 if 'selected_visitor' not in st.session_state:
     st.session_state.selected_visitor = None
+if 'selected_player' not in st.session_state: # NUEVO: Para guardar el jugador clickado
+    st.session_state.selected_player = None
 
-# --- FUNCIÓN DE NAVEGACIÓN (CALLBACK) ---
+# --- FUNCIONES DE NAVEGACIÓN (CALLBACKS) ---
 def ir_a_analisis(home, visitor):
     st.session_state.selected_home = home
     st.session_state.selected_visitor = visitor
     st.session_state.page = "⚔️ Analizar Partido"
+
+def ir_a_jugador(player_name):
+    st.session_state.selected_player = player_name
+    st.session_state.page = "👤 Jugador"
 
 # ==========================================
 # CONFIGURACIÓN DE LA PÁGINA
@@ -51,15 +57,13 @@ st.markdown("""
         letter-spacing: 1px;
     }
 
-    /* --- TARJETAS DEL CALENDARIO (PARTE SUPERIOR) --- */
+    /* Tarjetas del calendario */
     .game-card {
         background-color: #2d2d2d;
         border: 1px solid #444;
-        /* Solo redondeamos arriba para unirlo al botón */
-        border-radius: 12px 12px 0 0; 
-        border-bottom: none; /* Quitamos borde inferior */
-        padding: 15px 15px 5px 15px; /* Menos padding abajo */
-        margin-bottom: 0px; /* Sin margen para pegar el botón */
+        border-radius: 12px;
+        padding: 15px;
+        margin-bottom: 15px;
         text-align: center;
     }
     .game-matchup { display: flex; justify-content: center; align-items: center; gap: 15px; margin-bottom: 10px; }
@@ -76,31 +80,9 @@ st.markdown("""
         font-size: 13px; color: #4caf50; text-decoration: none;
         border: 1px solid #4caf50; padding: 5px 10px;
         border-radius: 5px; margin-top: 10px; display: inline-block;
-        margin-bottom: 10px;
     }
 
-    /* --- BOTÓN DENTRO DE LA TARJETA (PARTE INFERIOR) --- */
-    /* Apuntamos al botón de Streamlit */
-    div.stButton > button {
-        width: 100%;
-        /* Solo redondeamos abajo */
-        border-radius: 0 0 12px 12px; 
-        font-weight: bold;
-        border: 1px solid #444;
-        border-top: none; /* Quitamos borde superior */
-        background-color: #1e1e1e; /* Un poco más oscuro para diferenciar zona de acción */
-        color: #fff;
-        padding: 10px;
-        margin-top: 0px;
-        transition: all 0.3s ease;
-    }
-    div.stButton > button:hover {
-        background-color: #4caf50; /* Verde al pasar el ratón */
-        color: white;
-        border-color: #4caf50;
-    }
-
-    /* Enlace tabla stats */
+    /* Enlace de la ficha del partido en la tabla */
     a.match-link {
         color: #fff !important;
         background-color: #2196f3;
@@ -147,6 +129,28 @@ st.markdown("""
         text-align: center; margin-top: 40px; 
     }
     
+    /* Estilo para el botón de analizar dentro de la tarjeta */
+    div.stButton > button {
+        width: 100%;
+        border-radius: 8px;
+        font-weight: bold;
+        border: 1px solid #464b5f;
+        background-color: #31333F;
+        color: white;
+    }
+    div.stButton > button:hover {
+        border-color: #ffbd45;
+        color: #ffbd45;
+    }
+    
+    /* Estilo para los botones de la tabla de jugadores */
+    /* Diferenciamos los botones pequeños de la tabla */
+    button.small-player-btn {
+        padding: 2px 10px !important;
+        font-size: 12px !important;
+        height: auto !important;
+    }
+
     /* Ajustes tabla */
     table { width: 100%; border-collapse: collapse; margin-bottom: 20px; color: white; font-family: sans-serif; }
     th { background-color: #31333F; color: white; font-weight: bold; text-align: center !important; padding: 10px; border-bottom: 2px solid #464b5f; text-transform: uppercase; }
@@ -328,6 +332,40 @@ def mostrar_tabla_bonita(df_raw, col_principal_espanol, simple_mode=False):
             
     st.markdown(f"<div class='table-wrapper'>{html}</div>", unsafe_allow_html=True)
 
+# --- NUEVA FUNCIÓN: TABLA INTERACTIVA DE JUGADORES ---
+def render_interactive_player_table(df_stats, stat_col):
+    """
+    Renderiza una tabla con filas interactivas en lugar de HTML estático.
+    Permite hacer clic en el nombre del jugador.
+    """
+    # Encabezados
+    c1, c2, c3, c4 = st.columns([2, 1, 1, 2])
+    with c1: st.markdown("**JUGADOR**")
+    with c2: st.markdown("**EQUIPO**")
+    with c3: st.markdown(f"**{stat_col}**")
+    with c4: st.markdown("**MIN (SEQ)**")
+    
+    st.markdown("<hr style='margin:5px 0; border-color:#444;'>", unsafe_allow_html=True)
+    
+    # Filas
+    for idx, row in df_stats.iterrows():
+        c1, c2, c3, c4 = st.columns([2, 1, 1, 2])
+        with c1:
+            # Botón con el nombre del jugador
+            if st.button(f"👤 {row['player_name']}", key=f"btn_p_{idx}_{stat_col}", help="Ver análisis"):
+                ir_a_jugador(row['player_name'])
+                st.rerun()
+        with c2:
+            st.write(row['team_abbreviation'])
+        with c3:
+            val = row[stat_col.lower()] # stat_col viene en mayus (REB), en df es minus (reb)
+            st.write(f"**{val:.1f}**")
+        with c4:
+            st.write(row['trend_min'])
+        
+        st.markdown("<div style='height:1px; background-color:#333; margin:5px 0;'></div>", unsafe_allow_html=True)
+
+
 # ==========================================
 # INTERFAZ
 # ==========================================
@@ -355,7 +393,6 @@ if opcion == "🏠 Inicio":
         if not games_today:
             st.caption("No se encontraron partidos para hoy.")
         for g in games_today:
-            # Usamos un contenedor vacío para agrupar visualmente (aunque el CSS hace la magia)
             st.markdown(f"""
             <div class='game-card'>
                 <div class='game-matchup'>
@@ -366,9 +403,7 @@ if opcion == "🏠 Inicio":
                 <a href='https://www.rotowire.com/basketball/nba-lineups.php' target='_blank' class='injuries-link'>🏥 Ver Bajas / Lineups</a>
             </div>
             """, unsafe_allow_html=True)
-            # El botón se renderiza justo después del HTML, el CSS lo pega visualmente
             st.button(f"🔍 ANALIZAR {g['v_abv']} vs {g['h_abv']}", key=f"btn_hoy_{g['game_id']}", on_click=ir_a_analisis, args=(g['h_abv'], g['v_abv']))
-            # Añadimos un pequeño espacio extra después del bloque completo
             st.write("") 
 
     with c2:
@@ -416,9 +451,15 @@ elif opcion == "👤 Jugador":
         todos_jugadores = sorted(df['player_name'].unique())
         todos_equipos = sorted(df['team_abbreviation'].unique())
 
-        jugador = st.selectbox("Escribe el nombre del Jugador:", todos_jugadores, index=None, placeholder="Ej: Kevin Love")
+        # Lógica de preselección desde click
+        idx_player = todos_jugadores.index(st.session_state.selected_player) if st.session_state.selected_player in todos_jugadores else None
+
+        jugador = st.selectbox("Escribe el nombre del Jugador:", todos_jugadores, index=idx_player, placeholder="Ej: Kevin Love")
         
         if jugador:
+            # Actualizamos el estado por si el usuario cambia manualmente
+            st.session_state.selected_player = jugador
+            
             player_data = df[df['player_name'] == jugador].sort_values('game_date', ascending=False)
             rival = st.selectbox("Filtrar vs Rival (Opcional):", todos_equipos, index=None, placeholder="Selecciona equipo rival...")
             
@@ -529,31 +570,25 @@ elif opcion == "⚔️ Analizar Partido":
                 mostrar_tabla_bonita(v_avgs, 'PTS')
                 
                 st.caption("📝 Desglose Comparativo por Partido:")
-                
                 filtered_totals = team_totals[team_totals['team_abbreviation'].isin([t1, t2])].copy()
                 game_stats = []
                 unique_game_dates = filtered_totals['game_date'].unique()
-                
                 for d in sorted(unique_game_dates, reverse=True):
                     day_data = filtered_totals[filtered_totals['game_date'] == d]
                     if not day_data.empty:
                         row = {'FECHA': pd.to_datetime(d).strftime('%d/%m/%Y')}
-                        
                         t1_d = day_data[day_data['team_abbreviation'] == t1]
                         row[f'{t1} PTS'] = t1_d['pts'].values[0] if not t1_d.empty else 0
                         row[f'{t1} REB'] = t1_d['reb'].values[0] if not t1_d.empty else 0
                         row[f'{t1} AST'] = t1_d['ast'].values[0] if not t1_d.empty else 0
-
                         t2_d = day_data[day_data['team_abbreviation'] == t2]
                         row[f'{t2} PTS'] = t2_d['pts'].values[0] if not t2_d.empty else 0
                         row[f'{t2} REB'] = t2_d['reb'].values[0] if not t2_d.empty else 0
                         row[f'{t2} AST'] = t2_d['ast'].values[0] if not t2_d.empty else 0
-                            
                         game_stats.append(row)
                 
                 if game_stats:
                     df_comparative = pd.DataFrame(game_stats)
-                    # ORDEN DE DOS EN DOS
                     cols_ordered = ['FECHA', f'{t1} PTS', f'{t2} PTS', f'{t1} REB', f'{t2} REB', f'{t1} AST', f'{t2} AST']
                     final_cols = [c for c in cols_ordered if c in df_comparative.columns]
                     df_final_comp = df_comparative[final_cols]
@@ -573,47 +608,20 @@ elif opcion == "⚔️ Analizar Partido":
 
             stats = stats[stats['player_name'].apply(lambda x: latest_teams_map.get(x) in [t1, t2])]
 
-            # Status visual
-            status_list = []
-            for idx, row in stats.iterrows():
-                p_name, p_team = row['player_name'], row['team_abbreviation']
-                real_team = latest_teams_map.get(p_name, p_team)
-                player_games = recent_players[(recent_players['player_name'] == p_name) & (recent_players['team_abbreviation'] == p_team)]
-                dates_played = player_games['game_date'].unique()
-                html_str = ""
-                for d in last_dates:
-                    d_short = d.strftime('%d/%m')
-                    if d in dates_played: html_str += f"<div class='status-cell'><span class='status-played'>✅</span><span class='status-date'>{d_short}</span></div>"
-                    else:
-                        if real_team != p_team: html_str += f"<div class='status-cell'><span class='status-date'>N/A</span></div>"
-                        else: html_str += f"<div class='status-cell'><span class='status-missed'>❌</span><span class='status-date'>{d_short}</span></div>"
-                status_list.append(html_str)
-            stats['STATUS_HTML'] = status_list
-
             st.write("---")
+            
+            # --- TABLAS INTERACTIVAS ---
             st.subheader("🔥 Top Reboteadores")
-            reb_df = stats.sort_values('reb', ascending=False).head(15).copy()
-            if not reb_df.empty:
-                reb_final = reb_df[['player_name', 'team_abbreviation', 'STATUS_HTML', 'reb', 'trend_reb', 'trend_min']]
-                reb_final.columns = ['JUGADOR', 'EQUIPO', 'STATUS', 'REB', 'RACHA', 'MIN (SEQ)']
-                mostrar_tabla_bonita(reb_final, 'REB')
-            else: st.info("Sin datos suficientes.")
+            reb_df = stats.sort_values('reb', ascending=False).head(10).copy()
+            render_interactive_player_table(reb_df, 'REB')
             
             st.subheader("🎯 Top Anotadores")
-            pts_df = stats.sort_values('pts', ascending=False).head(15).copy()
-            if not pts_df.empty:
-                pts_final = pts_df[['player_name', 'team_abbreviation', 'STATUS_HTML', 'pts', 'trend_pts', 'trend_min']]
-                pts_final.columns = ['JUGADOR', 'EQUIPO', 'STATUS', 'PTS', 'RACHA', 'MIN (SEQ)']
-                mostrar_tabla_bonita(pts_final, 'PTS')
-            else: st.info("Sin datos suficientes.")
+            pts_df = stats.sort_values('pts', ascending=False).head(10).copy()
+            render_interactive_player_table(pts_df, 'PTS')
             
             st.subheader("🤝 Top Asistentes")
-            ast_df = stats.sort_values('ast', ascending=False).head(15).copy()
-            if not ast_df.empty:
-                ast_final = ast_df[['player_name', 'team_abbreviation', 'STATUS_HTML', 'ast', 'trend_ast', 'trend_min']]
-                ast_final.columns = ['JUGADOR', 'EQUIPO', 'STATUS', 'AST', 'RACHA', 'MIN (SEQ)']
-                mostrar_tabla_bonita(ast_final, 'AST')
-            else: st.info("Sin datos suficientes.")
+            ast_df = stats.sort_values('ast', ascending=False).head(10).copy()
+            render_interactive_player_table(ast_df, 'AST')
             
             # Bajas
             st.write("---")
