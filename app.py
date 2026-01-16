@@ -9,99 +9,199 @@ from nba_api.stats.endpoints import leaguegamelog, scoreboardv2, commonteamroste
 from nba_api.stats.static import teams as nba_static_teams
 
 # ==========================================
-# GESTIÓN DE ESTADO (NAVEGACIÓN)
-# ==========================================
-if 'page' not in st.session_state:
-    st.session_state.page = "🏠 Inicio"
-if 'selected_home' not in st.session_state:
-    st.session_state.selected_home = None
-if 'selected_visitor' not in st.session_state:
-    st.session_state.selected_visitor = None
-if 'selected_player' not in st.session_state:
-    st.session_state.selected_player = None
-
-# --- FUNCIONES DE NAVEGACIÓN ---
-def navegar_a_partido(home, visitor):
-    st.session_state.selected_home = home
-    st.session_state.selected_visitor = visitor
-    st.session_state.page = "⚔️ Analizar Partido"
-
-def navegar_a_jugador(player_name):
-    st.session_state.selected_player = player_name
-    st.session_state.page = "👤 Jugador"
-
-def volver_inicio():
-    st.session_state.page = "🏠 Inicio"
-
-def volver_a_partido():
-    st.session_state.page = "⚔️ Analizar Partido"
-
-# ==========================================
 # CONFIGURACIÓN DE LA PÁGINA
 # ==========================================
-st.set_page_config(page_title="NBA Analyzer Pro", page_icon="🏀", layout="wide")
+st.set_page_config(
+    page_title="NBA Analyzer Pro",
+    page_icon="🏀",
+    layout="wide"
+)
 
-# --- CSS LIMPIO Y ORDENADO (SIN ROMPER TABLAS) ---
+# ==========================================
+# CSS GLOBAL (CENTRADO + MOBILE + TABLAS)
+# ==========================================
 st.markdown("""
-    <style>
-    @import url('https://fonts.googleapis.com/css2?family=Teko:wght@300..700&display=swap');
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Teko:wght@300..700&display=swap');
 
-    /* Títulos */
-    h1 { font-family: 'Teko', sans-serif !important; font-size: 55px !important; text-transform: uppercase; text-align: center; margin-bottom: 20px; color: white; line-height: 1; }
-    h3 { font-family: 'Teko', sans-serif !important; font-size: 30px !important; text-transform: uppercase; letter-spacing: 1px; margin-top: 20px; color: #ffbd45; }
+/* ===============================
+   CONTENEDOR GLOBAL CENTRADO
+   =============================== */
 
-    /* --- AJUSTES DE TABLA (COMPACTA PERO ORDENADA) --- */
-    /* Forzar alineación de texto en cabeceras y celdas sin romper flexbox */
-    [data-testid="stDataFrame"] th {
-        text-align: center !important;
-        vertical-align: middle !important;
-        font-size: 14px !important;
+section.main {
+    display: flex;
+    justify-content: center;
+}
+
+section.main > div {
+    width: 100%;
+}
+
+section.main > div.block-container {
+    max-width: 1300px !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
+}
+
+@media (min-width: 1400px) {
+    section.main > div.block-container {
+        max-width: 1200px !important;
     }
-    
+}
+
+@media (max-width: 768px) {
+    section.main > div.block-container {
+        padding-left: 0.5rem !important;
+        padding-right: 0.5rem !important;
+    }
+}
+
+/* ===============================
+   TIPOGRAFÍA
+   =============================== */
+
+h1 {
+    font-family: 'Teko', sans-serif !important;
+    font-size: 55px !important;
+    text-transform: uppercase;
+    text-align: center;
+    margin-bottom: 20px;
+    color: white;
+    line-height: 1;
+}
+
+h3 {
+    font-family: 'Teko', sans-serif !important;
+    font-size: 30px !important;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-top: 20px;
+    color: #ffbd45;
+}
+
+@media (max-width: 768px) {
+    h1 { font-size: 38px !important; }
+    h3 { font-size: 22px !important; }
+}
+
+/* ===============================
+   DATAFRAME STREAMLIT
+   =============================== */
+
+[data-testid="stDataFrame"] {
+    width: 100% !important;
+}
+
+[data-testid="stDataFrame"] th {
+    text-align: center !important;
+    font-size: 13px !important;
+    padding: 6px !important;
+}
+
+[data-testid="stDataFrame"] td {
+    text-align: center !important;
+    font-size: 13px !important;
+    padding: 4px 6px !important;
+    line-height: 1.2 !important;
+}
+
+/* ===============================
+   TABLAS HTML PERSONALIZADAS
+   =============================== */
+
+table.custom-table {
+    width: 100%;
+    table-layout: fixed;
+    border-collapse: collapse;
+    text-align: center;
+    font-size: 13px;
+}
+
+table.custom-table th {
+    background-color: #31333F;
+    padding: 6px;
+    border-bottom: 2px solid #555;
+}
+
+table.custom-table td {
+    padding: 6px;
+    border-bottom: 1px solid #444;
+    line-height: 1.2;
+}
+
+@media (max-width: 768px) {
+    table.custom-table th,
+    table.custom-table td {
+        font-size: 12px !important;
+        padding: 4px !important;
+    }
+
+    [data-testid="stDataFrame"] th,
     [data-testid="stDataFrame"] td {
-        text-align: center !important;
-        vertical-align: middle !important;
-        font-size: 14px !important;
-        padding-top: 4px !important;
-        padding-bottom: 4px !important;
+        font-size: 12px !important;
+        padding: 4px !important;
     }
+}
 
-    /* Reducir márgenes de la tabla para aprovechar espacio */
-    [data-testid="stDataFrame"] { width: 100% !important; }
+/* ===============================
+   UI / TARJETAS
+   =============================== */
 
-    /* --- TARJETAS Y UI --- */
-    .game-card { background-color: #2d2d2d; border: 1px solid #444; border-radius: 8px; padding: 10px; text-align: center; margin-bottom: 10px; }
-    .game-matchup { display: flex; justify-content: center; align-items: center; gap: 10px; margin-bottom: 5px; }
-    .team-logo { width: 40px; height: 40px; object-fit: contain; }
-    .game-time { color: #ffbd45; font-size: 20px; font-weight: bold; font-family: 'Teko', sans-serif; }
-    
-    /* Botones */
-    div.stButton > button {
-        width: 100%; border-radius: 6px !important; font-weight: bold;
-        background-color: #1e1e1e; color: #fff; border: 1px solid #444;
-        padding: 0.5rem 1rem;
-    }
-    div.stButton > button:hover { border-color: #4caf50; color: #4caf50; }
-    .back-btn-container div.stButton > button { width: auto !important; }
+.game-card {
+    background-color: #2d2d2d;
+    border: 1px solid #444;
+    border-radius: 8px;
+    padding: 10px;
+    text-align: center;
+    margin-bottom: 10px;
+}
 
-    /* Ocultar elementos extra */
-    [data-testid="stElementToolbar"] { display: none !important; }
-    footer { display: none !important; }
-    
-    /* Tablas HTML personalizadas (Historial/Bajas) */
-    table.custom-table { width: 100%; font-size: 13px; border-collapse: collapse; text-align: center; }
-    table.custom-table th { background-color: #31333F; padding: 8px; border-bottom: 2px solid #555; text-align: center; }
-    table.custom-table td { padding: 8px; border-bottom: 1px solid #444; text-align: center; }
-    
-    /* Estilos Parlay y Status */
-    .dnp-missing { color: #ff5252; font-weight:bold; }
-    .dnp-full { color: #4caf50; font-weight:bold; }
-    .parlay-box { background-color: #1e1e1e; border: 1px solid #444; border-radius: 10px; padding: 10px; margin-bottom: 15px; }
-    .parlay-header { font-size: 18px; font-weight: bold; margin-bottom: 10px; text-transform: uppercase; border-bottom: 1px solid #444; padding-bottom: 5px; text-align: center; }
-    .parlay-leg { background-color: #2d2d2d; margin: 5px 0; padding: 8px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; font-size: 13px; }
-    </style>
-    """, unsafe_allow_html=True)
+.game-matchup {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+}
 
+.team-logo {
+    width: 40px;
+    height: 40px;
+}
+
+.game-time {
+    color: #ffbd45;
+    font-size: 20px;
+    font-family: 'Teko', sans-serif;
+}
+
+/* ===============================
+   BOTONES
+   =============================== */
+
+div.stButton > button {
+    width: 100%;
+    border-radius: 6px !important;
+    font-weight: bold;
+    background-color: #1e1e1e;
+    color: #fff;
+    border: 1px solid #444;
+}
+
+div.stButton > button:hover {
+    border-color: #4caf50;
+    color: #4caf50;
+}
+
+/* ===============================
+   OCULTAR ELEMENTOS STREAMLIT
+   =============================== */
+
+[data-testid="stElementToolbar"] { display: none !important; }
+footer { display: none !important; }
+</style>
+""", unsafe_allow_html=True)
 # ==========================================
 # LÓGICA DE DATOS
 # ==========================================
@@ -732,3 +832,4 @@ elif st.session_state.page == "⚔️ Analizar Partido":
                 st.markdown(render_ticket("PTS", risky_legs_pts, "🏀", "#ff5252", "parlay-box"), unsafe_allow_html=True)
                 if risky_legs_reb: st.markdown(render_ticket("REB", risky_legs_reb, "🖐", "#ff5252", "parlay-box"), unsafe_allow_html=True)
                 if risky_legs_ast: st.markdown(render_ticket("AST", risky_legs_ast, "🎁", "#ff5252", "parlay-box"), unsafe_allow_html=True)
+
