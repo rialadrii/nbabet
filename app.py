@@ -5,7 +5,7 @@ import os
 import time
 import requests
 from datetime import datetime, timedelta
-from nba_api.stats.endpoints import leaguegamelog, scoreboardv2
+from nba_api.stats.endpoints import leaguegamelog, scoreboardv2, commonteamroster
 from nba_api.stats.static import teams as nba_static_teams
 
 # ==========================================
@@ -176,6 +176,11 @@ st.markdown("""
     .dnp-missing { color: #ff5252; }
     .pat-stars { color: #ffbd45; font-weight: bold; }
     .pat-impact { color: #4caf50; font-weight: bold; }
+
+    /* --- OCULTAR TOOLBAR DE DATAFRAME --- */
+    [data-testid="stElementToolbar"] {
+        display: none;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -201,7 +206,6 @@ def download_data():
 
     if all_seasons_data:
         full_df = pd.concat(all_seasons_data, ignore_index=True)
-        # NOS ASEGURAMOS DE BAJAR 'WL'
         cols_needed = ['PLAYER_ID', 'PLAYER_NAME', 'TEAM_ABBREVIATION', 'GAME_DATE', 'MATCHUP', 'PTS', 'REB', 'AST', 'MIN', 'WL', 'GAME_ID']
         cols_final = [c for c in cols_needed if c in full_df.columns]
         df_clean = full_df[cols_final].copy()
@@ -251,6 +255,18 @@ def get_nba_schedule():
         return response['leagueSchedule']['gameDates']
     except:
         return []
+
+# --- FUNCIÓN NUEVA: OBTENER DORSALES ---
+@st.cache_data(ttl=3600)
+def get_team_roster_numbers(team_id):
+    """Obtiene el diccionario {Jugador: Numero} para un equipo"""
+    try:
+        roster = commonteamroster.CommonTeamRoster(team_id=team_id)
+        df_roster = roster.get_data_frames()[0]
+        # Crear diccionario Nombre -> Numero
+        return dict(zip(df_roster['PLAYER'], df_roster['NUM']))
+    except:
+        return {}
 
 def get_next_matchup_info(t1_abv, t2_abv):
     dates = get_nba_schedule()
@@ -309,7 +325,6 @@ def obtener_partidos():
 # --- LÓGICA DE COLORES PERSONALIZADA ---
 def apply_custom_color(column, avg, col_name):
     styles = []
-    
     if col_name in ['REB', 'AST']:
         tolerance = 2 
     else:
@@ -353,7 +368,6 @@ def mostrar_tabla_bonita(df_raw, col_principal_espanol, simple_mode=False, means
             .to_html(classes="custom-table", escape=False)
     else:
         styler = df_raw.style.format("{:.1f}", subset=[c for c in df_raw.columns if c in ['PTS', 'REB', 'AST', 'MIN'] or '_PTS' in c or '_REB' in c or '_AST' in c])
-        
         if means_dict:
             if 'PTS' in df_raw.columns and 'PTS' in means_dict:
                 styler.apply(apply_custom_color, avg=means_dict['PTS'], col_name='PTS', subset=['PTS'])
@@ -365,19 +379,20 @@ def mostrar_tabla_bonita(df_raw, col_principal_espanol, simple_mode=False, means
                 styler.apply(apply_custom_color, avg=means_dict['MIN'], col_name='MIN', subset=['MIN'])
         else:
             styler.background_gradient(subset=[col_principal_espanol] if col_principal_espanol else None, cmap='Greens')
-            
         html = styler.hide(axis="index").to_html(classes="custom-table", escape=False)
-        
     st.markdown(f"<div class='table-wrapper'>{html}</div>", unsafe_allow_html=True)
 
-# --- FUNCIÓN TABLA INTERACTIVA ---
-def render_clickable_player_table(df_stats, stat_col):
+# --- FUNCIÓN TABLA INTERACTIVA (CON DORSAL) ---
+def render_clickable_player_table(df_stats, stat_col, jersey_map):
     if df_stats.empty:
         st.info("Sin datos.")
         return
 
-    df_interactive = df_stats[['player_name', 'team_abbreviation', stat_col.lower(), f'trend_{stat_col.lower()}', 'trend_min']].copy()
-    df_interactive.columns = ['JUGADOR', 'EQ', stat_col, 'RACHA', 'MIN']
+    # Añadimos el dorsal
+    df_stats['#'] = df_stats['player_name'].map(jersey_map).fillna('-')
+
+    df_interactive = df_stats[['#', 'player_name', 'team_abbreviation', stat_col.lower(), f'trend_{stat_col.lower()}', 'trend_min']].copy()
+    df_interactive.columns = ['#', 'JUGADOR', 'EQ', stat_col, 'RACHA', 'MIN']
     
     selection = st.dataframe(
         df_interactive,
@@ -386,6 +401,7 @@ def render_clickable_player_table(df_stats, stat_col):
         on_select="rerun", 
         selection_mode="single-row",
         column_config={
+            "#": st.column_config.TextColumn("#", width="small"), # Dorsal primero
             "JUGADOR": st.column_config.TextColumn("JUGADOR (Click para analizar)", width="medium"),
             "EQ": st.column_config.TextColumn("EQ", width="small"),
             stat_col: st.column_config.NumberColumn(stat_col, format="%.1f")
@@ -499,6 +515,7 @@ elif st.session_state.page == "👤 Jugador":
             mean_reb = player_data['reb'].mean()
             mean_ast = player_data['ast'].mean()
             mean_min = player_data['min'].mean()
+            
             means_dict = {'PTS': mean_pts, 'REB': mean_reb, 'AST': mean_ast, 'MIN': mean_min}
 
             c1, c2, c3, c4 = st.columns(4)
@@ -509,18 +526,15 @@ elif st.session_state.page == "👤 Jugador":
             
             st.subheader("Últimos 5 Partidos")
             
-            cols = ['game_date', 'wl', 'matchup', 'min', 'pts', 'reb', 'ast'] # Incluimos 'wl'
+            cols = ['game_date', 'wl', 'matchup', 'min', 'pts', 'reb', 'ast']
             if 'game_id' in player_data.columns: cols.append('game_id')
             view = player_data[cols].head(5).copy()
             view['min'] = view['min'].astype(int)
-            
-            # --- GENERAR COLUMNA RES CON TICKS ---
             view['RES'] = view['wl'].map({'W': '✅', 'L': '❌'})
             
             if 'game_id' in view.columns:
                 view['FICHA'] = view['game_id'].apply(lambda x: f"<a href='https://www.nba.com/game/{x}' target='_blank' class='match-link'>📊 Ver</a>" if pd.notnull(x) else "-")
                 view = view.drop(columns=['game_id'])
-                # Reordenamos para mostrar RES
                 view = view[['game_date', 'RES', 'matchup', 'FICHA', 'min', 'pts', 'reb', 'ast']]
             else: view['FICHA'] = "-"
                 
@@ -536,13 +550,11 @@ elif st.session_state.page == "👤 Jugador":
                 if not h2h.empty:
                     view_h2h = h2h[cols].copy()
                     view_h2h['min'] = view_h2h['min'].astype(int)
-                    view_h2h['RES'] = view_h2h['wl'].map({'W': '✅', 'L': '❌'}) # Ticks en H2H tambien
-                    
+                    view_h2h['RES'] = view_h2h['wl'].map({'W': '✅', 'L': '❌'})
                     if 'game_id' in view_h2h.columns:
                         view_h2h['FICHA'] = view_h2h['game_id'].apply(lambda x: f"<a href='https://www.nba.com/game/{x}' target='_blank' class='match-link'>📊 Ver</a>" if pd.notnull(x) else "-")
                         view_h2h = view_h2h.drop(columns=['game_id'])
                         view_h2h = view_h2h[['game_date', 'RES', 'matchup', 'FICHA', 'min', 'pts', 'reb', 'ast']]
-                    
                     view_h2h.columns = ['FECHA', 'RES', 'PARTIDO', 'FICHA', 'MIN', 'PTS', 'REB', 'AST']
                     view_h2h['FECHA'] = view_h2h['FECHA'].dt.strftime('%d/%m/%Y')
                     mostrar_tabla_bonita(view_h2h, None, means_dict=means_dict)
@@ -580,6 +592,19 @@ elif st.session_state.page == "⚔️ Analizar Partido":
         if t2 and t2 != st.session_state.selected_visitor: st.session_state.selected_visitor = t2
         
         if t1 and t2:
+            # --- OBTENER DORSALES ---
+            nba_teams = nba_static_teams.get_teams()
+            team_map_id = {t['abbreviation']: t['id'] for t in nba_teams}
+            
+            # Recuperamos dorsales de ambos equipos
+            roster_t1 = {}
+            roster_t2 = {}
+            if t1 in team_map_id: roster_t1 = get_team_roster_numbers(team_map_id[t1])
+            if t2 in team_map_id: roster_t2 = get_team_roster_numbers(team_map_id[t2])
+            
+            # Unimos diccionarios
+            full_roster_map = {**roster_t1, **roster_t2}
+
             with st.spinner("Buscando próximo enfrentamiento..."):
                 next_game = get_next_matchup_info(t1, t2)
             if next_game:
@@ -606,18 +631,14 @@ elif st.session_state.page == "⚔️ Analizar Partido":
             
             games_summary = []
             for date in last_dates:
-                # --- LÓGICA TICKS EN ENFRENTAMIENTO ---
                 day_data = history[history['game_date'] == date]
                 if day_data.empty: continue
-                
-                # Intentamos sacar info de T1
                 row_t1 = day_data[day_data['team_abbreviation'] == t1]
                 if not row_t1.empty:
                     wl_t1 = row_t1.iloc[0]['wl']
                     icon1 = '✅' if wl_t1 == 'W' else '❌'
                     icon2 = '❌' if wl_t1 == 'W' else '✅'
                 else:
-                    # Si falta T1, miramos T2
                     row_t2 = day_data[day_data['team_abbreviation'] == t2]
                     if not row_t2.empty:
                         wl_t2 = row_t2.iloc[0]['wl']
@@ -625,10 +646,7 @@ elif st.session_state.page == "⚔️ Analizar Partido":
                         icon1 = '❌' if wl_t2 == 'W' else '✅'
                     else:
                         icon1, icon2 = '', ''
-
                 match_str = f"{t1} {icon1} vs {t2} {icon2}"
-                
-                # Usamos cualquier fila para ID y link
                 row = day_data.iloc[0]
                 g_id = row.get('game_id')
                 link = f"<a href='https://www.nba.com/game/{g_id}' target='_blank' class='match-link'>📊 Ver Ficha</a>" if pd.notnull(g_id) else "-"
@@ -675,7 +693,6 @@ elif st.session_state.page == "⚔️ Analizar Partido":
 
             recent_players = history[history['game_date'].isin(last_dates)].sort_values('game_date', ascending=False)
             
-            # Stats Jugadores
             stats = recent_players.groupby(['player_name', 'team_abbreviation']).agg(
                 pts=('pts', 'mean'), reb=('reb', 'mean'), ast=('ast', 'mean'),
                 trend_pts=('pts', lambda x: '/'.join(x.astype(int).astype(str))),
@@ -705,14 +722,15 @@ elif st.session_state.page == "⚔️ Analizar Partido":
 
             st.write("---")
             
+            # --- TABLAS CLICABLES CON DORSAL ---
             st.subheader("🔥 Top Reboteadores")
-            render_clickable_player_table(stats.sort_values('reb', ascending=False).head(10), 'REB')
+            render_clickable_player_table(stats.sort_values('reb', ascending=False).head(10), 'REB', full_roster_map)
             
             st.subheader("🎯 Top Anotadores")
-            render_clickable_player_table(stats.sort_values('pts', ascending=False).head(10), 'PTS')
+            render_clickable_player_table(stats.sort_values('pts', ascending=False).head(10), 'PTS', full_roster_map)
             
             st.subheader("🤝 Top Asistentes")
-            render_clickable_player_table(stats.sort_values('ast', ascending=False).head(10), 'AST')
+            render_clickable_player_table(stats.sort_values('ast', ascending=False).head(10), 'AST', full_roster_map)
             
             # Bajas
             st.write("---")
@@ -741,7 +759,8 @@ elif st.session_state.page == "⚔️ Analizar Partido":
                 st.markdown(f"<div class='table-wrapper'>{html_dnp}</div>", unsafe_allow_html=True)
             else: st.success("✅ No hubo bajas importantes.")
 
-            # Patrones
+            # Patrones y Parlay... (Resto del código igual)
+            # (Mantén la parte de Patrones y Parlay del código anterior aquí)
             st.write("---")
             st.subheader("🕵️ Detección de Patrones")
             global_means = df.groupby('player_name')[['pts', 'reb', 'ast']].mean()
@@ -790,7 +809,6 @@ elif st.session_state.page == "⚔️ Analizar Partido":
                 st.markdown(f"<div class='table-wrapper'>{html_pat}</div>", unsafe_allow_html=True)
             else: st.write("No se detectaron impactos significativos.")
 
-            # Parlay
             st.write("---")
             st.subheader("🎲 GENERADOR DE PARLAY (Dual Strategy)")
             min_games_needed = max(3, int(len(last_dates) * 0.6))
