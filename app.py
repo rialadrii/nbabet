@@ -512,13 +512,22 @@ elif st.session_state.page == "👤 Jugador":
 # --- PÁGINA ANALIZAR PARTIDO (CÓDIGO COMPLETO) ---
 elif st.session_state.page == "⚔️ Analizar Partido":
     
-    c_back, c_title = st.columns([1, 6])
+    # CAMBIO AQUÍ: Usamos 3 columnas [1, 10, 1] para que el título quede en el centro real
+    c_back, c_title, c_dummy = st.columns([1, 10, 1])
+    
     with c_back:
-        if st.button("⬅️ Volver"):
+        # Añadimos un poco de margen superior (padding-top) si el botón se ve muy arriba respecto al texto
+        st.write("") 
+        if st.button("⬅️ Volver", key="back_btn_matchup"):
             volver_inicio()
             st.rerun()
+            
     with c_title:
-        st.header("⚔️ Análisis de Choque")
+        # Usamos markdown directo para asegurar el alineado y quitar márgenes extraños
+        st.markdown("<h2 style='text-align: center; margin-top: 0; padding-top: 0;'>⚔️ Análisis de Choque</h2>", unsafe_allow_html=True)
+        
+    with c_dummy:
+        st.write("") # Esta columna vacía equilibra el layout
 
     if df.empty:
         st.error("Datos no disponibles.")
@@ -795,3 +804,4 @@ elif st.session_state.page == "⚔️ Analizar Partido":
                 st.markdown(render_ticket("PTS", risky_legs_pts, "🏀", "#ff5252", "parlay-box"), unsafe_allow_html=True)
                 if risky_legs_reb: st.markdown(render_ticket("REB", risky_legs_reb, "🖐", "#ff5252", "parlay-box"), unsafe_allow_html=True)
                 if risky_legs_ast: st.markdown(render_ticket("AST", risky_legs_ast, "🎁", "#ff5252", "parlay-box"), unsafe_allow_html=True)
+
