@@ -18,7 +18,7 @@ st.set_page_config(
 )
 
 # ==========================================
-# 2. CSS DEFINITIVO (CENTRADO, MÓVIL Y FIX ANCHOS)
+# 2. CSS DEFINITIVO
 # ==========================================
 st.markdown("""
 <style>
@@ -27,7 +27,7 @@ st.markdown("""
 /* --- CENTRADO GLOBAL --- */
 .main .block-container {
     max-width: 1300px !important;
-    padding-left: 0.5rem !important; /* Reducido padding lateral en móvil */
+    padding-left: 0.5rem !important;
     padding-right: 0.5rem !important;
     margin: 0 auto !important;
     display: flex;
@@ -41,14 +41,14 @@ h1, h2, h3, h4, p, span, label, div.stMarkdown {
     width: 100% !important;
 }
 
-/* --- FIX TABLAS INTERACTIVAS (TOP JUGADORES) --- */
+/* --- FIX TABLAS INTERACTIVAS --- */
 [data-testid="stDataFrame"] {
     width: 100% !important;
     max-width: 100% !important;
     margin: 0 auto !important;
 }
 
-/* --- FIX TABLAS HTML (COLORES / H2H) --- */
+/* --- FIX TABLAS HTML --- */
 .table-responsive {
     display: flex !important;
     justify-content: center !important;
@@ -63,7 +63,7 @@ table.custom-table {
     margin-right: auto !important;
     border-collapse: collapse;
     font-size: 14px;
-    min-width: 350px; /* Reducido para pantallas muy pequeñas */
+    min-width: 350px; 
     width: 100%;
 }
 
@@ -71,10 +71,10 @@ table.custom-table th {
     background-color: #31333F;
     color: white;
     text-align: center !important;
-    padding: 8px; /* Padding reducido */
+    padding: 8px;
     border-bottom: 2px solid #555;
     white-space: nowrap;
-    font-size: 13px; /* Fuente ajustada */
+    font-size: 13px;
 }
 
 table.custom-table td {
@@ -88,7 +88,7 @@ table.custom-table td {
 /* --- ESTILOS VISUALES --- */
 h1 {
     font-family: 'Teko', sans-serif !important;
-    font-size: 55px !important; /* Ajustado para móvil */
+    font-size: 55px !important;
     text-transform: uppercase;
     color: white;
     line-height: 1;
@@ -102,7 +102,6 @@ h3 {
     margin-top: 30px;
 }
 
-/* Tarjetas de partidos */
 .game-card {
     background-color: #2d2d2d;
     border: 1px solid #444;
@@ -116,7 +115,6 @@ h3 {
 .team-logo { width: 45px; height: 45px; object-fit: contain; }
 .game-time { color: #ffbd45; font-size: 22px; font-family: 'Teko', sans-serif; }
 
-/* Botones */
 div.stButton > button {
     width: 100%;
     border-radius: 8px !important;
@@ -128,7 +126,6 @@ div.stButton > button {
 }
 div.stButton > button:hover { border-color: #ffbd45; color: #ffbd45; }
 
-/* Parlay & Extras */
 .parlay-box { background-color: #1e1e1e; border: 1px solid #444; border-radius: 10px; padding: 10px; margin-bottom: 15px; }
 .parlay-header { font-size: 18px; font-weight: bold; margin-bottom: 10px; border-bottom: 1px solid #444; padding-bottom: 5px; text-align: center !important; color:white; }
 .parlay-leg { background-color: #2d2d2d; margin: 5px 0; padding: 8px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; color: white; }
@@ -355,7 +352,7 @@ def render_clickable_player_table(df_stats, stat_col, jersey_map):
     df_interactive = df_stats[['NUM', 'JUGADOR', 'player_name', stat_col.lower(), f'trend_{stat_col.lower()}', 'trend_min']].copy()
     df_interactive.columns = ['#', 'JUGADOR', 'player_name_hidden', stat_col, 'RACHA', 'MIN']
     
-    # AQUI ESTA EL CAMBIO IMPORTANTE: RACHA width="small"
+    # --- CAMBIO AQUI: width=None para auto-ajuste ---
     selection = st.dataframe(
         df_interactive,
         use_container_width=True,
@@ -367,8 +364,8 @@ def render_clickable_player_table(df_stats, stat_col, jersey_map):
             "JUGADOR": st.column_config.TextColumn("JUGADOR", width="medium"),
             "player_name_hidden": None,
             stat_col: st.column_config.NumberColumn(stat_col, format="%.1f", width="small"),
-            "RACHA": st.column_config.TextColumn("RACHA", width="small"), # <-- CORREGIDO A SMALL
-            "MIN": st.column_config.TextColumn("MIN", width="small")
+            "RACHA": st.column_config.TextColumn("RACHA", width=None), # <--- AQUÍ ESTÁ EL CAMBIO
+            "MIN": st.column_config.TextColumn("MIN", width=None)     # <--- Y AQUÍ
         }
     )
     
