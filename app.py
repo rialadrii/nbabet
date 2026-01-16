@@ -483,9 +483,7 @@ elif opcion == "⚔️ Analizar Partido":
                 next_game = get_next_matchup_info(t1, t2)
             
             if next_game:
-                # Botón a la ficha oficial
                 link_btn = f"<a href='https://www.nba.com/game/{next_game['game_id']}' target='_blank' class='next-game-btn'>🏥 Ver Ficha / Bajas</a>"
-                
                 st.markdown(f"""
                 <div class='next-game-box'>
                     <div class='next-game-title'>📅 PRÓXIMO ENFRENTAMIENTO CONFIRMADO</div>
@@ -517,15 +515,25 @@ elif opcion == "⚔️ Analizar Partido":
             if 'game_id' not in df.columns: st.warning("⚠️ Faltan enlaces. Actualiza datos.")
             mostrar_tabla_bonita(df_games, None)
 
-            # Estadísticas Equipo
+            # Estadísticas Equipo (MODIFICADO: Separar resultados)
             team_totals = history.groupby(['game_date', 'team_abbreviation'])[['pts', 'reb', 'ast']].sum().reset_index()
             team_avgs = team_totals.groupby('team_abbreviation')[['pts', 'reb', 'ast']].mean().reset_index()
             team_avgs = team_avgs[team_avgs['team_abbreviation'].isin([t1, t2])]
+            
             if not team_avgs.empty:
                 st.write("---")
-                st.subheader("📊 Estadísticas Medias de Equipo (H2H)")
-                team_avgs.columns = ['EQUIPO', 'PTS', 'REB', 'AST']
-                mostrar_tabla_bonita(team_avgs, 'PTS')
+                st.subheader("📊 Estadísticas de Equipo (H2H)")
+                
+                st.caption("Promedios de los últimos enfrentamientos:")
+                v_avgs = team_avgs.copy()
+                v_avgs.columns = ['EQUIPO', 'PTS', 'REB', 'AST']
+                mostrar_tabla_bonita(v_avgs, 'PTS')
+                
+                st.caption("Desglose de puntos por partido:")
+                v_totals = team_totals[team_totals['team_abbreviation'].isin([t1, t2])].sort_values(['game_date', 'team_abbreviation'], ascending=False).copy()
+                v_totals['game_date'] = v_totals['game_date'].dt.strftime('%d/%m/%Y')
+                v_totals.columns = ['FECHA', 'EQUIPO', 'PTS', 'REB', 'AST']
+                mostrar_tabla_bonita(v_totals, None)
             
             recent_players = history[history['game_date'].isin(last_dates)].sort_values('game_date', ascending=False)
             
