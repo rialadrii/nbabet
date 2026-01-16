@@ -272,7 +272,6 @@ def get_team_roster_numbers(team_id):
         roster = commonteamroster.CommonTeamRoster(team_id=team_id)
         df_roster = roster.get_data_frames()[0]
         # Crear diccionario Nombre -> Numero
-        # IMPORTANTE: A veces NUM es float o int, forzamos string sin decimales
         df_roster['NUM'] = df_roster['NUM'].astype(str).str.replace('.0', '', regex=False)
         return dict(zip(df_roster['PLAYER'], df_roster['NUM']))
     except:
@@ -390,16 +389,20 @@ def mostrar_tabla_bonita(df_raw, col_principal_espanol, simple_mode=False, means
         html = styler.hide(axis="index").to_html(classes="custom-table", escape=False)
     st.markdown(f"<div class='table-wrapper'>{html}</div>", unsafe_allow_html=True)
 
-# --- FUNCIÓN TABLA INTERACTIVA (CON DORSAL) ---
+# --- FUNCIÓN TABLA INTERACTIVA (CON DORSAL Y EQUIPO FUSIONADO) ---
 def render_clickable_player_table(df_stats, stat_col, jersey_map):
     if df_stats.empty:
         st.info("Sin datos.")
         return
 
     df_stats['#'] = df_stats['player_name'].map(jersey_map).fillna('-')
+    
+    # Fusión nombre + (equipo)
+    df_stats['JUGADOR_FULL'] = df_stats['player_name'] + ' (' + df_stats['team_abbreviation'] + ')'
 
-    df_interactive = df_stats[['#', 'player_name', 'team_abbreviation', stat_col.lower(), f'trend_{stat_col.lower()}', 'trend_min']].copy()
-    df_interactive.columns = ['#', 'JUGADOR', 'EQ', stat_col, 'RACHA', 'MIN']
+    # Selección de columnas (sin EQ por separado)
+    df_interactive = df_stats[['#', 'JUGADOR_FULL', 'player_name', stat_col.lower(), f'trend_{stat_col.lower()}', 'trend_min']].copy()
+    df_interactive.columns = ['#', '👇', 'player_name_hidden', stat_col, 'RACHA', 'MIN']
     
     selection = st.dataframe(
         df_interactive,
@@ -409,8 +412,8 @@ def render_clickable_player_table(df_stats, stat_col, jersey_map):
         selection_mode="single-row",
         column_config={
             "#": st.column_config.TextColumn("#", width="small", disabled=True), 
-            "JUGADOR": st.column_config.TextColumn("JUGADOR (Click para analizar)", width="medium", disabled=True),
-            "EQ": st.column_config.TextColumn("EQ", width="small", disabled=True),
+            "👇": st.column_config.TextColumn("👇", width="large", disabled=True), # Flecha abajo como título
+            "player_name_hidden": None, # Ocultamos columna auxiliar
             stat_col: st.column_config.NumberColumn(stat_col, format="%.1f", disabled=True),
             "RACHA": st.column_config.TextColumn("RACHA", disabled=True),
             "MIN": st.column_config.TextColumn("MIN", disabled=True)
@@ -419,7 +422,8 @@ def render_clickable_player_table(df_stats, stat_col, jersey_map):
     
     if len(selection.selection.rows) > 0:
         row_idx = selection.selection.rows[0]
-        player_name = df_interactive.iloc[row_idx]['JUGADOR']
+        # Recuperamos el nombre limpio de la columna oculta
+        player_name = df_interactive.iloc[row_idx]['player_name_hidden']
         navegar_a_jugador(player_name)
         st.rerun()
 
@@ -708,22 +712,6 @@ elif st.session_state.page == "⚔️ Analizar Partido":
 
             stats = stats[stats['player_name'].apply(lambda x: latest_teams_map.get(x) in [t1, t2])]
 
-            status_list = []
-            for idx, row in stats.iterrows():
-                p_name, p_team = row['player_name'], row['team_abbreviation']
-                real_team = latest_teams_map.get(p_name, p_team)
-                player_games = recent_players[(recent_players['player_name'] == p_name) & (recent_players['team_abbreviation'] == p_team)]
-                dates_played = player_games['game_date'].unique()
-                html_str = ""
-                for d in last_dates:
-                    d_short = d.strftime('%d/%m')
-                    if d in dates_played: html_str += f"<div class='status-cell'><span class='status-played'>✅</span><span class='status-date'>{d_short}</span></div>"
-                    else:
-                        if real_team != p_team: html_str += f"<div class='status-cell'><span class='status-date'>N/A</span></div>"
-                        else: html_str += f"<div class='status-cell'><span class='status-missed'>❌</span><span class='status-date'>{d_short}</span></div>"
-                status_list.append(html_str)
-            stats['STATUS_HTML'] = status_list
-
             st.write("---")
             
             st.subheader("🔥 Top Reboteadores")
@@ -761,9 +749,6 @@ elif st.session_state.page == "⚔️ Analizar Partido":
                 html_dnp = df_dnp.style.hide(axis="index").to_html(classes="custom-table")
                 st.markdown(f"<div class='table-wrapper'>{html_dnp}</div>", unsafe_allow_html=True)
             else: st.success("✅ No hubo bajas importantes.")
-
-            # Patrones y Parlay se mantienen igual...
-            # (Mantén la parte de Patrones y Parlay del código anterior aquí)
             st.write("---")
             st.subheader("🕵️ Detección de Patrones")
             global_means = df.groupby('player_name')[['pts', 'reb', 'ast']].mean()
@@ -862,3 +847,4 @@ elif st.session_state.page == "⚔️ Analizar Partido":
                 st.markdown(render_ticket("PTS (High Value)", risky_legs_pts, "🏀", "#ff5252", "parlay-box"), unsafe_allow_html=True)
                 if risky_legs_reb: st.markdown(render_ticket("REB (High Value)", risky_legs_reb, "🖐", "#ff5252", "parlay-box"), unsafe_allow_html=True)
                 if risky_legs_ast: st.markdown(render_ticket("AST (High Value)", risky_legs_ast, "🎁", "#ff5252", "parlay-box"), unsafe_allow_html=True)
+
