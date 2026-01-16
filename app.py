@@ -189,6 +189,7 @@ def download_data():
 
     if all_seasons_data:
         full_df = pd.concat(all_seasons_data, ignore_index=True)
+        # NOS ASEGURAMOS DE BAJAR EL GAME_ID
         cols_needed = ['PLAYER_ID', 'PLAYER_NAME', 'TEAM_ABBREVIATION', 'GAME_DATE', 'MATCHUP', 'PTS', 'REB', 'AST', 'MIN', 'WL', 'GAME_ID']
         cols_final = [c for c in cols_needed if c in full_df.columns]
         df_clean = full_df[cols_final].copy()
@@ -210,8 +211,11 @@ def load_data():
     if os.path.exists(csv_path):
         df = pd.read_csv(csv_path)
         if 'game_date' in df.columns: df['game_date'] = pd.to_datetime(df['game_date'])
-        if 'game_id' in df.columns: df['game_id'] = df['game_id'].astype(str).str.zfill(10)
-        else: df['game_id'] = None
+        # Convertir game_id a string manteniendo ceros a la izquierda
+        if 'game_id' in df.columns: 
+            df['game_id'] = df['game_id'].apply(lambda x: str(int(x)).zfill(10) if pd.notnull(x) else None)
+        else: 
+            df['game_id'] = None
         return df
     return pd.DataFrame()
 
@@ -240,7 +244,6 @@ def get_nba_schedule():
         return []
 
 def get_next_matchup_info(t1_abv, t2_abv):
-    """Busca el próximo partido y devuelve también el GAME_ID para el link"""
     dates = get_nba_schedule()
     if not dates: return None
     
@@ -269,7 +272,7 @@ def get_next_matchup_info(t1_abv, t2_abv):
                         'home': t1_abv if h_id == id1 else t2_abv,
                         'away': t2_abv if h_id == id1 else t1_abv,
                         'arena': game.get('arenaName', 'Estadio NBA'),
-                        'game_id': game['gameId'] # ID necesario para el link
+                        'game_id': game['gameId']
                     }
         except: continue
     return None
@@ -304,7 +307,7 @@ def obtener_partidos():
 
 # --- FUNCIÓN TABLA HTML ---
 def mostrar_tabla_bonita(df_raw, col_principal_espanol):
-    cols_fmt = [c for c in df_raw.columns if c in ['PTS', 'REB', 'AST']] 
+    cols_fmt = [c for c in df_raw.columns if c in ['PTS', 'REB', 'AST'] or '_PTS' in c or '_REB' in c or '_AST' in c]
     html = df_raw.style\
         .format("{:.1f}", subset=cols_fmt)\
         .background_gradient(subset=[col_principal_espanol] if col_principal_espanol else None, cmap='YlOrBr' if col_principal_espanol=='REB' else ('Greens' if col_principal_espanol=='PTS' else ('Blues' if col_principal_espanol=='AST' else None)))\
@@ -333,13 +336,11 @@ if opcion == "🏠 Inicio":
     agenda = obtener_partidos()
     c1, c2 = st.columns(2)
     
-    # COLUMNA HOY
     with c1:
         st.markdown("<h3 style='color:#4caf50; text-align: center;'>JORNADA DE HOY (Madrugada)</h3>", unsafe_allow_html=True)
         games_today = agenda.get("HOY", [])
         if not games_today:
             st.caption("No se encontraron partidos para hoy.")
-        
         for g in games_today:
             with st.container():
                 st.markdown(f"""
@@ -352,22 +353,13 @@ if opcion == "🏠 Inicio":
                     <a href='https://www.rotowire.com/basketball/nba-lineups.php' target='_blank' class='injuries-link'>🏥 Ver Bajas / Lineups</a>
                 </div>
                 """, unsafe_allow_html=True)
-                
-                # BOTÓN DE REDIRECCIÓN
-                st.button(
-                    f"🔍 ANALIZAR {g['v_abv']} vs {g['h_abv']}", 
-                    key=f"btn_hoy_{g['game_id']}",
-                    on_click=ir_a_analisis,
-                    args=(g['h_abv'], g['v_abv'])
-                )
+                st.button(f"🔍 ANALIZAR {g['v_abv']} vs {g['h_abv']}", key=f"btn_hoy_{g['game_id']}", on_click=ir_a_analisis, args=(g['h_abv'], g['v_abv']))
 
-    # COLUMNA MAÑANA
     with c2:
         st.markdown("<h3 style='color:#2196f3; text-align: center;'>JORNADA DE MAÑANA</h3>", unsafe_allow_html=True)
         games_tmrw = agenda.get("MAÑANA", [])
         if not games_tmrw:
             st.caption("No se encontraron partidos para mañana.")
-
         for g in games_tmrw:
             with st.container():
                 st.markdown(f"""
@@ -380,14 +372,7 @@ if opcion == "🏠 Inicio":
                     <a href='https://www.rotowire.com/basketball/nba-lineups.php' target='_blank' class='injuries-link'>🏥 Ver Bajas / Lineups</a>
                 </div>
                 """, unsafe_allow_html=True)
-                
-                # BOTÓN DE REDIRECCIÓN
-                st.button(
-                    f"🔍 ANALIZAR {g['v_abv']} vs {g['h_abv']}", 
-                    key=f"btn_tmrw_{g['game_id']}",
-                    on_click=ir_a_analisis,
-                    args=(g['h_abv'], g['v_abv'])
-                )
+                st.button(f"🔍 ANALIZAR {g['v_abv']} vs {g['h_abv']}", key=f"btn_tmrw_{g['game_id']}", on_click=ir_a_analisis, args=(g['h_abv'], g['v_abv']))
 
     st.markdown("<div class='credits'>Creado por ad.ri.</div>", unsafe_allow_html=True)
 
@@ -470,7 +455,6 @@ elif opcion == "⚔️ Analizar Partido":
         col1, col2 = st.columns(2)
         equipos = sorted(df['team_abbreviation'].unique())
         
-        # LÓGICA DE PRE-SELECCIÓN
         idx_t1 = equipos.index(st.session_state.selected_home) if st.session_state.selected_home in equipos else None
         idx_t2 = equipos.index(st.session_state.selected_visitor) if st.session_state.selected_visitor in equipos else None
         
@@ -478,7 +462,6 @@ elif opcion == "⚔️ Analizar Partido":
         t2 = col2.selectbox("Equipo Visitante", equipos, index=idx_t2)
         
         if t1 and t2:
-            # --- NUEVA FUNCIÓN: PRÓXIMO PARTIDO ---
             with st.spinner("Buscando próximo enfrentamiento..."):
                 next_game = get_next_matchup_info(t1, t2)
             
@@ -515,7 +498,7 @@ elif opcion == "⚔️ Analizar Partido":
             if 'game_id' not in df.columns: st.warning("⚠️ Faltan enlaces. Actualiza datos.")
             mostrar_tabla_bonita(df_games, None)
 
-            # Estadísticas Equipo (MODIFICADO: Separar resultados)
+            # --- ESTADÍSTICAS DE EQUIPO (MEJORADO) ---
             team_totals = history.groupby(['game_date', 'team_abbreviation'])[['pts', 'reb', 'ast']].sum().reset_index()
             team_avgs = team_totals.groupby('team_abbreviation')[['pts', 'reb', 'ast']].mean().reset_index()
             team_avgs = team_avgs[team_avgs['team_abbreviation'].isin([t1, t2])]
@@ -524,16 +507,69 @@ elif opcion == "⚔️ Analizar Partido":
                 st.write("---")
                 st.subheader("📊 Estadísticas de Equipo (H2H)")
                 
+                # Tabla 1: Medias
                 st.caption("Promedios de los últimos enfrentamientos:")
                 v_avgs = team_avgs.copy()
                 v_avgs.columns = ['EQUIPO', 'PTS', 'REB', 'AST']
                 mostrar_tabla_bonita(v_avgs, 'PTS')
                 
-                st.caption("Desglose de puntos por partido:")
-                v_totals = team_totals[team_totals['team_abbreviation'].isin([t1, t2])].sort_values(['game_date', 'team_abbreviation'], ascending=False).copy()
-                v_totals['game_date'] = v_totals['game_date'].dt.strftime('%d/%m/%Y')
-                v_totals.columns = ['FECHA', 'EQUIPO', 'PTS', 'REB', 'AST']
-                mostrar_tabla_bonita(v_totals, None)
+                # Tabla 2: Desglose comparativo por partido (Wide Format)
+                st.caption("📝 Desglose de puntos por partido (Comparativa):")
+                
+                # Filtrar solo los totales de los equipos seleccionados
+                filtered_totals = team_totals[team_totals['team_abbreviation'].isin([t1, t2])].copy()
+                
+                # Pivotar para tener una fila por partido
+                # Necesitamos agrupar por fecha y sacar stats de cada equipo
+                game_stats = []
+                unique_game_dates = filtered_totals['game_date'].unique()
+                
+                for d in sorted(unique_game_dates, reverse=True):
+                    day_data = filtered_totals[filtered_totals['game_date'] == d]
+                    # Solo procesar si tenemos datos de ambos equipos (o al menos uno para no romper)
+                    if not day_data.empty:
+                        row = {'FECHA': pd.to_datetime(d).strftime('%d/%m/%Y')}
+                        
+                        # Datos equipo 1
+                        t1_data = day_data[day_data['team_abbreviation'] == t1]
+                        if not t1_data.empty:
+                            row[f'EQUIPO 1 ({t1})'] = t1
+                            row[f'{t1} PTS'] = t1_data['pts'].values[0]
+                            row[f'{t1} REB'] = t1_data['reb'].values[0]
+                            row[f'{t1} AST'] = t1_data['ast'].values[0]
+                        else:
+                            row[f'EQUIPO 1 ({t1})'] = '-'
+                            row[f'{t1} PTS'] = 0
+                            row[f'{t1} REB'] = 0
+                            row[f'{t1} AST'] = 0
+
+                        # Datos equipo 2
+                        t2_data = day_data[day_data['team_abbreviation'] == t2]
+                        if not t2_data.empty:
+                            row[f'EQUIPO 2 ({t2})'] = t2
+                            row[f'{t2} PTS'] = t2_data['pts'].values[0]
+                            row[f'{t2} REB'] = t2_data['reb'].values[0]
+                            row[f'{t2} AST'] = t2_data['ast'].values[0]
+                        else:
+                            row[f'EQUIPO 2 ({t2})'] = '-'
+                            row[f'{t2} PTS'] = 0
+                            row[f'{t2} REB'] = 0
+                            row[f'{t2} AST'] = 0
+                            
+                        game_stats.append(row)
+                
+                if game_stats:
+                    df_comparative = pd.DataFrame(game_stats)
+                    # Reordenar columnas para que quede bonito
+                    cols_order = ['FECHA', f'{t1} PTS', f'{t1} REB', f'{t1} AST', f'{t2} PTS', f'{t2} REB', f'{t2} AST']
+                    # Asegurar que existen las columnas antes de seleccionar
+                    final_cols = [c for c in cols_order if c in df_comparative.columns]
+                    df_final_comp = df_comparative[final_cols]
+                    
+                    # Añadir cabeceras visuales para separar equipos
+                    # Streamlit no permite easily headers multinivel en HTML simple, así que usamos nombres claros
+                    mostrar_tabla_bonita(df_final_comp, None)
+
             
             recent_players = history[history['game_date'].isin(last_dates)].sort_values('game_date', ascending=False)
             
