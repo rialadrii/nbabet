@@ -41,6 +41,17 @@ h1, h2, h3, h4, p, span, label, div.stMarkdown {
     width: 100% !important;
 }
 
+/* --- OCULTAR ANCHOR LINKS (ICONOS CADENA) --- */
+/* Esto elimina el icono de enlace al pasar el ratón por los títulos */
+[data-testid="stHeaderAction"] {
+    display: none !important;
+}
+/* Refuerzo para ocultar enlaces dentro de headers */
+h1 > a, h2 > a, h3 > a, h4 > a, h5 > a, h6 > a {
+    display: none !important;
+    pointer-events: none; 
+}
+
 /* --- FIX TABLAS INTERACTIVAS --- */
 [data-testid="stDataFrame"] {
     width: 100% !important;
