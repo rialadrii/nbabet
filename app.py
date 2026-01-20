@@ -406,11 +406,13 @@ if st.session_state.page == "🏠 Inicio":
     agenda = obtener_partidos()
     c1, c2 = st.columns(2)
     
+    # --- VERSIÓN CORREGIDA DE RENDER_BLOCK ---
     def render_block(col, title, games, color):
         with col:
             st.markdown(f"<h3 style='color:{color}; text-align: center;'>{title}</h3>", unsafe_allow_html=True)
             if not games: st.caption("No hay partidos.")
-            for g in games:
+            # Usamos enumerate para generar un ID único para cada botón
+            for i, g in enumerate(games):
                 st.markdown(f"""
                 <div class='game-card'>
                     <div class='game-matchup'>
@@ -420,9 +422,13 @@ if st.session_state.page == "🏠 Inicio":
                     <div class='game-time'>{g['time']}</div>
                 </div>
                 """, unsafe_allow_html=True)
-                if st.button(f"🔍 ANALIZAR {g['v_abv']} vs {g['h_abv']}", key=f"btn_{g['game_id']}"):
+                
+                # --- AQUÍ ESTÁ EL ARREGLO: 'key' única ---
+                unique_key = f"btn_{title}_{g['game_id']}_{i}"
+                if st.button(f"🔍 ANALIZAR {g['v_abv']} vs {g['h_abv']}", key=unique_key):
                     navegar_a_partido(g['h_abv'], g['v_abv'])
                     st.rerun()
+                
                 st.write("")
 
     render_block(c1, "HOY", agenda.get("HOY", []), "#4caf50")
