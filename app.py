@@ -18,14 +18,6 @@ st.set_page_config(
     layout="wide"
 )
 
-Ese problema visual (texto vertical "V e r l i s t a...") ocurre porque el CSS que definimos anteriormente tenía una regla demasiado agresiva (display: flex con align-items: center en el contenedor principal). Esto hace que los elementos de Streamlit que no tienen un ancho fijo (como los checkboxes) se "aplasten" hasta tener un ancho de 0 píxeles, forzando al texto a romperse letra por letra.
-
-Para arreglarlo, debemos corregir la sección de CSS (2. CSS DEFINITIVO).
-
-Sustituye toda la sección 2. CSS DEFINITIVO en tu código por esta versión corregida que elimina el flex conflictivo y arregla las etiquetas:
-
-Python
-
 # ==========================================
 # 2. CSS DEFINITIVO (CORREGIDO)
 # ==========================================
@@ -948,4 +940,5 @@ elif st.session_state.page == "⚔️ Analizar Partido":
                 st.markdown(render_ticket("PTS", risky_legs_pts, "🏀", "#ff5252", "parlay-box"), unsafe_allow_html=True)
                 if risky_legs_reb: st.markdown(render_ticket("REB", risky_legs_reb, "🖐", "#ff5252", "parlay-box"), unsafe_allow_html=True)
                 if risky_legs_ast: st.markdown(render_ticket("AST", risky_legs_ast, "🎁", "#ff5252", "parlay-box"), unsafe_allow_html=True)
+
 
