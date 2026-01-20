@@ -18,8 +18,16 @@ st.set_page_config(
     layout="wide"
 )
 
+Ese problema visual (texto vertical "V e r l i s t a...") ocurre porque el CSS que definimos anteriormente tenía una regla demasiado agresiva (display: flex con align-items: center en el contenedor principal). Esto hace que los elementos de Streamlit que no tienen un ancho fijo (como los checkboxes) se "aplasten" hasta tener un ancho de 0 píxeles, forzando al texto a romperse letra por letra.
+
+Para arreglarlo, debemos corregir la sección de CSS (2. CSS DEFINITIVO).
+
+Sustituye toda la sección 2. CSS DEFINITIVO en tu código por esta versión corregida que elimina el flex conflictivo y arregla las etiquetas:
+
+Python
+
 # ==========================================
-# 2. CSS DEFINITIVO
+# 2. CSS DEFINITIVO (CORREGIDO)
 # ==========================================
 st.markdown("""
 <style>
@@ -31,15 +39,18 @@ st.markdown("""
     padding-left: 0.5rem !important;
     padding-right: 0.5rem !important;
     margin: 0 auto !important;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
+    /* ELIMINADO: display: flex; -> Esto causaba que el checkbox se aplastara */
 }
 
-/* Forzar alineación de textos */
-h1, h2, h3, h4, p, span, label, div.stMarkdown {
+/* Forzar alineación de textos SOLO en elementos de bloque seguros */
+h1, h2, h3, h4, p {
     text-align: center !important;
     width: 100% !important;
+}
+
+/* Evitar que labels y spans (partes internas de widgets) se rompan */
+label, span {
+    text-align: inherit;
 }
 
 /* --- OCULTAR ANCHOR LINKS --- */
@@ -80,8 +91,16 @@ div.stButton > button:hover { border-color: #ffbd45; color: #ffbd45; }
 .odds-info { background-color: #263238; border: 1px solid #37474f; border-radius: 5px; padding: 10px; margin-bottom: 15px; text-align: center; color: #eceff1; }
 .odds-timestamp { color: #ffbd45; font-weight: bold; font-size: 18px; }
 
+/* Ocultar toolbar y footer */
 [data-testid="stElementToolbar"] { display: none !important; }
 footer { display: none !important; }
+
+/* Arreglo específico para que el Checkbox se vea bien */
+[data-testid="stCheckbox"] {
+    display: flex;
+    justify-content: center; /* Centrar el checkbox si se desea */
+    width: 100%;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -929,3 +948,4 @@ elif st.session_state.page == "⚔️ Analizar Partido":
                 st.markdown(render_ticket("PTS", risky_legs_pts, "🏀", "#ff5252", "parlay-box"), unsafe_allow_html=True)
                 if risky_legs_reb: st.markdown(render_ticket("REB", risky_legs_reb, "🖐", "#ff5252", "parlay-box"), unsafe_allow_html=True)
                 if risky_legs_ast: st.markdown(render_ticket("AST", risky_legs_ast, "🎁", "#ff5252", "parlay-box"), unsafe_allow_html=True)
+
