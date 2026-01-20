@@ -239,7 +239,10 @@ def obtener_partidos():
     agenda = {}
     for i, fecha in enumerate(fechas):
         fecha_str = fecha.strftime('%Y-%m-%d')
-        label = "HOY" if i == 0 else "MAÑANA"
+        
+        # --- CAMBIO: Usamos la fecha (ej: 21/01) como etiqueta ---
+        label = fecha.strftime("%d/%m")
+        
         agenda[label] = []
         try:
             board = scoreboardv2.ScoreboardV2(game_date=fecha_str)
@@ -256,7 +259,6 @@ def obtener_partidos():
                     })
         except: pass
     return agenda
-
 # ==========================================
 # 5. FUNCIONES UI (RENDERIZADO)
 # ==========================================
@@ -413,9 +415,46 @@ if not df.empty:
     latest_teams_map = dict(zip(latest_entries['player_name'], latest_entries['team_abbreviation']))
 
 # --- PÁGINA INICIO ---
+# --- PÁGINA INICIO ---
 if st.session_state.page == "🏠 Inicio":
     agenda = obtener_partidos()
+    
+    # --- CAMBIO: Calculamos las fechas para los títulos ---
+    hoy_date = get_basketball_date()
+    manana_date = hoy_date + timedelta(days=1)
+    
+    titulo_hoy = hoy_date.strftime("%d/%m")      # Ej: 21/01
+    titulo_manana = manana_date.strftime("%d/%m") # Ej: 22/01
+    
     c1, c2 = st.columns(2)
+    
+    def render_block(col, title, games, color):
+        with col:
+            st.markdown(f"<h3 style='color:{color}; text-align: center;'>{title}</h3>", unsafe_allow_html=True)
+            if not games: st.caption("No hay partidos.")
+            for i, g in enumerate(games):
+                st.markdown(f"""
+                <div class='game-card'>
+                    <div class='game-matchup'>
+                        <img src='{g['v_logo']}' class='team-logo'> <span class='vs-text'>@</span> <img src='{g['h_logo']}' class='team-logo'>
+                    </div>
+                    <div style='color:white; font-weight:bold;'>{g['v_abv']} vs {g['h_abv']}</div>
+                    <div class='game-time'>{g['time']}</div>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                unique_key = f"btn_{title}_{g['game_id']}_{i}"
+                if st.button(f"🔍 ANALIZAR {g['v_abv']} vs {g['h_abv']}", key=unique_key):
+                    navegar_a_partido(g['h_abv'], g['v_abv'])
+                    st.rerun()
+                
+                st.write("")
+
+    # Pasamos las fechas como título y como clave para buscar en la agenda
+    render_block(c1, titulo_hoy, agenda.get(titulo_hoy, []), "#4caf50")
+    render_block(c2, titulo_manana, agenda.get(titulo_manana, []), "#2196f3")
+    
+    st.markdown("<div class='credits'>Creado por ad.ri.</div>", unsafe_allow_html=True)
     
     # --- VERSIÓN CORREGIDA DE RENDER_BLOCK ---
     def render_block(col, title, games, color):
@@ -940,5 +979,6 @@ elif st.session_state.page == "⚔️ Analizar Partido":
                 st.markdown(render_ticket("PTS", risky_legs_pts, "🏀", "#ff5252", "parlay-box"), unsafe_allow_html=True)
                 if risky_legs_reb: st.markdown(render_ticket("REB", risky_legs_reb, "🖐", "#ff5252", "parlay-box"), unsafe_allow_html=True)
                 if risky_legs_ast: st.markdown(render_ticket("AST", risky_legs_ast, "🎁", "#ff5252", "parlay-box"), unsafe_allow_html=True)
+
 
 
