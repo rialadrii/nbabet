@@ -5,3 +5,7 @@ matplotlib
 jinja2
 openpyxl
 lxml
+plotly
+requests
+beautifulsoup4
+backoff
