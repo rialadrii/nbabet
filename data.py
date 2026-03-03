@@ -195,61 +195,57 @@ def obtener_partidos():
     agenda_ordenada = {k: agenda[k] for k in keys_ordenadas}
     return agenda_ordenada
 
-@st.cache_data(ttl=3600)
+@st.cache_data(ttl=21600)  # 6 horas de caché
 def get_injuries():
     """
-    Obtiene lista de lesiones desde ESPN con un formato más robusto.
+    Scrapea lesiones desde ESPN y las procesa correctamente.
     """
     url = "https://www.espn.com/nba/injuries"
     headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
     }
     
     try:
-        response = requests.get(url, headers=headers, timeout=15)
-        response.raise_for_status()
-        
+        response = requests.get(url, headers=headers, timeout=10)
         soup = BeautifulSoup(response.text, 'html.parser')
+        
         injuries = []
+        
+        # Mapeo de nombres completos de equipos a abreviaturas
+        team_map = {
+            'Atlanta Hawks': 'ATL', 'Boston Celtics': 'BOS', 'Brooklyn Nets': 'BKN',
+            'Charlotte Hornets': 'CHA', 'Chicago Bulls': 'CHI', 'Cleveland Cavaliers': 'CLE',
+            'Dallas Mavericks': 'DAL', 'Denver Nuggets': 'DEN', 'Detroit Pistons': 'DET',
+            'Golden State Warriors': 'GSW', 'Houston Rockets': 'HOU', 'Indiana Pacers': 'IND',
+            'LA Clippers': 'LAC', 'Los Angeles Lakers': 'LAL', 'Memphis Grizzlies': 'MEM',
+            'Miami Heat': 'MIA', 'Milwaukee Bucks': 'MIL', 'Minnesota Timberwolves': 'MIN',
+            'New Orleans Pelicans': 'NOP', 'New York Knicks': 'NYK', 'Oklahoma City Thunder': 'OKC',
+            'Orlando Magic': 'ORL', 'Philadelphia 76ers': 'PHI', 'Phoenix Suns': 'PHX',
+            'Portland Trail Blazers': 'POR', 'Sacramento Kings': 'SAC', 'San Antonio Spurs': 'SAS',
+            'Toronto Raptors': 'TOR', 'Utah Jazz': 'UTA', 'Washington Wizards': 'WAS'
+        }
         
         # Buscar todas las tablas de lesiones
         tables = soup.find_all('table', class_='Table')
         
-        if not tables:
-            # Intentar con otro selector
-            tables = soup.find_all('table', {'class': 'injuries'})
-        
         for table in tables:
-            # Intentar obtener el equipo de la cabecera
-            team_header = table.find_previous('h2') or table.find_previous('h3')
-            team_name = team_header.text.strip() if team_header else "Unknown"
+            # Buscar el título del equipo (h2 antes de la tabla)
+            team_header = table.find_previous('h2')
+            if not team_header:
+                continue
+                
+            team_full = team_header.text.strip()
+            team_abbr = team_map.get(team_full, team_full[:3].upper())
             
-            # Acortar nombre del equipo
-            team_abbr = team_name
-            team_map = {
-                'Atlanta': 'ATL', 'Boston': 'BOS', 'Brooklyn': 'BKN', 'Charlotte': 'CHA',
-                'Chicago': 'CHI', 'Cleveland': 'CLE', 'Dallas': 'DAL', 'Denver': 'DEN',
-                'Detroit': 'DET', 'Golden State': 'GSW', 'Houston': 'HOU', 'Indiana': 'IND',
-                'LA Clippers': 'LAC', 'Los Angeles Lakers': 'LAL', 'Memphis': 'MEM',
-                'Miami': 'MIA', 'Milwaukee': 'MIL', 'Minnesota': 'MIN', 'New Orleans': 'NOP',
-                'New York': 'NYK', 'Oklahoma City': 'OKC', 'Orlando': 'ORL', 'Philadelphia': 'PHI',
-                'Phoenix': 'PHX', 'Portland': 'POR', 'Sacramento': 'SAC', 'San Antonio': 'SAS',
-                'Toronto': 'TOR', 'Utah': 'UTA', 'Washington': 'WAS'
-            }
-            
-            for key, abbr in team_map.items():
-                if key in team_name:
-                    team_abbr = abbr
-                    break
-            
+            # Procesar filas de la tabla
             rows = table.find_all('tr')[1:]  # Saltar cabecera
             
             for row in rows:
                 cols = row.find_all('td')
                 if len(cols) >= 3:
                     player = cols[0].text.strip()
-                    status = cols[1].text.strip() if len(cols) > 1 else "Unknown"
-                    date = cols[2].text.strip() if len(cols) > 2 else ""
+                    status = cols[1].text.strip()
+                    date = cols[2].text.strip()
                     
                     injuries.append({
                         'player': player,
@@ -261,12 +257,5 @@ def get_injuries():
         return injuries
         
     except Exception as e:
-        # Si falla el scraping, devolver datos simulados para pruebas
-        # (opcional, puedes quitarlo en producción)
-        mock_injuries = [
-            {'player': 'Luka Doncic', 'team': 'DAL', 'status': 'Out (Calf)', 'date': 'Mar 3'},
-            {'player': 'Kyrie Irving', 'team': 'DAL', 'status': 'Questionable (Shoulder)', 'date': 'Mar 3'},
-            {'player': 'LaMelo Ball', 'team': 'CHA', 'status': 'Out (Ankle)', 'date': 'Mar 3'},
-            {'player': 'Brandon Miller', 'team': 'CHA', 'status': 'Day-To-Day (Wrist)', 'date': 'Mar 3'}
-        ]
-        return mock_injuries
+        st.error(f"Error cargando lesiones: {e}")
+        return []

@@ -84,47 +84,6 @@ footer { display: none !important; }
     justify-content: center; 
     width: 100%;
 }
-
-/* Estilos para lesiones */
-.injury-card {
-    background-color: #2d2d2d;
-    padding: 10px;
-    margin: 8px 0;
-    border-radius: 6px;
-    border-left: 4px solid #ff5252;
-    transition: transform 0.2s;
-}
-
-.injury-card:hover {
-    transform: translateX(5px);
-    background-color: #353535;
-}
-
-.injury-player {
-    font-weight: bold;
-    color: white;
-    font-size: 1.1em;
-}
-
-.injury-status {
-    color: #ffbd45;
-    font-size: 0.9em;
-}
-
-.injury-date {
-    color: #888;
-    font-size: 0.8em;
-    margin-left: 10px;
-}
-
-.team-injury-header {
-    color: #ffbd45;
-    font-family: 'Teko', sans-serif;
-    font-size: 24px;
-    margin-bottom: 15px;
-    border-bottom: 2px solid #444;
-    padding-bottom: 5px;
-}
 </style>
 """, unsafe_allow_html=True)
 
@@ -301,6 +260,7 @@ elif st.session_state.page == "👤 Jugador":
             st.subheader("📊 Comparativa últimos 10 partidos (barras)")
             player_data_sorted = player_data.sort_values('game_date').tail(10)
             if not player_data_sorted.empty and len(player_data_sorted) > 1:
+                # Preparar datos para gráfico de barras
                 df_chart = player_data_sorted.copy()
                 df_chart['fecha_corta'] = df_chart['game_date'].dt.strftime('%d/%m')
                 
@@ -559,7 +519,7 @@ elif st.session_state.page == "⚔️ Analizar Partido":
             with st.spinner("Cargando..."):
                 next_game = get_next_matchup_info(t1, t2)
             if next_game:
-                link_btn = f"<a href='https://www.nba.com/game/{next_game['game_id']}' target='_blank' class='next-game-btn'>📊 Ver Ficha</a>"
+                link_btn = f"<a href='https://www.nba.com/game/{next_game['game_id']}' target='_blank' class='next-game-btn'>🏥 Ver Ficha</a>"
                 st.markdown(f"""
                 <div class='game-card'>
                     <div style='color:#ffbd45; font-size:18px;'>📅 PRÓXIMO ENFRENTAMIENTO</div>
@@ -570,51 +530,59 @@ elif st.session_state.page == "⚔️ Analizar Partido":
                 </div>
                 """, unsafe_allow_html=True)
 
-            # Obtener historial H2H
+            st.subheader("🏥 Lesiones reportadas")
+
+        # Cargar lesiones
+        with st.spinner("Cargando partes médicos..."):
+            injuries = get_injuries()
+
+        if injuries:
+            inj_t1 = [i for i in injuries if i.get('team') == t1]
+            inj_t2 = [i for i in injuries if i.get('team') == t2]
+            
+            col_i1, col_i2 = st.columns(2)
+            
+            with col_i1:
+                st.markdown(f"### {t1}")
+                if inj_t1:
+                    for i in inj_t1:
+                        # Determinar color según estado
+                        if "Out" in i['status']:
+                            status_display = f"🔴 {i['status']}"
+                        elif "Questionable" in i['status'] or "Doubtful" in i['status']:
+                            status_display = f"🟡 {i['status']}"
+                        elif "Probable" in i['status']:
+                            status_display = f"🟢 {i['status']}"
+                        else:
+                            status_display = i['status']
+                        
+                        st.markdown(f"- **{i['player']}**: {status_display}")
+                else:
+                    st.success("✅ Sin lesionados")
+            
+            with col_i2:
+                st.markdown(f"### {t2}")
+                if inj_t2:
+                    for i in inj_t2:
+                        if "Out" in i['status']:
+                            status_display = f"🔴 {i['status']}"
+                        elif "Questionable" in i['status'] or "Doubtful" in i['status']:
+                            status_display = f"🟡 {i['status']}"
+                        elif "Probable" in i['status']:
+                            status_display = f"🟢 {i['status']}"
+                        else:
+                            status_display = i['status']
+                        
+                        st.markdown(f"- **{i['player']}**: {status_display}")
+                else:
+                    st.success("✅ Sin lesionados")
+        else:
+            st.warning("No se pudieron cargar los partes médicos")
+
             mask = ((df['team_abbreviation'] == t1) & (df['matchup'].str.contains(t2))) | \
-                   ((df['team_abbreviation'] == t2) & (df['matchup'].str.contains(t1)))
+            ((df['team_abbreviation'] == t2) & (df['matchup'].str.contains(t1)))
             history = df[mask].sort_values('game_date', ascending=False)
             last_dates = sorted(history['game_date'].unique(), reverse=True)[:5]
-
-            # Mostrar lesiones (CORREGIDO)
-            injuries = get_injuries()
-            if injuries:
-                st.subheader("🏥 LESIONES REPORTADAS")
-                
-                inj_t1 = [i for i in injuries if i.get('team') == t1]
-                inj_t2 = [i for i in injuries if i.get('team') == t2]
-                
-                col_i1, col_i2 = st.columns(2)
-                
-                with col_i1:
-                    st.markdown(f"<h3 class='team-injury-header'>{t1}</h3>", unsafe_allow_html=True)
-                    if inj_t1:
-                        for i in inj_t1:
-                            status_color = "🔴" if "Out" in i['status'] else "🟡" if "Questionable" in i['status'] or "Day-To-Day" in i['status'] else "⚪"
-                            st.markdown(f"""
-                            <div class='injury-card'>
-                                <div class='injury-player'>{i['player']}</div>
-                                <div><span class='injury-status'>{status_color} {i['status']}</span> <span class='injury-date'>{i.get('date', '')}</span></div>
-                            </div>
-                            """, unsafe_allow_html=True)
-                    else:
-                        st.markdown("<div style='color: #4caf50; background-color: #1e3a1e; padding: 10px; border-radius: 5px;'>✅ Sin lesionados reportados</div>", unsafe_allow_html=True)
-                
-                with col_i2:
-                    st.markdown(f"<h3 class='team-injury-header'>{t2}</h3>", unsafe_allow_html=True)
-                    if inj_t2:
-                        for i in inj_t2:
-                            status_color = "🔴" if "Out" in i['status'] else "🟡" if "Questionable" in i['status'] or "Day-To-Day" in i['status'] else "⚪"
-                            st.markdown(f"""
-                            <div class='injury-card'>
-                                <div class='injury-player'>{i['player']}</div>
-                                <div><span class='injury-status'>{status_color} {i['status']}</span> <span class='injury-date'>{i.get('date', '')}</span></div>
-                            </div>
-                            """, unsafe_allow_html=True)
-                    else:
-                        st.markdown("<div style='color: #4caf50; background-color: #1e3a1e; padding: 10px; border-radius: 5px;'>✅ Sin lesionados reportados</div>", unsafe_allow_html=True)
-            else:
-                st.info("No hay información de lesiones disponible en este momento")
 
             st.write("---")
             st.subheader("📅 Historial H2H")
@@ -722,7 +690,7 @@ elif st.session_state.page == "⚔️ Analizar Partido":
             st.subheader("🤝 Top Asistentes 👇")
             render_clickable_player_table(stats.sort_values('ast', ascending=False).head(10), 'AST', full_roster_map, navegar_a_jugador)
 
-            # BAJAS (DNP)
+            # BAJAS (DNP) - CORREGIDO
             st.write("---")
             st.subheader("🏥 Historial de Bajas (Jugadores con >12 min promedio)")
 
@@ -826,7 +794,7 @@ elif st.session_state.page == "⚔️ Analizar Partido":
             else:
                 st.write("Sin impactos.")
 
-            # PARLAY GENERATOR
+            # PARLAY GENERATOR - CORREGIDO
             st.write("---")
             st.subheader("🎲 Generador de Parlays (selecciona piernas)")
 
