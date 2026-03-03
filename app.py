@@ -79,11 +79,7 @@ div.stButton > button:hover { border-color: #ffbd45; color: #ffbd45; }
 [data-testid="stElementToolbar"] { display: none !important; }
 footer { display: none !important; }
 
-[data-testid="stCheckbox"] {
-    display: flex;
-    justify-content: center; 
-    width: 100%;
-}
+/* Eliminado el CSS que rompía los checkboxes */
 </style>
 """, unsafe_allow_html=True)
 
@@ -531,6 +527,7 @@ elif st.session_state.page == "⚔️ Analizar Partido":
                 """, unsafe_allow_html=True)
 
             # LESIONES
+            st.write("---")
             st.subheader("🏥 Lesiones reportadas")
 
             with st.spinner("Cargando partes médicos..."):
@@ -540,16 +537,13 @@ elif st.session_state.page == "⚔️ Analizar Partido":
                 inj_t1 = [i for i in injuries if i.get('team') == t1]
                 inj_t2 = [i for i in injuries if i.get('team') == t2]
                 
-                # Crear columnas
                 col_i1, col_i2 = st.columns(2)
                 
                 with col_i1:
                     st.markdown(f"### {t1}")
                     if inj_t1:
                         for i in inj_t1:
-                            player_name = i['player']
-                            status_info = i['status']
-                            st.markdown(f"- **{player_name}**: {status_info}")
+                            st.markdown(f"- **{i['player']}**: {i['status']}")
                     else:
                         st.info("✅ Sin lesionados")
                 
@@ -557,15 +551,13 @@ elif st.session_state.page == "⚔️ Analizar Partido":
                     st.markdown(f"### {t2}")
                     if inj_t2:
                         for i in inj_t2:
-                            player_name = i['player']
-                            status_info = i['status']
-                            st.markdown(f"- **{player_name}**: {status_info}")
+                            st.markdown(f"- **{i['player']}**: {i['status']}")
                     else:
                         st.info("✅ Sin lesionados")
             else:
                 st.error("❌ No se pudo conectar con la fuente de lesiones")
 
-            # --- CORRECCIÓN DE INDENTACIÓN AQUÍ ---
+            # HISTORIAL H2H
             mask = ((df['team_abbreviation'] == t1) & (df['matchup'].str.contains(t2))) | \
             ((df['team_abbreviation'] == t2) & (df['matchup'].str.contains(t1)))
             
@@ -831,23 +823,27 @@ elif st.session_state.page == "⚔️ Analizar Partido":
             risky_legs_reb.sort(key=lambda x: x['avg'], reverse=True)
             risky_legs_ast.sort(key=lambda x: x['avg'], reverse=True)
 
-            def render_parlay_column(title, legs, color, icon, col):
+            def render_parlay_list(title, legs_list, col, col_prefix):
                 with col:
                     st.markdown(f"### {title}")
-                    if not legs:
+                    if not legs_list:
                         st.caption("Sin opciones")
                         return
                     
-                    for leg in legs[:5]:
+                    for i, leg in enumerate(legs_list):
+                        icon = "🏀" if leg['type'] == "PTS" else ("🖐" if leg['type'] == "REB" else "🎁")
+                        # Mantenemos el leg_id original para comprobar si está seleccionado en la sesión
                         leg_id = f"{leg['player']}_{leg['type']}_{leg['val']}"
+                        
                         is_selected = leg_id in [f"{l['player']}_{l['type']}_{l['val']}" for l in st.session_state.selected_parlay_legs]
                         
-                        col1, col2 = st.columns([3, 1])
-                        with col1:
+                        c1, c2 = st.columns([3, 1])
+                        with c1:
                             st.markdown(f"{icon} **{leg['player']}**")
                             st.caption(f"Línea: +{leg['val']} | Prom: {leg['avg']:.1f}")
-                        with col2:
-                            if st.checkbox("", value=is_selected, key=f"chk_{leg_id}"):
+                        with c2:
+                            # Añadimos col_prefix al key de Streamlit para que sea 100% único
+                            if st.checkbox("", value=is_selected, key=f"chk_{col_prefix}_{leg_id}_{i}"):
                                 if leg_id not in [f"{l['player']}_{l['type']}_{l['val']}" for l in st.session_state.selected_parlay_legs]:
                                     st.session_state.selected_parlay_legs.append(leg)
                             else:
@@ -856,13 +852,13 @@ elif st.session_state.page == "⚔️ Analizar Partido":
                         st.divider()
 
             col_safe, col_risky = st.columns(2)
-            render_parlay_column("🛡️ CONSERVADOR (Piso)", safe_legs_pts, "#4caf50", "🏀", col_safe)
-            render_parlay_column("🛡️ CONSERVADOR (Piso)", safe_legs_reb, "#4caf50", "🖐", col_safe)
-            render_parlay_column("🛡️ CONSERVADOR (Piso)", safe_legs_ast, "#4caf50", "🎁", col_safe)
+            
+            # Unimos las listas tomando las 3 mejores opciones de cada estadística
+            safe_combined = safe_legs_pts[:3] + safe_legs_reb[:3] + safe_legs_ast[:3]
+            risky_combined = risky_legs_pts[:3] + risky_legs_reb[:3] + risky_legs_ast[:3]
 
-            render_parlay_column("🚀 ARRIESGADO (Media)", risky_legs_pts, "#ff5252", "🏀", col_risky)
-            render_parlay_column("🚀 ARRIESGADO (Media)", risky_legs_reb, "#ff5252", "🖐", col_risky)
-            render_parlay_column("🚀 ARRIESGADO (Media)", risky_legs_ast, "#ff5252", "🎁", col_risky)
+            render_parlay_list("🛡️ CONSERVADOR (Piso)", safe_combined, col_safe, "safe")
+            render_parlay_list("🚀 ARRIESGADO (Media)", risky_combined, col_risky, "risky")
 
             if st.session_state.selected_parlay_legs:
                 st.write("---")
@@ -871,7 +867,7 @@ elif st.session_state.page == "⚔️ Analizar Partido":
                 total_odds = 1.0
                 for i, leg in enumerate(st.session_state.selected_parlay_legs):
                     st.markdown(f"{i+1}. {leg['player']} - **+{leg['val']} {leg['type']}** (Prom: {leg['avg']:.1f})")
-                    odds = st.number_input(f"Cuota para {leg['player']}", min_value=1.01, max_value=10.0, value=1.8, key=f"odds_{i}")
+                    odds = st.number_input(f"Cuota para {leg['player']}", min_value=1.01, max_value=10.0, value=1.8, key=f"odds_input_{i}")
                     total_odds *= odds
                 
                 st.success(f"**Cuota total combinada: {total_odds:.2f}**")
