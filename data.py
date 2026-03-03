@@ -242,13 +242,16 @@ def get_injuries():
             for row in rows:
                 cols = row.find_all('td')
                 if len(cols) >= 4:
-                    player = cols[0].text.strip()
+                    # FIX: Extraer solo el nombre limpio del enlace
+                    enlace_nombre = cols[0].find('a')
+                    if enlace_nombre:
+                        player = enlace_nombre.text.strip()
+                    else:
+                        player = cols[0].text.strip() # Backup por si no hay enlace
+                    
                     position = cols[1].text.strip()
                     status = cols[2].text.strip()
                     date = cols[3].text.strip()
-                    
-                    # Limpiar datos
-                    player = player.split('\n')[0].strip()
                     
                     injuries.append({
                         'player': player,
