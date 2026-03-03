@@ -530,9 +530,9 @@ elif st.session_state.page == "⚔️ Analizar Partido":
                 </div>
                 """, unsafe_allow_html=True)
 
-            st.subheader("🏥 Lesiones reportadas")
+        # LESIONES - NUEVO CÓDIGO QUE FUNCIONA CON CBSSPORTS
+        st.subheader("🏥 Lesiones reportadas")
 
-        # Cargar lesiones
         with st.spinner("Cargando partes médicos..."):
             injuries = get_injuries()
 
@@ -558,7 +558,7 @@ elif st.session_state.page == "⚔️ Analizar Partido":
                         
                         st.markdown(f"- **{i['player']}**: {status_display}")
                 else:
-                    st.success("✅ Sin lesionados")
+                    st.info("✅ Sin lesionados")
             
             with col_i2:
                 st.markdown(f"### {t2}")
@@ -575,9 +575,9 @@ elif st.session_state.page == "⚔️ Analizar Partido":
                         
                         st.markdown(f"- **{i['player']}**: {status_display}")
                 else:
-                    st.success("✅ Sin lesionados")
+                    st.info("✅ Sin lesionados")
         else:
-            st.warning("No se pudieron cargar los partes médicos")
+            st.error("❌ No se pudo conectar con la fuente de lesiones")
 
             mask = ((df['team_abbreviation'] == t1) & (df['matchup'].str.contains(t2))) | \
             ((df['team_abbreviation'] == t2) & (df['matchup'].str.contains(t1)))
