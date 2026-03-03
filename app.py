@@ -530,45 +530,45 @@ elif st.session_state.page == "⚔️ Analizar Partido":
                 </div>
                 """, unsafe_allow_html=True)
 
-        # LESIONES - VERSIÓN CORREGIDA
-        st.subheader("🏥 Lesiones reportadas")
+            # LESIONES
+            st.subheader("🏥 Lesiones reportadas")
 
-        with st.spinner("Cargando partes médicos..."):
-            injuries = get_injuries()
+            with st.spinner("Cargando partes médicos..."):
+                injuries = get_injuries()
 
-        if injuries:
-            inj_t1 = [i for i in injuries if i.get('team') == t1]
-            inj_t2 = [i for i in injuries if i.get('team') == t2]
-            
-            # Crear columnas
-            col_i1, col_i2 = st.columns(2)
-            
-            with col_i1:
-                st.markdown(f"### {t1}")
-                if inj_t1:
-                    for i in inj_t1:
-                        # Formato más simple sin HTML complejo
-                        player_name = i['player']
-                        status_info = i['status']
-                        st.markdown(f"- **{player_name}**: {status_info}")
-                else:
-                    st.info("✅ Sin lesionados")
-            
-            with col_i2:
-                st.markdown(f"### {t2}")
-                if inj_t2:
-                    for i in inj_t2:
-                        player_name = i['player']
-                        status_info = i['status']
-                        st.markdown(f"- **{player_name}**: {status_info}")
-                else:
-                    st.info("✅ Sin lesionados")
-        else:
-            st.error("❌ No se pudo conectar con la fuente de lesiones")
+            if injuries:
+                inj_t1 = [i for i in injuries if i.get('team') == t1]
+                inj_t2 = [i for i in injuries if i.get('team') == t2]
+                
+                # Crear columnas
+                col_i1, col_i2 = st.columns(2)
+                
+                with col_i1:
+                    st.markdown(f"### {t1}")
+                    if inj_t1:
+                        for i in inj_t1:
+                            player_name = i['player']
+                            status_info = i['status']
+                            st.markdown(f"- **{player_name}**: {status_info}")
+                    else:
+                        st.info("✅ Sin lesionados")
+                
+                with col_i2:
+                    st.markdown(f"### {t2}")
+                    if inj_t2:
+                        for i in inj_t2:
+                            player_name = i['player']
+                            status_info = i['status']
+                            st.markdown(f"- **{player_name}**: {status_info}")
+                    else:
+                        st.info("✅ Sin lesionados")
+            else:
+                st.error("❌ No se pudo conectar con la fuente de lesiones")
 
+            # --- CORRECCIÓN DE INDENTACIÓN AQUÍ ---
             mask = ((df['team_abbreviation'] == t1) & (df['matchup'].str.contains(t2))) | \
             ((df['team_abbreviation'] == t2) & (df['matchup'].str.contains(t1)))
-        
+            
             history = df[mask].sort_values('game_date', ascending=False)
             last_dates = sorted(history['game_date'].unique(), reverse=True)[:5]
 
@@ -678,7 +678,7 @@ elif st.session_state.page == "⚔️ Analizar Partido":
             st.subheader("🤝 Top Asistentes 👇")
             render_clickable_player_table(stats.sort_values('ast', ascending=False).head(10), 'AST', full_roster_map, navegar_a_jugador)
 
-            # BAJAS (DNP) - CORREGIDO
+            # BAJAS (DNP)
             st.write("---")
             st.subheader("🏥 Historial de Bajas (Jugadores con >12 min promedio)")
 
@@ -782,7 +782,7 @@ elif st.session_state.page == "⚔️ Analizar Partido":
             else:
                 st.write("Sin impactos.")
 
-            # PARLAY GENERATOR - CORREGIDO
+            # PARLAY GENERATOR
             st.write("---")
             st.subheader("🎲 Generador de Parlays (selecciona piernas)")
 
