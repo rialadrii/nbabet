@@ -530,7 +530,7 @@ elif st.session_state.page == "⚔️ Analizar Partido":
                 </div>
                 """, unsafe_allow_html=True)
 
-        # LESIONES - NUEVO CÓDIGO QUE FUNCIONA CON CBSSPORTS
+        # LESIONES - VERSIÓN CORREGIDA
         st.subheader("🏥 Lesiones reportadas")
 
         with st.spinner("Cargando partes médicos..."):
@@ -540,23 +540,17 @@ elif st.session_state.page == "⚔️ Analizar Partido":
             inj_t1 = [i for i in injuries if i.get('team') == t1]
             inj_t2 = [i for i in injuries if i.get('team') == t2]
             
+            # Crear columnas
             col_i1, col_i2 = st.columns(2)
             
             with col_i1:
                 st.markdown(f"### {t1}")
                 if inj_t1:
                     for i in inj_t1:
-                        # Determinar color según estado
-                        if "Out" in i['status']:
-                            status_display = f"🔴 {i['status']}"
-                        elif "Questionable" in i['status'] or "Doubtful" in i['status']:
-                            status_display = f"🟡 {i['status']}"
-                        elif "Probable" in i['status']:
-                            status_display = f"🟢 {i['status']}"
-                        else:
-                            status_display = i['status']
-                        
-                        st.markdown(f"- **{i['player']}**: {status_display}")
+                        # Formato más simple sin HTML complejo
+                        player_name = i['player']
+                        status_info = i['status']
+                        st.markdown(f"- **{player_name}**: {status_info}")
                 else:
                     st.info("✅ Sin lesionados")
             
@@ -564,16 +558,9 @@ elif st.session_state.page == "⚔️ Analizar Partido":
                 st.markdown(f"### {t2}")
                 if inj_t2:
                     for i in inj_t2:
-                        if "Out" in i['status']:
-                            status_display = f"🔴 {i['status']}"
-                        elif "Questionable" in i['status'] or "Doubtful" in i['status']:
-                            status_display = f"🟡 {i['status']}"
-                        elif "Probable" in i['status']:
-                            status_display = f"🟢 {i['status']}"
-                        else:
-                            status_display = i['status']
-                        
-                        st.markdown(f"- **{i['player']}**: {status_display}")
+                        player_name = i['player']
+                        status_info = i['status']
+                        st.markdown(f"- **{player_name}**: {status_info}")
                 else:
                     st.info("✅ Sin lesionados")
         else:

@@ -198,11 +198,11 @@ def obtener_partidos():
 @st.cache_data(ttl=21600)
 def get_injuries():
     """
-    Scrapea lesiones desde CBSSports (más confiable que ESPN)
+    Scrapea lesiones desde CBSSports
     """
     url = "https://www.cbssports.com/nba/injuries/"
     headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
     }
     
     try:
@@ -211,126 +211,50 @@ def get_injuries():
         
         injuries = []
         
-        # Mapeo de equipos (CBSSports usa nombres completos)
+        # Mapeo simple de equipos
         team_map = {
-            'Atlanta': 'ATL', 'Boston': 'BOS', 'Brooklyn': 'BKN', 'Charlotte': 'CHA',
-            'Chicago': 'CHI', 'Cleveland': 'CLE', 'Dallas': 'DAL', 'Denver': 'DEN',
-            'Detroit': 'DET', 'Golden State': 'GSW', 'Houston': 'HOU', 'Indiana': 'IND',
-            'LA Clippers': 'LAC', 'LA Lakers': 'LAL', 'Memphis': 'MEM', 'Miami': 'MIA',
-            'Milwaukee': 'MIL', 'Minnesota': 'MIN', 'New Orleans': 'NOP', 'New York': 'NYK',
-            'Oklahoma City': 'OKC', 'Orlando': 'ORL', 'Philadelphia': 'PHI', 'Phoenix': 'PHX',
-            'Portland': 'POR', 'Sacramento': 'SAC', 'San Antonio': 'SAS', 'Toronto': 'TOR',
-            'Utah': 'UTA', 'Washington': 'WAS'
+            'Hawks': 'ATL', 'Celtics': 'BOS', 'Nets': 'BKN', 'Hornets': 'CHA',
+            'Bulls': 'CHI', 'Cavaliers': 'CLE', 'Mavericks': 'DAL', 'Nuggets': 'DEN',
+            'Pistons': 'DET', 'Warriors': 'GSW', 'Rockets': 'HOU', 'Pacers': 'IND',
+            'Clippers': 'LAC', 'Lakers': 'LAL', 'Grizzlies': 'MEM', 'Heat': 'MIA',
+            'Bucks': 'MIL', 'Timberwolves': 'MIN', 'Pelicans': 'NOP', 'Knicks': 'NYK',
+            'Thunder': 'OKC', 'Magic': 'ORL', '76ers': 'PHI', 'Suns': 'PHX',
+            'Blazers': 'POR', 'Kings': 'SAC', 'Spurs': 'SAS', 'Raptors': 'TOR',
+            'Jazz': 'UTA', 'Wizards': 'WAS'
         }
         
-        # CBSSports tiene las tablas con clase 'TableBase-table'
+        # Buscar tablas
         tables = soup.find_all('table', class_='TableBase-table')
         
         for table in tables:
-            # Buscar el nombre del equipo en el encabezado
             team_header = table.find_previous('h4')
-            if not team_header:
-                continue
-                
-            team_text = team_header.text.strip()
-            # Extraer solo el nombre del equipo (ej: "Dallas Mavericks" -> "Dallas")
-            team_city = team_text.split()[0]
-            team_abbr = team_map.get(team_city, team_city[:3].upper())
-            
-            # Procesar filas
-            rows = table.find_all('tr')[1:]  # Saltar cabecera
-            for row in rows:
-                cols = row.find_all('td')
-                if len(cols) >= 4:
-                    player = cols[0].text.strip()
-                    position = cols[1].text.strip()
-                    status = cols[2].text.strip()
-                    date = cols[3].text.strip()
-                    
-                    # Limpiar datos
-                    player = player.split('\n')[0].strip()
-                    
-                    injuries.append({
-                        'player': player,
-                        'team': team_abbr,
-                        'status': f"{status} - {date}",
-                        'date': date,
-                        'position': position
-                    })
-        
-        # Si no encuentra nada con el método anterior, intentar búsqueda más general
-        if not injuries:
-            # Buscar todas las filas que contengan información de jugadores
-            all_rows = soup.find_all('tr')
-            current_team = None
-            
-            for row in all_rows:
-                # Intentar identificar encabezados de equipo
-                team_header = row.find('h4')
-                if team_header:
-                    team_text = team_header.text.strip()
-                    team_city = team_text.split()[0]
-                    current_team = team_map.get(team_city, team_city[:3].upper())
+            if team_header:
+                team_text = team_header.text.strip()
+                # Extraer nombre del equipo
+                for team_name, abbr in team_map.items():
+                    if team_name in team_text:
+                        team_abbr = abbr
+                        break
+                else:
                     continue
                 
-                # Si tenemos un equipo y la fila tiene celdas, es un jugador
-                if current_team:
+                rows = table.find_all('tr')[1:]
+                for row in rows:
                     cols = row.find_all('td')
                     if len(cols) >= 3:
-                        player = cols[0].text.strip()
-                        status = cols[1].text.strip()
-                        date = cols[2].text.strip() if len(cols) > 2 else ""
+                        player = cols[0].text.strip().split('\n')[0]
+                        status = cols[2].text.strip() if len(cols) > 2 else ""
+                        date = cols[3].text.strip() if len(cols) > 3 else ""
                         
-                        if player and status and len(player) > 1:
+                        if player and status:
                             injuries.append({
                                 'player': player,
-                                'team': current_team,
-                                'status': status,
-                                'date': date
+                                'team': team_abbr,
+                                'status': f"{status} - {date}" if date else status
                             })
         
         return injuries
         
     except Exception as e:
-        print(f"Error scraping CBSSports: {e}")
-        # Si falla CBSSports, intentar con otra fuente (ESPN como backup)
-        try:
-            # Backup: ESPN
-            espn_url = "https://www.espn.com/nba/injuries"
-            response = requests.get(espn_url, headers=headers, timeout=10)
-            soup = BeautifulSoup(response.text, 'html.parser')
-            
-            injuries = []
-            tables = soup.find_all('table')
-            
-            for table in tables:
-                team_header = table.find_previous('h2')
-                if team_header:
-                    team_text = team_header.text.strip()
-                    team_map_espn = {
-                        'Atlanta Hawks': 'ATL', 'Boston Celtics': 'BOS', 'Brooklyn Nets': 'BKN',
-                        'Charlotte Hornets': 'CHA', 'Chicago Bulls': 'CHI', 'Cleveland Cavaliers': 'CLE',
-                        'Dallas Mavericks': 'DAL', 'Denver Nuggets': 'DEN', 'Detroit Pistons': 'DET',
-                        'Golden State Warriors': 'GSW', 'Houston Rockets': 'HOU', 'Indiana Pacers': 'IND',
-                        'LA Clippers': 'LAC', 'Los Angeles Lakers': 'LAL', 'Memphis Grizzlies': 'MEM',
-                        'Miami Heat': 'MIA', 'Milwaukee Bucks': 'MIL', 'Minnesota Timberwolves': 'MIN',
-                        'New Orleans Pelicans': 'NOP', 'New York Knicks': 'NYK', 'Oklahoma City Thunder': 'OKC',
-                        'Orlando Magic': 'ORL', 'Philadelphia 76ers': 'PHI', 'Phoenix Suns': 'PHX',
-                        'Portland Trail Blazers': 'POR', 'Sacramento Kings': 'SAC', 'San Antonio Spurs': 'SAS',
-                        'Toronto Raptors': 'TOR', 'Utah Jazz': 'UTA', 'Washington Wizards': 'WAS'
-                    }
-                    team_abbr = team_map_espn.get(team_text, '')
-                    
-                    rows = table.find_all('tr')[1:]
-                    for row in rows:
-                        cols = row.find_all('td')
-                        if len(cols) >= 3:
-                            injuries.append({
-                                'player': cols[0].text.strip(),
-                                'team': team_abbr,
-                                'status': cols[1].text.strip(),
-                                'date': cols[2].text.strip()
-                            })
-            return injuries
-        except:
-            return []
+        print(f"Error: {e}")
+        return []
