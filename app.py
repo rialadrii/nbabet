@@ -568,6 +568,7 @@ elif st.session_state.page == "⚔️ Analizar Partido":
 
             mask = ((df['team_abbreviation'] == t1) & (df['matchup'].str.contains(t2))) | \
             ((df['team_abbreviation'] == t2) & (df['matchup'].str.contains(t1)))
+        
             history = df[mask].sort_values('game_date', ascending=False)
             last_dates = sorted(history['game_date'].unique(), reverse=True)[:5]
 
