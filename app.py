@@ -20,13 +20,12 @@ st.set_page_config(
 )
 
 # ==========================================
-# 2. CSS DEFINITIVO (CORREGIDO)
+# 2. CSS DEFINITIVO
 # ==========================================
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Teko:wght@300..700&display=swap');
 
-/* --- CENTRADO GLOBAL --- */
 .main .block-container {
     max-width: 1300px !important;
     padding-left: 0.5rem !important;
@@ -34,23 +33,19 @@ st.markdown("""
     margin: 0 auto !important;
 }
 
-/* Forzar alineación de textos SOLO en elementos de bloque seguros */
 h1, h2, h3, h4, p {
     text-align: center !important;
     width: 100% !important;
 }
 
-/* Evitar que labels y spans se rompan */
 label, span {
     text-align: inherit;
 }
 
-/* --- OCULTAR ANCHOR LINKS --- */
 [data-testid="stHeaderAction"] { display: none !important; }
 h1 a, h2 a, h3 a, h4 a, h5 a, h6 a { display: none !important; color: transparent !important; pointer-events: none !important; }
 .css-10trblm, .css-16idsys, a.anchor-link { display: none !important; }
 
-/* --- FIX TABLAS --- */
 [data-testid="stDataFrame"] { width: 100% !important; max-width: 100% !important; margin: 0 auto !important; }
 .table-responsive { display: flex !important; justify-content: center !important; width: 100% !important; overflow-x: auto; margin-bottom: 1rem; }
 
@@ -58,7 +53,6 @@ table.custom-table { margin: 0 auto !important; border-collapse: collapse; font-
 table.custom-table th { background-color: #31333F; color: white; text-align: center !important; padding: 8px; border-bottom: 2px solid #555; }
 table.custom-table td { text-align: center !important; padding: 6px; border-bottom: 1px solid #444; color: white; }
 
-/* --- ESTILOS VISUALES --- */
 h1 { font-family: 'Teko', sans-serif !important; font-size: 55px !important; text-transform: uppercase; color: white; margin-bottom: 20px; }
 h3 { font-family: 'Teko', sans-serif !important; font-size: 28px !important; text-transform: uppercase; color: #ffbd45; margin-top: 30px; }
 
@@ -79,15 +73,12 @@ div.stButton > button:hover { border-color: #ffbd45; color: #ffbd45; }
 .pat-stars { color: #ff5252; font-weight: bold; }
 .pat-impact { color: #4caf50; }
 
-/* Estilos para cuotas */
 .odds-info { background-color: #263238; border: 1px solid #37474f; border-radius: 5px; padding: 10px; margin-bottom: 15px; text-align: center; color: #eceff1; }
 .odds-timestamp { color: #ffbd45; font-weight: bold; font-size: 18px; }
 
-/* Ocultar toolbar y footer */
 [data-testid="stElementToolbar"] { display: none !important; }
 footer { display: none !important; }
 
-/* Arreglo específico para que el Checkbox se vea bien */
 [data-testid="stCheckbox"] {
     display: flex;
     justify-content: center; 
@@ -111,6 +102,8 @@ if 'selected_player' not in st.session_state:
     st.session_state.selected_player = None
 if 'odds_api_key' not in st.session_state:
     st.session_state.odds_api_key = API_KEY_DEFAULT
+if 'selected_parlay_legs' not in st.session_state:
+    st.session_state.selected_parlay_legs = []
 
 def navegar_a_partido(home, visitor):
     st.session_state.selected_home = home
@@ -132,7 +125,6 @@ def volver_a_partido():
 # ==========================================
 df = load_data()
 if not df.empty:
-    # Actualización automática si los datos tienen más de 1 día
     last_date = df['game_date'].max()
     if last_date.date() < datetime.now().date() - timedelta(days=1):
         with st.spinner("Actualizando datos automáticamente..."):
@@ -140,7 +132,6 @@ if not df.empty:
                 st.cache_data.clear()
                 st.rerun()
 
-# Mapa de equipo actual por jugador (para detectar traspasos)
 latest_teams_map = {}
 if not df.empty:
     latest_entries = df.sort_values('game_date').drop_duplicates('player_name', keep='last')
@@ -246,7 +237,6 @@ elif st.session_state.page == "👤 Jugador":
             st.session_state.selected_player = jugador
 
         if jugador:
-            # Usar consulta optimizada
             player_data = query_player_stats(player_name=jugador).sort_values('game_date', ascending=False)
 
             rival = st.selectbox("Filtrar vs Rival (Opcional):", todos_equipos, index=None)
@@ -266,17 +256,22 @@ elif st.session_state.page == "👤 Jugador":
             c4.metric("3PM", f"{mean_3pm:.1f}")
             c5.metric("MIN", f"{mean_min:.1f}")
 
-                # En la página de jugador, después de las métricas
-        st.subheader("📈 Tendencia últimos 10 partidos")
-        player_data_sorted = player_data.sort_values('game_date').tail(10)
-        if not player_data_sorted.empty and len(player_data_sorted) > 1:
-            fig = px.line(player_data_sorted, x='game_date', y=['pts', 'reb', 'ast'],
-                        title=f'Evolución de {jugador}',
-                        labels={'value': 'Estadística', 'variable': 'Tipo', 'game_date': 'Fecha'})
-            fig.update_layout(legend_title_text='Estadística')
-            st.plotly_chart(fig, use_container_width=True)
-        else:
-            st.info("No hay suficientes datos para mostrar tendencia")
+            # GRÁFICO DE BARRAS - Últimos 10 partidos
+            st.subheader("📊 Comparativa últimos 10 partidos (barras)")
+            player_data_sorted = player_data.sort_values('game_date').tail(10)
+            if not player_data_sorted.empty and len(player_data_sorted) > 1:
+                # Preparar datos para gráfico de barras
+                df_chart = player_data_sorted.copy()
+                df_chart['fecha_corta'] = df_chart['game_date'].dt.strftime('%d/%m')
+                
+                fig = px.bar(df_chart, x='fecha_corta', y=['pts', 'reb', 'ast'],
+                             title=f'Estadísticas de {jugador} - Últimos 10 partidos',
+                             labels={'value': 'Valor', 'variable': 'Estadística', 'fecha_corta': 'Fecha'},
+                             barmode='group')
+                fig.update_layout(legend_title_text='Estadística')
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.info("No hay suficientes datos para mostrar gráfico")
 
             st.subheader("Últimos 5 Partidos")
             cols = ['game_date', 'wl', 'matchup', 'min', 'pts', 'reb', 'ast', 'fg3m']
@@ -299,7 +294,6 @@ elif st.session_state.page == "👤 Jugador":
             mostrar_tabla_bonita(view, None, means_dict=means_dict)
             mostrar_leyenda_colores()
 
-            # Botón de descarga
             csv = view.to_csv(index=False).encode('utf-8')
             st.download_button("📥 Descargar CSV", data=csv, file_name=f"{jugador}_ultimos.csv", mime="text/csv")
 
@@ -321,42 +315,40 @@ elif st.session_state.page == "👤 Jugador":
                 else:
                     st.info(f"No hay registros recientes contra {rival}.")
 
-           # En la página de jugador, al final
-st.write("---")
-st.subheader("🆚 Comparativa con otro jugador")
-todos_jugadores_list = sorted(df['player_name'].unique())
-otro_jugador = st.selectbox("Selecciona otro jugador", [""] + todos_jugadores_list, key="comparador")
+            # COMPARATIVA CON OTRO JUGADOR
+            st.write("---")
+            st.subheader("🆚 Comparativa con otro jugador")
+            todos_jugadores_list = sorted(df['player_name'].unique())
+            otro_jugador = st.selectbox("Selecciona otro jugador", [""] + todos_jugadores_list, key="comparador")
 
-if otro_jugador and otro_jugador != jugador:
-    df_j1 = player_data
-    df_j2 = query_player_stats(player_name=otro_jugador)
-    
-    # Buscar partidos comunes
-    common_games = set(df_j1['game_id']).intersection(set(df_j2['game_id']))
-    
-    if common_games:
-        stats_j1 = df_j1[df_j1['game_id'].isin(common_games)][['pts', 'reb', 'ast']].mean()
-        stats_j2 = df_j2[df_j2['game_id'].isin(common_games)][['pts', 'reb', 'ast']].mean()
-        
-        comparativa = pd.DataFrame({
-            'Métrica': ['Puntos', 'Rebotes', 'Asistencias'],
-            jugador: [f"{stats_j1['pts']:.1f}", f"{stats_j1['reb']:.1f}", f"{stats_j1['ast']:.1f}"],
-            otro_jugador: [f"{stats_j2['pts']:.1f}", f"{stats_j2['reb']:.1f}", f"{stats_j2['ast']:.1f}"],
-            'Diferencia': [
-                f"{stats_j1['pts'] - stats_j2['pts']:+.1f}",
-                f"{stats_j1['reb'] - stats_j2['reb']:+.1f}",
-                f"{stats_j1['ast'] - stats_j2['ast']:+.1f}"
-            ]
-        })
-        
-        st.dataframe(comparativa, use_container_width=True, hide_index=True)
-        
-        # Gráfico comparativo
-        fig = px.bar(comparativa, x='Métrica', y=[jugador, otro_jugador], 
-                     barmode='group', title=f'Comparativa: {jugador} vs {otro_jugador}')
-        st.plotly_chart(fig, use_container_width=True)
-    else:
-        st.info("No hay partidos en común entre estos jugadores")
+            if otro_jugador and otro_jugador != jugador:
+                df_j1 = player_data
+                df_j2 = query_player_stats(player_name=otro_jugador)
+                
+                common_games = set(df_j1['game_id']).intersection(set(df_j2['game_id']))
+                
+                if common_games:
+                    stats_j1 = df_j1[df_j1['game_id'].isin(common_games)][['pts', 'reb', 'ast']].mean()
+                    stats_j2 = df_j2[df_j2['game_id'].isin(common_games)][['pts', 'reb', 'ast']].mean()
+                    
+                    comparativa = pd.DataFrame({
+                        'Métrica': ['Puntos', 'Rebotes', 'Asistencias'],
+                        jugador: [f"{stats_j1['pts']:.1f}", f"{stats_j1['reb']:.1f}", f"{stats_j1['ast']:.1f}"],
+                        otro_jugador: [f"{stats_j2['pts']:.1f}", f"{stats_j2['reb']:.1f}", f"{stats_j2['ast']:.1f}"],
+                        'Diferencia': [
+                            f"{stats_j1['pts'] - stats_j2['pts']:+.1f}",
+                            f"{stats_j1['reb'] - stats_j2['reb']:+.1f}",
+                            f"{stats_j1['ast'] - stats_j2['ast']:+.1f}"
+                        ]
+                    })
+                    
+                    st.dataframe(comparativa, use_container_width=True, hide_index=True)
+                    
+                    fig = px.bar(comparativa, x='Métrica', y=[jugador, otro_jugador], 
+                                 barmode='group', title=f'Comparativa: {jugador} vs {otro_jugador}')
+                    st.plotly_chart(fig, use_container_width=True)
+                else:
+                    st.info("No hay partidos en común entre estos jugadores")
 
 # --- PÁGINA CUOTAS ---
 elif st.session_state.page == "💰 Buscador de Cuotas":
@@ -403,15 +395,15 @@ elif st.session_state.page == "💰 Buscador de Cuotas":
                     odds_data_to_show = odds_data
                     st.rerun()
 
-    # En la página de cuotas, después de cargar datos
-if odds_data_to_show and market_key == 'h2h':
-    value_alerts = detect_value_odds(odds_data_to_show, threshold=0.10)
-    if value_alerts:
-        st.subheader("🔔 Alertas de Valor (Cuotas >10% sobre la media)")
-        df_alerts = pd.DataFrame(value_alerts)
-        df_alerts.columns = ['Partido', 'Equipo', 'Casa', 'Cuota', 'Media', 'Sobre%']
-        st.dataframe(df_alerts, use_container_width=True)
+    if odds_data_to_show and market_key == 'h2h':
+        value_alerts = detect_value_odds(odds_data_to_show, threshold=0.10)
+        if value_alerts:
+            st.subheader("🔔 Alertas de Valor (Cuotas >10% sobre la media)")
+            df_alerts = pd.DataFrame(value_alerts)
+            df_alerts.columns = ['Partido', 'Equipo', 'Casa', 'Cuota', 'Media', 'Sobre%']
+            st.dataframe(df_alerts, use_container_width=True)
 
+    if odds_data_to_show:
         if market_key == 'h2h':
             for game in odds_data_to_show:
                 home, away = game['home_team'], game['away_team']
@@ -457,7 +449,7 @@ if odds_data_to_show and market_key == 'h2h':
                 bookmakers = game.get('bookmakers', [])
                 if not bookmakers:
                     continue
-                player_data = {}
+                player_data_dict = {}
                 for bm in bookmakers:
                     markets = bm.get('markets', [])
                     for m in markets:
@@ -467,14 +459,14 @@ if odds_data_to_show and market_key == 'h2h':
                                 line = out.get('point')
                                 side = out['name']
                                 price = out['price']
-                                if p_name not in player_data:
-                                    player_data[p_name] = []
-                                player_data[p_name].append({'Casa': bm['title'], 'Linea': line, 'Tipo': side, 'Cuota': price})
+                                if p_name not in player_data_dict:
+                                    player_data_dict[p_name] = []
+                                player_data_dict[p_name].append({'Casa': bm['title'], 'Linea': line, 'Tipo': side, 'Cuota': price})
 
-                if player_data:
+                if player_data_dict:
                     found = True
                     st.markdown(f"#### 🏀 {game['away_team']} @ {game['home_team']}")
-                    for p_name, odds_list in player_data.items():
+                    for p_name, odds_list in player_data_dict.items():
                         with st.container():
                             st.markdown(f"**👤 {p_name}**")
                             st.dataframe(pd.DataFrame(odds_list))
@@ -538,7 +530,6 @@ elif st.session_state.page == "⚔️ Analizar Partido":
                 </div>
                 """, unsafe_allow_html=True)
 
-            # Mostrar lesiones (si se obtienen)
             injuries = get_injuries()
             if injuries:
                 st.subheader("🏥 Lesiones reportadas")
@@ -554,7 +545,6 @@ elif st.session_state.page == "⚔️ Analizar Partido":
                     for i in inj_t2:
                         st.markdown(f"- {i['player']}: {i['status']}")
 
-            # Historial H2H (misma lógica que antes, pero usando query optimizada)
             mask = ((df['team_abbreviation'] == t1) & (df['matchup'].str.contains(t2))) | \
                    ((df['team_abbreviation'] == t2) & (df['matchup'].str.contains(t1)))
             history = df[mask].sort_values('game_date', ascending=False)
@@ -591,7 +581,6 @@ elif st.session_state.page == "⚔️ Analizar Partido":
             if not df_games.empty:
                 mostrar_tabla_bonita(df_games, None)
 
-            # Estadísticas de equipo H2H (similar a antes)
             team_totals = history.groupby(['game_date', 'team_abbreviation'])[['pts', 'reb', 'ast']].sum().reset_index()
             filtered_totals = team_totals[team_totals['team_abbreviation'].isin([t1, t2])].copy()
             if not filtered_totals.empty:
@@ -617,7 +606,6 @@ elif st.session_state.page == "⚔️ Analizar Partido":
                     final_cols = [c for c in cols_ordered if c in df_comparative.columns]
                     mostrar_tabla_bonita(df_comparative[final_cols], None, simple_mode=True)
 
-            # Jugadores recientes (misma lógica de alineación)
             recent_players = history[history['game_date'].isin(last_dates)].sort_values('game_date', ascending=False)
             target_dates_str = [d.strftime('%Y-%m-%d') for d in last_dates]
             recent_players['date_str'] = recent_players['game_date'].dt.strftime('%Y-%m-%d')
@@ -668,58 +656,54 @@ elif st.session_state.page == "⚔️ Analizar Partido":
             st.subheader("🤝 Top Asistentes 👇")
             render_clickable_player_table(stats.sort_values('ast', ascending=False).head(10), 'AST', full_roster_map, navegar_a_jugador)
 
-                    # Bajas (DNP) - CORREGIDO
-        st.write("---")
-        st.subheader("🏥 Historial de Bajas (Jugadores con >12 min promedio)")
+            # BAJAS (DNP) - CORREGIDO
+            st.write("---")
+            st.subheader("🏥 Historial de Bajas (Jugadores con >12 min promedio)")
 
-        # Calcular jugadores clave (>12 min promedio)
-        all_players_min = recent_players.groupby(['player_name', 'team_abbreviation'])['min'].mean().reset_index()
-        key_players = all_players_min[all_players_min['min'] > 12.0].copy()
+            all_players_min = recent_players.groupby(['player_name', 'team_abbreviation'])['min'].mean().reset_index()
+            key_players = all_players_min[all_players_min['min'] > 12.0].copy()
+            key_players = key_players[key_players['team_abbreviation'].isin([t1, t2])]
 
-        # Filtrar solo jugadores de estos equipos
-        key_players = key_players[key_players['team_abbreviation'].isin([t1, t2])]
-
-        if not key_players.empty:
-            dnp_data = []
-            for date in last_dates[:5]:  # Últimos 5 enfrentamientos
-                date_str = date.strftime('%d/%m')
-                players_in_game = recent_players[recent_players['game_date'] == date]['player_name'].tolist()
-                
-                missing_t1 = []
-                missing_t2 = []
-                
-                for _, row in key_players.iterrows():
-                    player = row['player_name']
-                    team = row['team_abbreviation']
+            if not key_players.empty:
+                dnp_data = []
+                for date in last_dates[:5]:
+                    date_str = date.strftime('%d/%m')
+                    players_in_game = recent_players[recent_players['game_date'] == date]['player_name'].tolist()
                     
-                    # Verificar si el equipo jugó ese día
-                    team_played = not recent_players[(recent_players['game_date'] == date) & 
-                                                    (recent_players['team_abbreviation'] == team)].empty
+                    missing_t1 = []
+                    missing_t2 = []
                     
-                    if team_played and player not in players_in_game:
-                        if team == t1:
-                            missing_t1.append(player)
-                        elif team == t2:
-                            missing_t2.append(player)
+                    for _, row in key_players.iterrows():
+                        player = row['player_name']
+                        team = row['team_abbreviation']
+                        
+                        team_played = not recent_players[(recent_players['game_date'] == date) & 
+                                                        (recent_players['team_abbreviation'] == team)].empty
+                        
+                        if team_played and player not in players_in_game:
+                            if team == t1:
+                                missing_t1.append(player)
+                            elif team == t2:
+                                missing_t2.append(player)
+                    
+                    cell_t1 = f"<span class='dnp-missing'>{', '.join(missing_t1)}</span>" if missing_t1 else "<span class='dnp-full'>✓ Todos disponibles</span>"
+                    cell_t2 = f"<span class='dnp-missing'>{', '.join(missing_t2)}</span>" if missing_t2 else "<span class='dnp-full'>✓ Todos disponibles</span>"
+                    
+                    dnp_data.append({
+                        'FECHA': date_str,
+                        f'BAJAS {t1}': cell_t1,
+                        f'BAJAS {t2}': cell_t2
+                    })
                 
-                cell_t1 = f"<span class='dnp-missing'>{', '.join(missing_t1)}</span>" if missing_t1 else "<span class='dnp-full'>✓ Todos disponibles</span>"
-                cell_t2 = f"<span class='dnp-missing'>{', '.join(missing_t2)}</span>" if missing_t2 else "<span class='dnp-full'>✓ Todos disponibles</span>"
-                
-                dnp_data.append({
-                    'FECHA': date_str,
-                    f'BAJAS {t1}': cell_t1,
-                    f'BAJAS {t2}': cell_t2
-                })
-            
-            if dnp_data:
-                df_dnp = pd.DataFrame(dnp_data)
-                mostrar_tabla_bonita(df_dnp, None)
+                if dnp_data:
+                    df_dnp = pd.DataFrame(dnp_data)
+                    mostrar_tabla_bonita(df_dnp, None)
+                else:
+                    st.success("✅ No hay bajas registradas en los últimos partidos")
             else:
-                st.success("✅ No hay bajas registradas en los últimos partidos")
-        else:
-            st.info("No hay suficientes datos de minutos para analizar bajas")
+                st.info("No hay suficientes datos de minutos para analizar bajas")
 
-            # Patrones (similar a antes)
+            # PATRONES
             st.write("---")
             st.subheader("🕵️ Patrones")
             global_means = df.groupby('player_name')[['pts', 'reb', 'ast']].mean()
@@ -776,160 +760,100 @@ elif st.session_state.page == "⚔️ Analizar Partido":
             else:
                 st.write("Sin impactos.")
 
-                # Parlay Generator con checkboxes funcionales
-    st.write("---")
-    st.subheader("🎲 Generador de Parlays (selecciona piernas)")
+            # PARLAY GENERATOR - CORREGIDO
+            st.write("---")
+            st.subheader("🎲 Generador de Parlays (selecciona piernas)")
 
-    min_games_needed = max(3, int(len(last_dates) * 0.6))
-    candidates = stats[stats['gp'] >= min_games_needed].copy()
+            min_games_needed = max(3, int(len(last_dates) * 0.6))
+            candidates = stats[stats['gp'] >= min_games_needed].copy()
 
-    # Inicializar lista de piernas seleccionadas en session_state si no existe
-    if 'selected_parlay_legs' not in st.session_state:
-        st.session_state.selected_parlay_legs = []
+            safe_legs_pts, safe_legs_reb, safe_legs_ast = [], [], []
+            risky_legs_pts, risky_legs_reb, risky_legs_ast = [], [], []
 
-    safe_legs_pts, safe_legs_reb, safe_legs_ast = [], [], []
-    risky_legs_pts, risky_legs_reb, risky_legs_ast = [], [], []
-
-    for _, row in candidates.iterrows():
-        p_name, p_team = row['player_name'], row['team_abbreviation']
-        logs = recent_players[(recent_players['player_name'] == p_name) & (recent_players['team_abbreviation'] == p_team)]
-        if logs.empty:
-            continue
-        
-        pts_vals = sorted(logs['pts'].tolist())
-        reb_vals = sorted(logs['reb'].tolist())
-        ast_vals = sorted(logs['ast'].tolist())
-        
-        # Safe legs (piso)
-        if len(pts_vals) >= 2:
-            safe_pts = pts_vals[1]  # segundo valor más bajo
-            if safe_pts >= 10:
-                safe_legs_pts.append({'player': p_name, 'val': int(safe_pts), 'avg': row['pts'], 'type': 'PTS'})
-        
-        if len(reb_vals) >= 2:
-            safe_reb = reb_vals[1]
-            if safe_reb >= 5:
-                safe_legs_reb.append({'player': p_name, 'val': int(safe_reb), 'avg': row['reb'], 'type': 'REB'})
-        
-        if len(ast_vals) >= 2:
-            safe_ast = ast_vals[1]
-            if safe_ast >= 3:
-                safe_legs_ast.append({'player': p_name, 'val': int(safe_ast), 'avg': row['ast'], 'type': 'AST'})
-        
-        # Risky legs (media)
-        if row['pts'] >= 15:
-            risky_legs_pts.append({'player': p_name, 'val': int(row['pts']), 'avg': row['pts'], 'type': 'PTS'})
-        if row['reb'] >= 7:
-            risky_legs_reb.append({'player': p_name, 'val': int(row['reb']), 'avg': row['reb'], 'type': 'REB'})
-        if row['ast'] >= 5:
-            risky_legs_ast.append({'player': p_name, 'val': int(row['ast']), 'avg': row['ast'], 'type': 'AST'})
-
-    # Ordenar por promedio
-    safe_legs_pts.sort(key=lambda x: x['avg'], reverse=True)
-    safe_legs_reb.sort(key=lambda x: x['avg'], reverse=True)
-    safe_legs_ast.sort(key=lambda x: x['avg'], reverse=True)
-    risky_legs_pts.sort(key=lambda x: x['avg'], reverse=True)
-    risky_legs_reb.sort(key=lambda x: x['avg'], reverse=True)
-    risky_legs_ast.sort(key=lambda x: x['avg'], reverse=True)
-
-    def render_parlay_column(title, legs, color, icon, col):
-        with col:
-            st.markdown(f"### {title}")
-            if not legs:
-                st.caption("Sin opciones")
-                return
-            
-            for leg in legs[:5]:  # Mostrar top 5
-                leg_id = f"{leg['player']}_{leg['type']}_{leg['val']}"
-                is_selected = leg_id in [f"{l['player']}_{l['type']}_{l['val']}" for l in st.session_state.selected_parlay_legs]
+            for _, row in candidates.iterrows():
+                p_name, p_team = row['player_name'], row['team_abbreviation']
+                logs = recent_players[(recent_players['player_name'] == p_name) & (recent_players['team_abbreviation'] == p_team)]
+                if logs.empty:
+                    continue
                 
-                col1, col2 = st.columns([3, 1])
-                with col1:
-                    st.markdown(f"{icon} **{leg['player']}**")
-                    st.caption(f"Línea: +{leg['val']} | Prom: {leg['avg']:.1f}")
-                with col2:
-                    if st.checkbox("", value=is_selected, key=f"chk_{leg_id}"):
-                        # Añadir a seleccionados si no está
-                        if leg_id not in [f"{l['player']}_{l['type']}_{l['val']}" for l in st.session_state.selected_parlay_legs]:
-                            st.session_state.selected_parlay_legs.append(leg)
-                    else:
-                        # Quitar de seleccionados si estaba
-                        st.session_state.selected_parlay_legs = [l for l in st.session_state.selected_parlay_legs 
-                                                                if f"{l['player']}_{l['type']}_{l['val']}" != leg_id]
-                st.divider()
+                pts_vals = sorted(logs['pts'].tolist())
+                reb_vals = sorted(logs['reb'].tolist())
+                ast_vals = sorted(logs['ast'].tolist())
+                
+                if len(pts_vals) >= 2:
+                    safe_pts = pts_vals[1]
+                    if safe_pts >= 10:
+                        safe_legs_pts.append({'player': p_name, 'val': int(safe_pts), 'avg': row['pts'], 'type': 'PTS'})
+                
+                if len(reb_vals) >= 2:
+                    safe_reb = reb_vals[1]
+                    if safe_reb >= 5:
+                        safe_legs_reb.append({'player': p_name, 'val': int(safe_reb), 'avg': row['reb'], 'type': 'REB'})
+                
+                if len(ast_vals) >= 2:
+                    safe_ast = ast_vals[1]
+                    if safe_ast >= 3:
+                        safe_legs_ast.append({'player': p_name, 'val': int(safe_ast), 'avg': row['ast'], 'type': 'AST'})
+                
+                if row['pts'] >= 15:
+                    risky_legs_pts.append({'player': p_name, 'val': int(row['pts']), 'avg': row['pts'], 'type': 'PTS'})
+                if row['reb'] >= 7:
+                    risky_legs_reb.append({'player': p_name, 'val': int(row['reb']), 'avg': row['reb'], 'type': 'REB'})
+                if row['ast'] >= 5:
+                    risky_legs_ast.append({'player': p_name, 'val': int(row['ast']), 'avg': row['ast'], 'type': 'AST'})
 
-    col_safe, col_risky = st.columns(2)
-    render_parlay_column("🛡️ CONSERVADOR (Piso)", safe_legs_pts, "#4caf50", "🏀", col_safe)
-    render_parlay_column("🛡️ CONSERVADOR (Piso)", safe_legs_reb, "#4caf50", "🖐", col_safe)
-    render_parlay_column("🛡️ CONSERVADOR (Piso)", safe_legs_ast, "#4caf50", "🎁", col_safe)
+            safe_legs_pts.sort(key=lambda x: x['avg'], reverse=True)
+            safe_legs_reb.sort(key=lambda x: x['avg'], reverse=True)
+            safe_legs_ast.sort(key=lambda x: x['avg'], reverse=True)
+            risky_legs_pts.sort(key=lambda x: x['avg'], reverse=True)
+            risky_legs_reb.sort(key=lambda x: x['avg'], reverse=True)
+            risky_legs_ast.sort(key=lambda x: x['avg'], reverse=True)
 
-    render_parlay_column("🚀 ARRIESGADO (Media)", risky_legs_pts, "#ff5252", "🏀", col_risky)
-    render_parlay_column("🚀 ARRIESGADO (Media)", risky_legs_reb, "#ff5252", "🖐", col_risky)
-    render_parlay_column("🚀 ARRIESGADO (Media)", risky_legs_ast, "#ff5252", "🎁", col_risky)
-
-    # Mostrar ticket seleccionado
-    if st.session_state.selected_parlay_legs:
-        st.write("---")
-        st.subheader("📝 Tu Parlay Seleccionado")
-        
-        total_odds = 1.0
-        for i, leg in enumerate(st.session_state.selected_parlay_legs):
-            st.markdown(f"{i+1}. {leg['player']} - **+{leg['val']} {leg['type']}** (Prom: {leg['avg']:.1f})")
-            
-            # Input para cuota (simulado)
-            odds = st.number_input(f"Cuota para {leg['player']}", min_value=1.01, max_value=10.0, value=1.8, key=f"odds_{i}")
-            total_odds *= odds
-        
-        st.success(f"**Cuota total combinada: {total_odds:.2f}**")
-        
-        if st.button("🗑️ Limpiar selección"):
-            st.session_state.selected_parlay_legs = []
-            st.rerun()
-            # Función para renderizar ticket con posibilidad de seleccionar piernas
-            def render_ticket(title, legs, icon, color_border, css_class, key_prefix):
-                final_legs = legs[:5]
-                if not final_legs:
-                    return f"<div class='{css_class}' style='border:1px solid {color_border};'><div class='parlay-header' style='color:white;'>{title}</div><div style='color:#ccc; text-align:center;'>---</div></div>"
-                html_legs = ""
-                for leg in final_legs:
-                    # Usamos un checkbox para cada pierna, almacenamos en session_state si está seleccionada
-                    checkbox_key = f"{key_prefix}_{leg['player']}_{leg['val']}"
-                    if checkbox_key not in st.session_state:
-                        st.session_state[checkbox_key] = False
-                    checked = st.checkbox(f"{icon} {leg['player']} +{leg['val']} ({leg['desc']})", key=checkbox_key)
-                    if checked:
-                        # Aquí podríamos guardar la pierna para el cálculo total
-                        st.session_state.setdefault('parlay_legs', []).append(leg)
-                return ""
+            def render_parlay_column(title, legs, color, icon, col):
+                with col:
+                    st.markdown(f"### {title}")
+                    if not legs:
+                        st.caption("Sin opciones")
+                        return
+                    
+                    for leg in legs[:5]:
+                        leg_id = f"{leg['player']}_{leg['type']}_{leg['val']}"
+                        is_selected = leg_id in [f"{l['player']}_{l['type']}_{l['val']}" for l in st.session_state.selected_parlay_legs]
+                        
+                        col1, col2 = st.columns([3, 1])
+                        with col1:
+                            st.markdown(f"{icon} **{leg['player']}**")
+                            st.caption(f"Línea: +{leg['val']} | Prom: {leg['avg']:.1f}")
+                        with col2:
+                            if st.checkbox("", value=is_selected, key=f"chk_{leg_id}"):
+                                if leg_id not in [f"{l['player']}_{l['type']}_{l['val']}" for l in st.session_state.selected_parlay_legs]:
+                                    st.session_state.selected_parlay_legs.append(leg)
+                            else:
+                                st.session_state.selected_parlay_legs = [l for l in st.session_state.selected_parlay_legs 
+                                                                        if f"{l['player']}_{l['type']}_{l['val']}" != leg_id]
+                        st.divider()
 
             col_safe, col_risky = st.columns(2)
-            with col_safe:
-                st.markdown("### 🛡️ CONSERVADOR")
-                render_ticket("PTS", safe_legs_pts, "🏀", "#4caf50", "parlay-box", "safe_pts")
-                if safe_legs_reb:
-                    render_ticket("REB", safe_legs_reb, "🖐", "#4caf50", "parlay-box", "safe_reb")
-                if safe_legs_ast:
-                    render_ticket("AST", safe_legs_ast, "🎁", "#4caf50", "parlay-box", "safe_ast")
-            with col_risky:
-                st.markdown("### 🚀 ARRIESGADO")
-                render_ticket("PTS", risky_legs_pts, "🏀", "#ff5252", "parlay-box", "risky_pts")
-                if risky_legs_reb:
-                    render_ticket("REB", risky_legs_reb, "🖐", "#ff5252", "parlay-box", "risky_reb")
-                if risky_legs_ast:
-                    render_ticket("AST", risky_legs_ast, "🎁", "#ff5252", "parlay-box", "risky_ast")
+            render_parlay_column("🛡️ CONSERVADOR (Piso)", safe_legs_pts, "#4caf50", "🏀", col_safe)
+            render_parlay_column("🛡️ CONSERVADOR (Piso)", safe_legs_reb, "#4caf50", "🖐", col_safe)
+            render_parlay_column("🛡️ CONSERVADOR (Piso)", safe_legs_ast, "#4caf50", "🎁", col_safe)
 
-            # Calcular cuota total de las piernas seleccionadas
-            if 'parlay_legs' in st.session_state and st.session_state.parlay_legs:
-                # Aquí necesitaríamos las cuotas reales; por simplicidad, pedimos al usuario que las introduzca
-                st.markdown("---")
-                st.subheader("📝 Calculadora de Parlay")
+            render_parlay_column("🚀 ARRIESGADO (Media)", risky_legs_pts, "#ff5252", "🏀", col_risky)
+            render_parlay_column("🚀 ARRIESGADO (Media)", risky_legs_reb, "#ff5252", "🖐", col_risky)
+            render_parlay_column("🚀 ARRIESGADO (Media)", risky_legs_ast, "#ff5252", "🎁", col_risky)
+
+            if st.session_state.selected_parlay_legs:
+                st.write("---")
+                st.subheader("📝 Tu Parlay Seleccionado")
+                
                 total_odds = 1.0
-                for i, leg in enumerate(st.session_state.parlay_legs):
-                    odds_input = st.number_input(f"Cuota para {leg['player']} +{leg['val']}", min_value=1.01, value=1.8, key=f"odds_{i}")
-                    total_odds *= odds_input
+                for i, leg in enumerate(st.session_state.selected_parlay_legs):
+                    st.markdown(f"{i+1}. {leg['player']} - **+{leg['val']} {leg['type']}** (Prom: {leg['avg']:.1f})")
+                    odds = st.number_input(f"Cuota para {leg['player']}", min_value=1.01, max_value=10.0, value=1.8, key=f"odds_{i}")
+                    total_odds *= odds
+                
                 st.success(f"**Cuota total combinada: {total_odds:.2f}**")
-                if st.button("Limpiar selección"):
-                    for key in list(st.session_state.keys()):
-                        if key.startswith(('safe_', 'risky_')) or key == 'parlay_legs':
-                            del st.session_state[key]
+                
+                if st.button("🗑️ Limpiar selección"):
+                    st.session_state.selected_parlay_legs = []
                     st.rerun()

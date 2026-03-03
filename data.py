@@ -13,9 +13,8 @@ import backoff
 DB_PATH = "nba.sqlite"
 CSV_FOLDER = "csv"
 
-@st.cache_data(ttl=86400)  # 24 horas
+@st.cache_data(ttl=86400)
 def load_data():
-    """Carga los datos desde CSV o SQLite y los devuelve como DataFrame."""
     csv_path = f"{CSV_FOLDER}/player_stats.csv"
     if os.path.exists(csv_path):
         df = pd.read_csv(csv_path)
@@ -31,10 +30,6 @@ def load_data():
     return pd.DataFrame()
 
 def download_data(seasons=None, progress_callback=None):
-    """
-    Descarga datos de las temporadas especificadas y los guarda en CSV y SQLite.
-    seasons: lista de strings, ej. ['2024-25', '2025-26']
-    """
     if seasons is None:
         seasons = ['2024-25', '2025-26']
     all_seasons_data = []
@@ -51,7 +46,6 @@ def download_data(seasons=None, progress_callback=None):
 
     if all_seasons_data:
         full_df = pd.concat(all_seasons_data, ignore_index=True)
-        # Incluir más columnas para análisis avanzado
         cols_needed = ['PLAYER_ID', 'PLAYER_NAME', 'TEAM_ABBREVIATION', 'GAME_DATE', 'MATCHUP',
                        'PTS', 'REB', 'AST', 'FG3M', 'FGM', 'FGA', 'FG_PCT', 'FG3A', 'FTM', 'FTA',
                        'OREB', 'DREB', 'STL', 'BLK', 'TOV', 'MIN', 'WL', 'GAME_ID']
@@ -61,7 +55,6 @@ def download_data(seasons=None, progress_callback=None):
         os.makedirs(CSV_FOLDER, exist_ok=True)
         df_clean.to_csv(f'{CSV_FOLDER}/player_stats.csv', index=False)
 
-        # Guardar en SQLite con índices
         conn = sqlite3.connect(DB_PATH)
         df_clean.to_sql('player', conn, if_exists='replace', index=False)
         conn.execute('CREATE INDEX IF NOT EXISTS idx_player_name ON player(player_name);')
@@ -72,7 +65,6 @@ def download_data(seasons=None, progress_callback=None):
     return False
 
 def query_player_stats(player_name=None, team=None, start_date=None, end_date=None):
-    """Realiza consultas eficientes usando SQLite."""
     if not os.path.exists(DB_PATH):
         return pd.DataFrame()
     conn = sqlite3.connect(DB_PATH)
@@ -97,7 +89,6 @@ def query_player_stats(player_name=None, team=None, start_date=None, end_date=No
     return df
 
 def get_team_roster_numbers(team_id):
-    """Obtiene un diccionario {jugador: dorsal} para un equipo."""
     try:
         roster = commonteamroster.CommonTeamRoster(team_id=team_id)
         df_roster = roster.get_data_frames()[0]
@@ -111,7 +102,6 @@ def safe_get(url, timeout=5):
     return requests.get(url, timeout=timeout)
 
 def get_next_matchup_info(t1_abv, t2_abv):
-    """Busca el próximo enfrentamiento entre dos equipos en el calendario oficial de la NBA."""
     try:
         response = safe_get("https://cdn.nba.com/static/json/staticData/scheduleLeagueV2.json", timeout=5)
         data = response.json()
@@ -147,7 +137,6 @@ def get_next_matchup_info(t1_abv, t2_abv):
     return None
 
 def obtener_partidos():
-    """Obtiene los partidos de hoy y mañana con horarios convertidos a España."""
     from nba_api.stats.endpoints import scoreboardv2
     from nba_api.stats.static import teams as nba_static_teams
     from utils import get_basketball_date, convertir_hora_espanol
@@ -159,6 +148,7 @@ def obtener_partidos():
     fechas_us = [basket_today_us, basket_today_us + timedelta(days=1)]
 
     agenda = {}
+
     for fecha in fechas_us:
         fecha_str = fecha.strftime('%Y-%m-%d')
         try:
@@ -201,24 +191,21 @@ def obtener_partidos():
         except:
             pass
 
-    # Ordenar fechas
     keys_ordenadas = sorted(agenda.keys(), key=lambda x: datetime.strptime(x, "%d/%m").replace(year=datetime.now().year))
     agenda_ordenada = {k: agenda[k] for k in keys_ordenadas}
     return agenda_ordenada
 
 @st.cache_data(ttl=3600)
 def get_injuries():
-    """Obtiene lista de lesiones desde ESPN (scraping)."""
     url = "https://www.espn.com/nba/injuries"
     headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
     try:
         response = requests.get(url, headers=headers, timeout=10)
         soup = BeautifulSoup(response.text, 'html.parser')
         injuries = []
-        # El selector puede cambiar; esto es aproximado
         tables = soup.find_all('table', class_='Table')
         for table in tables:
-            rows = table.find_all('tr')[1:]  # saltar cabecera
+            rows = table.find_all('tr')[1:]
             for row in rows:
                 cols = row.find_all('td')
                 if len(cols) >= 3:
@@ -228,5 +215,4 @@ def get_injuries():
                     injuries.append({'player': player, 'team': team, 'status': status})
         return injuries
     except Exception as e:
-        # Si falla, devolvemos lista vacía
         return []
