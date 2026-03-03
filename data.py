@@ -151,8 +151,7 @@ def obtener_partidos():
     from nba_api.stats.endpoints import scoreboardv2
     from nba_api.stats.static import teams as nba_static_teams
     from utils import get_basketball_date, convertir_hora_espanol
-    from datetime import timedelta
-
+    
     nba_teams = nba_static_teams.get_teams()
     team_map = {t['id']: t['abbreviation'] for t in nba_teams}
 
@@ -160,7 +159,6 @@ def obtener_partidos():
     fechas_us = [basket_today_us, basket_today_us + timedelta(days=1)]
 
     agenda = {}
-
     for fecha in fechas_us:
         fecha_str = fecha.strftime('%Y-%m-%d')
         try:
