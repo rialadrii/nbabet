@@ -150,12 +150,12 @@ def obtener_partidos():
     """Obtiene los partidos de hoy y mañana con horarios convertidos a España."""
     from nba_api.stats.endpoints import scoreboardv2
     from nba_api.stats.static import teams as nba_static_teams
+    from utils import get_basketball_date, convertir_hora_espanol
+    from datetime import timedelta
+
     nba_teams = nba_static_teams.get_teams()
     team_map = {t['id']: t['abbreviation'] for t in nba_teams}
 
-    basket_today_us = get_basketball_date()  # definida en utils, pero aquí la importaremos
-    # Para evitar dependencia circular, importamos dentro
-    from utils import get_basketball_date, convertir_hora_espanol
     basket_today_us = get_basketball_date()
     fechas_us = [basket_today_us, basket_today_us + timedelta(days=1)]
 
