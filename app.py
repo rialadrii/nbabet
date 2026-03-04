@@ -100,6 +100,8 @@ if 'odds_api_key' not in st.session_state:
     st.session_state.odds_api_key = API_KEY_DEFAULT
 if 'selected_parlay_legs' not in st.session_state:
     st.session_state.selected_parlay_legs = []
+if 'auto_updated' not in st.session_state:
+    st.session_state.auto_updated = False
 
 def navegar_a_partido(home, visitor):
     st.session_state.selected_home = home
@@ -122,11 +124,17 @@ def volver_a_partido():
 df = load_data()
 if not df.empty:
     last_date = df['game_date'].max()
-    if last_date.date() < datetime.now().date() - timedelta(days=1):
+    
+    # 👇 FIX: Comprobamos que NO hayamos intentado actualizar ya en esta sesión
+    if last_date.date() < datetime.now().date() - timedelta(days=1) and not st.session_state.auto_updated:
         with st.spinner("Actualizando datos automáticamente..."):
             if download_data():
                 st.cache_data.clear()
+                st.session_state.auto_updated = True # Marcamos como actualizado
                 st.rerun()
+            else:
+                # Si falla o no trae nada nuevo, marcamos también para romper el bucle
+                st.session_state.auto_updated = True 
 
 latest_teams_map = {}
 if not df.empty:
@@ -351,9 +359,7 @@ elif st.session_state.page == "💰 Buscador de Cuotas":
     st.header("💰 Buscador de Errores en Cuotas")
     st.caption("Compara Winamax, Bet365, Bwin y otras casas para encontrar errores de valoración.")
 
-    api_key_input = st.text_input("API Key (Oculta):", value=st.session_state.odds_api_key, type="password")
-    if api_key_input:
-        st.session_state.odds_api_key = api_key_input
+    
 
     tipo_mercado = st.selectbox("¿Qué quieres buscar?", ["Ganador Partido (H2H)", "Puntos de Jugador"])
     market_key = 'h2h' if tipo_mercado == "Ganador Partido (H2H)" else 'player_points'
@@ -874,4 +880,5 @@ elif st.session_state.page == "⚔️ Analizar Partido":
                 
                 if st.button("🗑️ Limpiar selección"):
                     st.session_state.selected_parlay_legs = []
+
                     st.rerun()
