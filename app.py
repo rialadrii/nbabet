@@ -1042,12 +1042,9 @@ elif st.session_state.page == "⚔️ Analizar Partido":
 
                 st.markdown("<div class='card-elevated' style='padding:16px 16px;'>", unsafe_allow_html=True)
                 st.markdown(f"""
-                <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:12px;">
-                    <div class="pill-label">Últimos {len(df_games)} enfrentamientos</div>
-                    <div style="display:flex; gap:10px; flex-wrap:wrap;">
-                        <span class="pill-label">{t1}: <span class="num-mono num-strong num-pts">{wins_t1}</span></span>
-                        <span class="pill-label">{t2}: <span class="num-mono num-strong num-pts">{wins_t2}</span></span>
-                    </div>
+                <div style="display:flex; justify-content:flex-end; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:12px;">
+                    <span class="pill-label">{t1}: <span class="num-mono num-strong num-pts">{wins_t1}</span></span>
+                    <span class="pill-label">{t2}: <span class="num-mono num-strong num-pts">{wins_t2}</span></span>
                 </div>
                 """, unsafe_allow_html=True)
                 mostrar_tabla_como_tarjetas(df_games, max_cols=1)
@@ -1078,7 +1075,6 @@ elif st.session_state.page == "⚔️ Analizar Partido":
                     cols_ordered = ['FECHA', f'{t1} PTS', f'{t2} PTS', f'{t1} REB', f'{t2} REB', f'{t1} AST', f'{t2} AST']
                     final_cols = [c for c in cols_ordered if c in df_comparative.columns]
                     st.markdown("<div class='card-elevated' style='padding:16px 16px;'>", unsafe_allow_html=True)
-                    st.markdown("<div class='pill-label' style='margin-bottom:12px;'>Stats por partido (H2H)</div>", unsafe_allow_html=True)
                     mostrar_tabla_como_tarjetas(df_comparative[final_cols], max_cols=2)
                     st.markdown("</div>", unsafe_allow_html=True)
 
