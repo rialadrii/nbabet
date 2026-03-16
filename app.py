@@ -23,74 +23,368 @@ st.set_page_config(
 # ==========================================
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Teko:wght@300..700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Teko:wght@300..700&family=Inter:wght@300;400;500;600;700&display=swap');
 
-/* --- CENTRADO GLOBAL --- */
+/* ============================
+   LAYOUT GENERAL
+   ============================ */
 .main .block-container {
-    max-width: 1300px !important;
-    padding-left: 0.5rem !important;
-    padding-right: 0.5rem !important;
+    max-width: 1320px !important;
+    padding: 1.5rem 1.75rem 3rem 1.75rem !important;
     margin: 0 auto !important;
 }
 
-/* Forzar alineación de textos SOLO en elementos de bloque seguros */
-h1, h2, h3, h4, p {
-    text-align: center !important;
+body {
+    background: radial-gradient(circle at top, #101624 0, #05070c 40%, #020308 100%) !important;
+    color: #e3e7f1 !important;
+    font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
+}
+
+/* Quitar centrado agresivo por defecto */
+h1, h2, h3, h4, h5, h6, p {
+    text-align: left !important;
+}
+
+/* Encabezados principales */
+h1 {
+    font-family: 'Teko', system-ui !important;
+    font-size: 52px !important;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #ffffff;
+    margin-bottom: 8px !important;
+}
+
+h2 {
+    font-family: 'Teko', system-ui !important;
+    font-size: 30px !important;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: #e3f2fd;
+    margin-top: 28px !important;
+    margin-bottom: 8px !important;
+}
+
+h3 {
+    font-family: 'Inter', system-ui !important;
+    font-size: 17px !important;
+    text-transform: none;
+    letter-spacing: 0.04em;
+    font-weight: 600;
+    color: #c5d1ff;
+    text-transform: uppercase;
+}
+
+p, span, label {
+    font-size: 14px !important;
+}
+
+/* ============================
+   SIDEBAR
+   ============================ */
+[data-testid="stSidebar"] {
+    background: linear-gradient(180deg, #050816 0, #020308 35%, #050816 100%) !important;
+    border-right: 1px solid rgba(148, 163, 184, 0.22);
+}
+
+[data-testid="stSidebar"] * {
+    font-family: 'Inter', system-ui !important;
+}
+
+[data-testid="stSidebarNav"]::before {
+    content: "NBA Analyzer Pro";
+    margin-left: 10px;
+    margin-top: 12px;
+    font-weight: 600;
+    font-size: 13px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: #9ca3af;
+}
+
+[data-testid="stSidebar"] .stRadio > label {
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-size: 12px;
+}
+
+/* ============================
+   CARDS / CONTENEDORES
+   ============================ */
+.card-elevated {
+    background: radial-gradient(circle at top left, #18212f 0, #090d16 40%, #05070d 100%);
+    border-radius: 18px;
+    border: 1px solid rgba(148, 163, 184, 0.28);
+    box-shadow: 0 18px 40px rgba(15, 23, 42, 0.85);
+    padding: 18px 20px;
+    margin-bottom: 18px;
+}
+
+.card-section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+
+.pill-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    background: rgba(15, 23, 42, 0.88);
+    border: 1px solid rgba(148, 163, 184, 0.45);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #e5e7eb;
+}
+
+.subtext-muted {
+    font-size: 12px;
+    color: #9ca3af;
+}
+
+/* ============================
+   TABLAS / DATAFRAMES
+   ============================ */
+[data-testid="stDataFrame"] {
     width: 100% !important;
+    max-width: 100% !important;
+    margin: 0.25rem auto 0.75rem auto !important;
 }
 
-/* Evitar que labels y spans se rompan */
-label, span {
-    text-align: inherit;
+.table-responsive {
+    display: flex !important;
+    justify-content: center !important;
+    width: 100% !important;
+    overflow-x: auto;
+    margin-bottom: 0.75rem;
 }
 
-/* --- OCULTAR ANCHOR LINKS --- */
-[data-testid="stHeaderAction"] { display: none !important; }
-h1 a, h2 a, h3 a, h4 a, h5 a, h6 a { display: none !important; color: transparent !important; pointer-events: none !important; }
-.css-10trblm, .css-16idsys, a.anchor-link { display: none !important; }
+table.custom-table {
+    margin: 0 auto !important;
+    border-collapse: collapse;
+    font-size: 13px;
+    min-width: 360px;
+    width: 100%;
+    background: rgba(15, 23, 42, 0.92);
+}
 
-/* --- FIX TABLAS --- */
-[data-testid="stDataFrame"] { width: 100% !important; max-width: 100% !important; margin: 0 auto !important; }
-.table-responsive { display: flex !important; justify-content: center !important; width: 100% !important; overflow-x: auto; margin-bottom: 1rem; }
+table.custom-table th {
+    background: linear-gradient(90deg, #111827, #020617);
+    color: #f9fafb;
+    text-align: center !important;
+    padding: 9px 8px;
+    border-bottom: 1px solid rgba(55, 65, 81, 0.9);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
 
-table.custom-table { margin: 0 auto !important; border-collapse: collapse; font-size: 14px; min-width: 350px; width: 100%; }
-table.custom-table th { background-color: #31333F; color: white; text-align: center !important; padding: 8px; border-bottom: 2px solid #555; }
-table.custom-table td { text-align: center !important; padding: 6px; border-bottom: 1px solid #444; color: white; }
+table.custom-table td {
+    text-align: center !important;
+    padding: 7px 6px;
+    border-bottom: 1px solid rgba(31, 41, 55, 0.85);
+    color: #e5e7eb;
+}
 
-/* --- ESTILOS VISUALES --- */
-h1 { font-family: 'Teko', sans-serif !important; font-size: 55px !important; text-transform: uppercase; color: white; margin-bottom: 20px; }
-h3 { font-family: 'Teko', sans-serif !important; font-size: 28px !important; text-transform: uppercase; color: #ffbd45; margin-top: 30px; }
+table.custom-table tr:nth-child(even) td {
+    background-color: rgba(15, 23, 42, 0.72);
+}
 
-.game-card { background-color: #2d2d2d; border: 1px solid #444; border-radius: 8px; padding: 15px; margin-bottom: 15px; width: 100%; text-align: center; }
-.game-matchup { display: flex; justify-content: center; align-items: center; gap: 10px; margin-bottom: 5px; }
-.team-logo { width: 45px; height: 45px; object-fit: contain; }
-.game-time { color: #ffbd45; font-size: 22px; font-family: 'Teko', sans-serif; }
+table.custom-table tr:hover td {
+    background-color: rgba(30, 64, 175, 0.35);
+}
 
-div.stButton > button { width: 100%; border-radius: 8px !important; font-weight: bold; background-color: #1e1e1e; color: #fff; border: 1px solid #444; transition: all 0.2s; }
-div.stButton > button:hover { border-color: #ffbd45; color: #ffbd45; }
+/* ============================
+   GAME CARDS / MATCHUPS
+   ============================ */
+.game-card {
+    background: radial-gradient(circle at top left, #1d2535 0, #080b12 45%, #05070c 100%);
+    border-radius: 18px;
+    border: 1px solid rgba(148, 163, 184, 0.35);
+    padding: 15px 16px 14px 16px;
+    margin-bottom: 14px;
+    width: 100%;
+    text-align: center;
+    box-shadow: 0 14px 35px rgba(15, 23, 42, 0.9);
+}
 
-.parlay-box { background-color: #1e1e1e; border: 1px solid #444; border-radius: 10px; padding: 10px; margin-bottom: 15px; }
-.parlay-header { font-size: 18px; font-weight: bold; margin-bottom: 10px; border-bottom: 1px solid #444; padding-bottom: 5px; text-align: center !important; color: white; }
-.parlay-leg { background-color: #2d2d2d; margin: 5px 0; padding: 8px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; color: white; }
+.game-matchup {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 6px;
+}
 
-.dnp-missing { color: #ff5252; font-weight:bold; }
-.dnp-full { color: #4caf50; font-weight:bold; }
-.pat-stars { color: #ff5252; font-weight: bold; }
-.pat-impact { color: #4caf50; }
+.team-logo {
+    width: 46px;
+    height: 46px;
+    object-fit: contain;
+    filter: drop-shadow(0 0 12px rgba(15, 23, 42, 0.9));
+}
 
-/* Estilos para cuotas */
-.odds-info { background-color: #263238; border: 1px solid #37474f; border-radius: 5px; padding: 10px; margin-bottom: 15px; text-align: center; color: #eceff1; }
-.odds-timestamp { color: #ffbd45; font-weight: bold; font-size: 18px; }
+.game-time {
+    color: #facc15;
+    font-size: 20px;
+    font-family: 'Teko', system-ui;
+    letter-spacing: 0.16em;
+}
 
-/* Ocultar toolbar y footer */
+.vs-text {
+    font-size: 18px;
+    color: #9ca3af;
+    letter-spacing: 0.18em;
+}
+
+/* ============================
+   BOTONES
+   ============================ */
+div.stButton > button {
+    width: 100%;
+    border-radius: 999px !important;
+    font-weight: 600 !important;
+    font-size: 13px !important;
+    background: linear-gradient(90deg, #0f172a, #1d4ed8);
+    color: #f9fafb !important;
+    border: 1px solid rgba(129, 140, 248, 0.9);
+    transition: all 0.18s ease-out;
+    box-shadow: 0 10px 25px rgba(15, 23, 42, 0.9);
+}
+
+div.stButton > button:hover {
+    border-color: #facc15 !important;
+    color: #facc15 !important;
+    transform: translateY(-1px);
+    box-shadow: 0 14px 30px rgba(30, 64, 175, 0.9);
+}
+
+/* ============================
+   PARLAY / PATRONES / DNP
+   ============================ */
+.parlay-box {
+    background: radial-gradient(circle at top, #111827 0, #020617 70%);
+    border: 1px solid rgba(147, 197, 253, 0.22);
+    border-radius: 16px;
+    padding: 12px 14px;
+    margin-bottom: 15px;
+}
+
+.parlay-header {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    border-bottom: 1px solid rgba(55, 65, 81, 0.9);
+    padding-bottom: 6px;
+    text-align: left !important;
+    color: #e5e7eb;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+}
+
+.parlay-leg {
+    background: linear-gradient(90deg, rgba(15, 23, 42, 0.9), rgba(17, 24, 39, 0.5));
+    margin: 5px 0;
+    padding: 8px 10px;
+    border-radius: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: #f9fafb;
+    font-size: 13px;
+}
+
+.parlay-leg .leg-player {
+    font-weight: 500;
+}
+
+.parlay-leg .leg-info {
+    text-align: right;
+}
+
+.parlay-leg .leg-val {
+    font-weight: 700;
+}
+
+.dnp-missing {
+    color: #f97373;
+    font-weight: 600;
+}
+
+.dnp-full {
+    color: #4ade80;
+    font-weight: 600;
+}
+
+.pat-stars {
+    color: #fb7185;
+    font-weight: 600;
+}
+
+.pat-impact {
+    color: #a5b4fc;
+}
+
+/* ============================
+   CUOTAS
+   ============================ */
+.odds-info {
+    background: radial-gradient(circle at top, #0f172a 0, #020617 70%);
+    border: 1px solid rgba(129, 140, 248, 0.55);
+    border-radius: 14px;
+    padding: 12px 14px;
+    margin-bottom: 16px;
+    text-align: left;
+    color: #e5e7eb;
+}
+
+.odds-timestamp {
+    color: #facc15;
+    font-weight: 600;
+    font-size: 16px;
+}
+
+/* ============================
+   OTROS
+   ============================ */
 [data-testid="stElementToolbar"] { display: none !important; }
 footer { display: none !important; }
 
-/* Arreglo específico para que el Checkbox se vea bien */
 [data-testid="stCheckbox"] {
     display: flex;
-    justify-content: center; 
+    justify-content: center;
     width: 100%;
+}
+
+.credits {
+    margin-top: 1.25rem;
+    font-size: 12px;
+    color: #6b7280;
+    text-align: right;
+}
+
+.next-game-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 14px;
+    border-radius: 999px;
+    border: 1px solid rgba(248, 250, 252, 0.95);
+    font-size: 12px;
+    text-decoration: none;
+    color: #0f172a;
+    background: #facc15;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+.match-link {
+    text-decoration: none;
 }
 </style>
 """, unsafe_allow_html=True)
