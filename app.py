@@ -1140,8 +1140,8 @@ elif st.session_state.page == "⚔️ Analizar Partido":
                         # Determinar rival para el texto
                         opponent = t2 if team == t1 else t1
 
-                        # Logs recientes (últimos 5 partidos, temporada completa)
-                        player_logs = season_logs.head(5)
+                        # Logs recientes (últimos 5 partidos contra este rival)
+                        player_logs = history[history['player_name'] == player_name].sort_values('game_date', ascending=False).head(5)
                         
                         # Calcular desglose de puntos
                         if not player_logs.empty:
@@ -1260,7 +1260,7 @@ elif st.session_state.page == "⚔️ Analizar Partido":
                         team = row['team_abbreviation']
                         avg_reb = row['reb']
                         
-                        player_logs = df[df['player_name'] == player_name].sort_values('game_date', ascending=False).head(5)
+                        player_logs = history[history['player_name'] == player_name].sort_values('game_date', ascending=False).head(5)
                         
                         # Serie de rebotes
                         reb_values = player_logs['reb'].tolist() if not player_logs.empty else []
@@ -1337,7 +1337,7 @@ elif st.session_state.page == "⚔️ Analizar Partido":
                         team = row['team_abbreviation']
                         avg_ast = row['ast']
                         
-                        player_logs = df[df['player_name'] == player_name].sort_values('game_date', ascending=False).head(5)
+                        player_logs = history[history['player_name'] == player_name].sort_values('game_date', ascending=False).head(5)
                         
                         # Serie de asistencias
                         ast_values = player_logs['ast'].tolist() if not player_logs.empty else []
