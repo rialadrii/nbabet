@@ -1075,131 +1075,206 @@ elif st.session_state.page == "⚔️ Analizar Partido":
 
             st.markdown("<div class='section-divider'></div>", unsafe_allow_html=True)
             st.markdown("<div class='section-title'>🔥 Top anotadores</div>", unsafe_allow_html=True)
-            # --- NUEVO: Top anotadores en cards compactas ---
+            # --- NUEVO: Top anotadores con desglose completo ---
             top_scorers_df = stats.sort_values('pts', ascending=False).head(10)
             if not top_scorers_df.empty:
-                cols = st.columns(5, gap="small")
+                # Creamos grid de 2 columnas para que las cards tengan más espacio para los detalles
+                cols = st.columns(2, gap="medium")
                 for idx, (_, row) in enumerate(top_scorers_df.iterrows()):
-                    with cols[idx % 5]:
+                    with cols[idx % 2]:
                         player_name = row['player_name']
                         team = row['team_abbreviation']
                         avg_pts = row['pts']
                         trend_pts = row.get('trend_pts', '')
+                        trend_min = row.get('trend_min', '')
                         
-                        last_game_pts = "0"
+                        # Obtener logs recientes para este jugador
+                        player_logs = recent_players[recent_players['player_name'] == player_name].sort_values('game_date', ascending=False).head(5)
+                        
+                        # Calcular desglose de puntos si hay datos
+                        pts_desglose = ""
+                        if not player_logs.empty and all(c in player_logs.columns for c in ['fgm', 'fg3m', 'ftm']):
+                            avg_2pt = ((player_logs['fgm'] - player_logs['fg3m']) * 2).mean()
+                            avg_3pt = (player_logs['fg3m'] * 3).mean()
+                            avg_ft = (player_logs['ftm']).mean()
+                            pts_desglose = f"<div style='margin-top: 6px; color: #9ca3af; font-size: 11px;'>2PT: {avg_2pt:.1f} | 3PT: {avg_3pt:.1f} | TL: {avg_ft:.1f}</div>"
+                        
+                        # Formatear la serie de puntos
+                        pts_series = ""
                         if trend_pts and isinstance(trend_pts, str):
-                            parts = trend_pts.split('/')
-                            if parts:
-                                last_val = parts[-1]
-                                if last_val and last_val != "❌":
-                                    last_game_pts = last_val
-
+                            pts_values = trend_pts.split('/')
+                            # Limitar a últimos 5 para no saturar
+                            pts_series = " • ".join([v for v in pts_values[-5:] if v != "❌"])
+                        
+                        # Formatear la serie de minutos
+                        min_series = ""
+                        if trend_min and isinstance(trend_min, str):
+                            min_values = trend_min.split('/')
+                            min_series = " • ".join([v for v in min_values[-5:] if v != "❌"])
+                        
                         st.markdown(f"""
-                        <div class="card-elevated" style="padding: 12px 8px; margin-bottom: 8px; text-align: center; background: rgba(15, 23, 42, 0.7);">
-                            <div style="font-weight: 800; font-size: 16px; color: #ffffff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="{player_name}">
-                                {player_name}
+                        <div class="card-elevated" style="padding: 16px 16px; margin-bottom: 16px; background: linear-gradient(135deg, rgba(30,64,175,0.25) 0%, rgba(15,23,42,0.85) 100%);">
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                                <div>
+                                    <div style="font-weight: 800; font-size: 18px; color: #ffffff;">{player_name}</div>
+                                    <div style="margin-top: 4px; display: flex; gap: 8px; align-items: center;">
+                                        <span class="pill-label" style="font-size: 11px;">{team}</span>
+                                    </div>
+                                </div>
+                                <div style="text-align: right;">
+                                    <div style="font-size: 32px; font-weight: 900; color: #facc15; line-height: 1;">{avg_pts:.1f}</div>
+                                    <div style="color: #9ca3af; font-size: 11px;">PPG</div>
+                                </div>
                             </div>
-                            <div style="display: flex; justify-content: center; align-items: baseline; gap: 6px; margin-top: 8px;">
-                                <span style="font-size: 24px; font-weight: 900; color: #facc15;">{avg_pts:.1f}</span>
-                                <span style="color: #9ca3af; font-size: 11px;">PPG</span>
+                            
+                            {pts_desglose}
+                            
+                            <div style="margin-top: 12px;">
+                                <div style="color: #9ca3af; font-size: 11px; letter-spacing: 0.06em;">ÚLTIMOS PUNTOS</div>
+                                <div style="margin-top: 4px; font-family: monospace; font-size: 14px; color: #e5e7eb;">{pts_series}</div>
                             </div>
-                            <div style="margin-top: 8px; color: #9ca3af; font-size: 11px; display: flex; justify-content: center; align-items: center; gap: 4px;">
-                                <span class="pill-label" style="font-size: 10px;">{team}</span>
-                                <span>Últ: <b style="color: #e5e7eb;">{last_game_pts}</b></span>
+                            
+                            <div style="margin-top: 8px;">
+                                <div style="color: #9ca3af; font-size: 11px; letter-spacing: 0.06em;">MINUTOS</div>
+                                <div style="margin-top: 4px; font-family: monospace; font-size: 14px; color: #e5e7eb;">{min_series}</div>
+                            </div>
+                            
+                            <div style="margin-top: 12px; display: flex; justify-content: flex-end;">
+                                <button onclick="window.location.href='#'" style="background: none; border: 1px solid rgba(250,204,21,0.3); color: #facc15; padding: 4px 12px; border-radius: 20px; font-size: 12px; cursor: pointer;">Ver perfil →</button>
                             </div>
                         </div>
                         """, unsafe_allow_html=True)
                         
-                        if st.button("👤", key=f"top_scorer_{player_name}", help=f"Ver perfil de {player_name}"):
+                        # Botón oculto de Streamlit para la navegación (ya que el HTML no puede ejecutar Python)
+                        if st.button(f"Ver perfil de {player_name}", key=f"scorer_profile_{player_name}"):
                             navegar_a_jugador(player_name)
                             st.rerun()
             else:
                 st.caption("Sin datos de anotadores.")
 
             st.markdown("<div class='section-title'>🖐️ Top reboteadores</div>", unsafe_allow_html=True)
-            # --- NUEVO: Top reboteadores en cards compactas ---
+            # --- NUEVO: Top reboteadores con desglose completo ---
             top_rebounders_df = stats.sort_values('reb', ascending=False).head(10)
             if not top_rebounders_df.empty:
-                cols = st.columns(5, gap="small")
+                cols = st.columns(2, gap="medium")
                 for idx, (_, row) in enumerate(top_rebounders_df.iterrows()):
-                    with cols[idx % 5]:
+                    with cols[idx % 2]:
                         player_name = row['player_name']
                         team = row['team_abbreviation']
                         avg_reb = row['reb']
                         trend_reb = row.get('trend_reb', '')
+                        trend_min = row.get('trend_min', '')
                         
-                        last_game_reb = "0"
+                        # Formatear la serie de rebotes
+                        reb_series = ""
                         if trend_reb and isinstance(trend_reb, str):
-                            parts = trend_reb.split('/')
-                            if parts:
-                                last_val = parts[-1]
-                                if last_val and last_val != "❌":
-                                    last_game_reb = last_val
-
+                            reb_values = trend_reb.split('/')
+                            reb_series = " • ".join([v for v in reb_values[-5:] if v != "❌"])
+                        
+                        # Formatear la serie de minutos
+                        min_series = ""
+                        if trend_min and isinstance(trend_min, str):
+                            min_values = trend_min.split('/')
+                            min_series = " • ".join([v for v in min_values[-5:] if v != "❌"])
+                        
                         st.markdown(f"""
-                        <div class="card-elevated" style="padding: 12px 8px; margin-bottom: 8px; text-align: center; background: rgba(15, 23, 42, 0.7);">
-                            <div style="font-weight: 800; font-size: 16px; color: #ffffff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="{player_name}">
-                                {player_name}
+                        <div class="card-elevated" style="padding: 16px 16px; margin-bottom: 16px; background: linear-gradient(135deg, rgba(37,99,235,0.25) 0%, rgba(15,23,42,0.85) 100%);">
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                                <div>
+                                    <div style="font-weight: 800; font-size: 18px; color: #ffffff;">{player_name}</div>
+                                    <div style="margin-top: 4px;">
+                                        <span class="pill-label" style="font-size: 11px;">{team}</span>
+                                    </div>
+                                </div>
+                                <div style="text-align: right;">
+                                    <div style="font-size: 32px; font-weight: 900; color: #60a5fa; line-height: 1;">{avg_reb:.1f}</div>
+                                    <div style="color: #9ca3af; font-size: 11px;">RPG</div>
+                                </div>
                             </div>
-                            <div style="display: flex; justify-content: center; align-items: baseline; gap: 6px; margin-top: 8px;">
-                                <span style="font-size: 24px; font-weight: 900; color: #60a5fa;">{avg_reb:.1f}</span>
-                                <span style="color: #9ca3af; font-size: 11px;">RPG</span>
+                            
+                            <div style="margin-top: 12px;">
+                                <div style="color: #9ca3af; font-size: 11px; letter-spacing: 0.06em;">ÚLTIMOS REBOTES</div>
+                                <div style="margin-top: 4px; font-family: monospace; font-size: 14px; color: #e5e7eb;">{reb_series}</div>
                             </div>
-                            <div style="margin-top: 8px; color: #9ca3af; font-size: 11px; display: flex; justify-content: center; align-items: center; gap: 4px;">
-                                <span class="pill-label" style="font-size: 10px;">{team}</span>
-                                <span>Últ: <b style="color: #e5e7eb;">{last_game_reb}</b></span>
+                            
+                            <div style="margin-top: 8px;">
+                                <div style="color: #9ca3af; font-size: 11px; letter-spacing: 0.06em;">MINUTOS</div>
+                                <div style="margin-top: 4px; font-family: monospace; font-size: 14px; color: #e5e7eb;">{min_series}</div>
+                            </div>
+                            
+                            <div style="margin-top: 12px; display: flex; justify-content: flex-end;">
+                                <button onclick="window.location.href='#'" style="background: none; border: 1px solid rgba(96,165,250,0.3); color: #60a5fa; padding: 4px 12px; border-radius: 20px; font-size: 12px; cursor: pointer;">Ver perfil →</button>
                             </div>
                         </div>
                         """, unsafe_allow_html=True)
                         
-                        if st.button("👤", key=f"top_rebounder_{player_name}", help=f"Ver perfil de {player_name}"):
+                        if st.button(f"Ver perfil de {player_name}", key=f"rebounder_profile_{player_name}"):
                             navegar_a_jugador(player_name)
                             st.rerun()
             else:
                 st.caption("Sin datos de reboteadores.")
 
             st.markdown("<div class='section-title'>🎁 Top asistentes</div>", unsafe_allow_html=True)
-            # --- NUEVO: Top asistentes en cards compactas ---
+            # --- NUEVO: Top asistentes con desglose completo ---
             top_assisters_df = stats.sort_values('ast', ascending=False).head(10)
             if not top_assisters_df.empty:
-                cols = st.columns(5, gap="small")
+                cols = st.columns(2, gap="medium")
                 for idx, (_, row) in enumerate(top_assisters_df.iterrows()):
-                    with cols[idx % 5]:
+                    with cols[idx % 2]:
                         player_name = row['player_name']
                         team = row['team_abbreviation']
                         avg_ast = row['ast']
                         trend_ast = row.get('trend_ast', '')
+                        trend_min = row.get('trend_min', '')
                         
-                        last_game_ast = "0"
+                        # Formatear la serie de asistencias
+                        ast_series = ""
                         if trend_ast and isinstance(trend_ast, str):
-                            parts = trend_ast.split('/')
-                            if parts:
-                                last_val = parts[-1]
-                                if last_val and last_val != "❌":
-                                    last_game_ast = last_val
-
+                            ast_values = trend_ast.split('/')
+                            ast_series = " • ".join([v for v in ast_values[-5:] if v != "❌"])
+                        
+                        # Formatear la serie de minutos
+                        min_series = ""
+                        if trend_min and isinstance(trend_min, str):
+                            min_values = trend_min.split('/')
+                            min_series = " • ".join([v for v in min_values[-5:] if v != "❌"])
+                        
                         st.markdown(f"""
-                        <div class="card-elevated" style="padding: 12px 8px; margin-bottom: 8px; text-align: center; background: rgba(15, 23, 42, 0.7);">
-                            <div style="font-weight: 800; font-size: 16px; color: #ffffff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="{player_name}">
-                                {player_name}
+                        <div class="card-elevated" style="padding: 16px 16px; margin-bottom: 16px; background: linear-gradient(135deg, rgba(192,132,252,0.25) 0%, rgba(15,23,42,0.85) 100%);">
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                                <div>
+                                    <div style="font-weight: 800; font-size: 18px; color: #ffffff;">{player_name}</div>
+                                    <div style="margin-top: 4px;">
+                                        <span class="pill-label" style="font-size: 11px;">{team}</span>
+                                    </div>
+                                </div>
+                                <div style="text-align: right;">
+                                    <div style="font-size: 32px; font-weight: 900; color: #c084fc; line-height: 1;">{avg_ast:.1f}</div>
+                                    <div style="color: #9ca3af; font-size: 11px;">APG</div>
+                                </div>
                             </div>
-                            <div style="display: flex; justify-content: center; align-items: baseline; gap: 6px; margin-top: 8px;">
-                                <span style="font-size: 24px; font-weight: 900; color: #c084fc;">{avg_ast:.1f}</span>
-                                <span style="color: #9ca3af; font-size: 11px;">APG</span>
+                            
+                            <div style="margin-top: 12px;">
+                                <div style="color: #9ca3af; font-size: 11px; letter-spacing: 0.06em;">ÚLTIMAS ASISTENCIAS</div>
+                                <div style="margin-top: 4px; font-family: monospace; font-size: 14px; color: #e5e7eb;">{ast_series}</div>
                             </div>
-                            <div style="margin-top: 8px; color: #9ca3af; font-size: 11px; display: flex; justify-content: center; align-items: center; gap: 4px;">
-                                <span class="pill-label" style="font-size: 10px;">{team}</span>
-                                <span>Últ: <b style="color: #e5e7eb;">{last_game_ast}</b></span>
+                            
+                            <div style="margin-top: 8px;">
+                                <div style="color: #9ca3af; font-size: 11px; letter-spacing: 0.06em;">MINUTOS</div>
+                                <div style="margin-top: 4px; font-family: monospace; font-size: 14px; color: #e5e7eb;">{min_series}</div>
+                            </div>
+                            
+                            <div style="margin-top: 12px; display: flex; justify-content: flex-end;">
+                                <button onclick="window.location.href='#'" style="background: none; border: 1px solid rgba(192,132,252,0.3); color: #c084fc; padding: 4px 12px; border-radius: 20px; font-size: 12px; cursor: pointer;">Ver perfil →</button>
                             </div>
                         </div>
                         """, unsafe_allow_html=True)
                         
-                        if st.button("👤", key=f"top_assister_{player_name}", help=f"Ver perfil de {player_name}"):
+                        if st.button(f"Ver perfil de {player_name}", key=f"assister_profile_{player_name}"):
                             navegar_a_jugador(player_name)
                             st.rerun()
             else:
                 st.caption("Sin datos de asistentes.")
-
             # BAJAS (DNP)
             st.write("---")
             st.subheader("🏥 Historial de Bajas (Jugadores con >12 min promedio)")
