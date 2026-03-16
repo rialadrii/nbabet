@@ -1169,7 +1169,7 @@ elif st.session_state.page == "⚔️ Analizar Partido":
                         </div>
                         """, unsafe_allow_html=True)
                         
-                        if st.button(f"Ver {player_name}", key=f"scorer_fixed_{player_name}"):
+                        if st.button(f"Ver {player_name}", key=f"scorer_fixed_{idx}"):
                             navegar_a_jugador(player_name)
                             st.rerun()
             else:
@@ -1247,7 +1247,7 @@ elif st.session_state.page == "⚔️ Analizar Partido":
                         </div>
                         """, unsafe_allow_html=True)
                         
-                        if st.button(f"Ver {player_name}", key=f"rebounder_fixed_{player_name}"):
+                        if st.button(f"Ver {player_name}", key=f"rebounder_fixed_{idx}"):
                             navegar_a_jugador(player_name)
                             st.rerun()
             else:
@@ -1325,7 +1325,7 @@ elif st.session_state.page == "⚔️ Analizar Partido":
                         </div>
                         """, unsafe_allow_html=True)
                         
-                        if st.button(f"Ver {player_name}", key=f"assister_fixed_{player_name}"):
+                        if st.button(f"Ver {player_name}", key=f"assister_fixed_{idx}"):
                             navegar_a_jugador(player_name)
                             st.rerun()
             else:
