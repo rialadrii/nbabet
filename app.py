@@ -16,7 +16,7 @@ def html_clean(s: str) -> str:
 # Importar módulos propios
 from data import load_data, download_data, get_team_roster_numbers, get_next_matchup_info, query_player_stats, get_injuries
 from odds import get_sports_odds, save_cache, load_cache, detect_value_odds
-from ui import mostrar_leyenda_colores, mostrar_tabla_bonita, mostrar_tabla_como_tarjetas, render_clickable_player_table, render_clickable_player_cards
+from ui import mostrar_leyenda_colores, mostrar_tabla_bonita, render_clickable_player_table, render_clickable_player_cards
 from utils import convertir_hora_espanol, get_basketball_date, safe_request
 
 # ==========================================
