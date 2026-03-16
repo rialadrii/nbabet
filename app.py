@@ -33,7 +33,7 @@ st.set_page_config(
 # ==========================================
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Teko:wght@300..700&family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Teko:wght@300..700&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap');
 
 /* ============================
    LOOK PRO (como antes)
@@ -122,6 +122,13 @@ div.stButton > button:hover { border-color: #facc15; color: #facc15; transform: 
     background: linear-gradient(90deg, rgba(148,163,184,0.0), rgba(148,163,184,0.35), rgba(148,163,184,0.0));
     margin: 8px 0 16px 0;
 }
+
+/* Números (más legibles y con color) */
+.num-mono { font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+.num-strong { font-weight: 800; letter-spacing: -0.02em; }
+.num-pts { color: #facc15; }
+.num-min { color: #60a5fa; }
+.num-3pm { color: #fb923c; }
 
 /* Mobile: más presencia */
 @media (max-width: 768px) {
@@ -1023,7 +1030,23 @@ elif st.session_state.page == "⚔️ Analizar Partido":
 
             df_games = pd.DataFrame(games_summary)
             if not df_games.empty:
+                # Resumen visual + tabla en card
+                try:
+                    wins_t1 = sum(1 for x in games_summary if f"{t1} ✅" in x.get('ENFRENTAMIENTO', ''))
+                    wins_t2 = sum(1 for x in games_summary if f"{t2} ✅" in x.get('ENFRENTAMIENTO', ''))
+                except Exception:
+                    wins_t1, wins_t2 = 0, 0
+
                 st.markdown("<div class='card-elevated' style='padding:16px 16px;'>", unsafe_allow_html=True)
+                st.markdown(f"""
+                <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:12px;">
+                    <div class="pill-label">Últimos {len(df_games)} enfrentamientos</div>
+                    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                        <span class="pill-label">{t1}: <span class="num-mono num-strong num-pts">{wins_t1}</span></span>
+                        <span class="pill-label">{t2}: <span class="num-mono num-strong num-pts">{wins_t2}</span></span>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
                 mostrar_tabla_bonita(df_games, None)
                 st.markdown("</div>", unsafe_allow_html=True)
 
@@ -1052,6 +1075,7 @@ elif st.session_state.page == "⚔️ Analizar Partido":
                     cols_ordered = ['FECHA', f'{t1} PTS', f'{t2} PTS', f'{t1} REB', f'{t2} REB', f'{t1} AST', f'{t2} AST']
                     final_cols = [c for c in cols_ordered if c in df_comparative.columns]
                     st.markdown("<div class='card-elevated' style='padding:16px 16px;'>", unsafe_allow_html=True)
+                    st.markdown("<div class='pill-label' style='margin-bottom:12px;'>Stats por partido (H2H)</div>", unsafe_allow_html=True)
                     mostrar_tabla_bonita(df_comparative[final_cols], None, simple_mode=True)
                     st.markdown("</div>", unsafe_allow_html=True)
 
@@ -1129,6 +1153,11 @@ elif st.session_state.page == "⚔️ Analizar Partido":
                         
                         # Construir HTML del desglose directamente en la tarjeta
                         
+                        # Triples (series + media)
+                        tpm_values = player_logs['fg3m'].tolist() if not player_logs.empty and 'fg3m' in player_logs.columns else []
+                        tpm_series = " • ".join([str(int(v)) for v in tpm_values]) if tpm_values else "Sin datos"
+                        avg_3pm_made = float(pd.Series(tpm_values).mean()) if tpm_values else 0.0
+
                         # Serie de puntos
                         pts_values = player_logs['pts'].tolist() if not player_logs.empty else []
                         pts_series = " • ".join([str(int(v)) for v in pts_values]) if pts_values else "Sin datos"
@@ -1170,21 +1199,33 @@ elif st.session_state.page == "⚔️ Analizar Partido":
   border: 1px solid rgba(148,163,184,0.18);
   border-radius: 20px;
 ">
-  <div style="display:flex; gap:12px; justify-content:center; border-bottom:1px solid rgba(148,163,184,0.18); padding-bottom:10px; margin-bottom:12px;">
-    <div><span style="color:#9ca3af;">2PT:</span> <span style="color:#e5e7eb; font-weight:800;">{avg_2pt:.1f}</span></div>
-    <div><span style="color:#9ca3af;">3PT:</span> <span style="color:#e5e7eb; font-weight:800;">{avg_3pt:.1f}</span></div>
-    <div><span style="color:#9ca3af;">TL:</span> <span style="color:#e5e7eb; font-weight:800;">{avg_ft:.1f}</span></div>
+  <div style="display:flex; gap:14px; justify-content:center; border-bottom:1px solid rgba(148,163,184,0.18); padding-bottom:12px; margin-bottom:12px; flex-wrap:wrap;">
+    <div><span style="color:#9ca3af;">2PT:</span> <span class="num-mono num-strong" style="color:#e5e7eb;">{avg_2pt:.1f}</span></div>
+    <div><span style="color:#9ca3af;">TL:</span> <span class="num-mono num-strong" style="color:#e5e7eb;">{avg_ft:.1f}</span></div>
+    <div><span style="color:#9ca3af;">3PT pts:</span> <span class="num-mono num-strong num-3pm">{avg_3pt:.1f}</span></div>
   </div>
 
-  <div style="background: rgba(0,0,0,0.22); padding: 12px; border-radius: 14px;">
+  <div style="margin-top:10px; background: rgba(251,146,60,0.10); border:1px solid rgba(251,146,60,0.22); padding:12px; border-radius:14px;">
+    <div style="color:#fb923c; font-size:11px; letter-spacing:0.14em; margin-bottom:8px; text-transform:uppercase;">🎯 Triples (últimos 5)</div>
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <span style="color:#9ca3af; font-size:12px;">3PM</span>
+      <span class="num-mono num-strong num-3pm" style="font-size:20px;">{tpm_series}</span>
+    </div>
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
+      <span style="color:#9ca3af; font-size:12px;">Media</span>
+      <span class="num-mono num-strong num-3pm" style="font-size:18px;">{avg_3pm_made:.1f}</span>
+    </div>
+  </div>
+
+    <div style="background: rgba(0,0,0,0.22); padding: 14px; border-radius: 16px;">
     <div style="color:#facc15; font-size:11px; letter-spacing:0.14em; margin-bottom:8px; text-transform:uppercase;">⚡ Últimos 5 partidos</div>
     <div style="display:flex; justify-content:space-between; align-items:center;">
       <span style="color:#9ca3af; font-size:12px;">PTS</span>
-      <span style="font-family:'JetBrains Mono', monospace; font-size:16px; font-weight:700; color:#e5e7eb;">{pts_series}</span>
+      <span class="num-mono num-strong num-pts" style="font-size:20px;">{pts_series}</span>
     </div>
     <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
       <span style="color:#9ca3af; font-size:12px;">MIN</span>
-      <span style="font-family:'JetBrains Mono', monospace; font-size:16px; font-weight:700; color:#e5e7eb;">{min_series}</span>
+      <span class="num-mono num-strong num-min" style="font-size:20px;">{min_series}</span>
     </div>
   </div>
 </div>
