@@ -1073,82 +1073,107 @@ elif st.session_state.page == "⚔️ Analizar Partido":
             stats = base_stats.join([trend_pts, trend_reb, trend_ast, trend_min]).reset_index()
             stats = stats[stats['player_name'].apply(lambda x: latest_teams_map.get(x) in [t1, t2])]
 
-            st.markdown("<div class='section-divider'></div>", unsafe_allow_html=True)
-            st.markdown("<div class='section-title'>🔥 Top anotadores</div>", unsafe_allow_html=True)
-            # --- NUEVO: Top anotadores con desglose completo ---
-            top_scorers_df = stats.sort_values('pts', ascending=False).head(10)
-            if not top_scorers_df.empty:
-                # Creamos grid de 2 columnas para que las cards tengan más espacio para los detalles
-                cols = st.columns(2, gap="medium")
-                for idx, (_, row) in enumerate(top_scorers_df.iterrows()):
-                    with cols[idx % 2]:
-                        player_name = row['player_name']
-                        team = row['team_abbreviation']
-                        avg_pts = row['pts']
-                        trend_pts = row.get('trend_pts', '')
-                        trend_min = row.get('trend_min', '')
-                        
-                        # Obtener logs recientes para este jugador
-                        player_logs = recent_players[recent_players['player_name'] == player_name].sort_values('game_date', ascending=False).head(5)
-                        
-                        # Calcular desglose de puntos si hay datos
-                        pts_desglose = ""
-                        if not player_logs.empty and all(c in player_logs.columns for c in ['fgm', 'fg3m', 'ftm']):
-                            avg_2pt = ((player_logs['fgm'] - player_logs['fg3m']) * 2).mean()
-                            avg_3pt = (player_logs['fg3m'] * 3).mean()
-                            avg_ft = (player_logs['ftm']).mean()
-                            pts_desglose = f"<div style='margin-top: 6px; color: #9ca3af; font-size: 11px;'>2PT: {avg_2pt:.1f} | 3PT: {avg_3pt:.1f} | TL: {avg_ft:.1f}</div>"
-                        
-                        # Formatear la serie de puntos
-                        pts_series = ""
-                        if trend_pts and isinstance(trend_pts, str):
-                            pts_values = trend_pts.split('/')
-                            # Limitar a últimos 5 para no saturar
-                            pts_series = " • ".join([v for v in pts_values[-5:] if v != "❌"])
-                        
-                        # Formatear la serie de minutos
-                        min_series = ""
-                        if trend_min and isinstance(trend_min, str):
-                            min_values = trend_min.split('/')
-                            min_series = " • ".join([v for v in min_values[-5:] if v != "❌"])
-                        
-                        st.markdown(f"""
-                        <div class="card-elevated" style="padding: 16px 16px; margin-bottom: 16px; background: linear-gradient(135deg, rgba(30,64,175,0.25) 0%, rgba(15,23,42,0.85) 100%);">
-                            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-                                <div>
-                                    <div style="font-weight: 800; font-size: 18px; color: #ffffff;">{player_name}</div>
-                                    <div style="margin-top: 4px; display: flex; gap: 8px; align-items: center;">
-                                        <span class="pill-label" style="font-size: 11px;">{team}</span>
-                                    </div>
-                                </div>
-                                <div style="text-align: right;">
-                                    <div style="font-size: 32px; font-weight: 900; color: #facc15; line-height: 1;">{avg_pts:.1f}</div>
-                                    <div style="color: #9ca3af; font-size: 11px;">PPG</div>
-                                </div>
-                            </div>
-                            
-                            {pts_desglose}
-                            
-                            <div style="margin-top: 12px;">
-                                <div style="color: #9ca3af; font-size: 11px; letter-spacing: 0.06em;">ÚLTIMOS PUNTOS</div>
-                                <div style="margin-top: 4px; font-family: monospace; font-size: 14px; color: #e5e7eb;">{pts_series}</div>
-                            </div>
-                            
-                            <div style="margin-top: 8px;">
-                                <div style="color: #9ca3af; font-size: 11px; letter-spacing: 0.06em;">MINUTOS</div>
-                                <div style="margin-top: 4px; font-family: monospace; font-size: 14px; color: #e5e7eb;">{min_series}</div>
-                            </div>
-                            
-                            <div style="margin-top: 12px; display: flex; justify-content: flex-end;">
-                                <button onclick="window.location.href='#'" style="background: none; border: 1px solid rgba(250,204,21,0.3); color: #facc15; padding: 4px 12px; border-radius: 20px; font-size: 12px; cursor: pointer;">Ver perfil →</button>
-                            </div>
+           st.markdown("<div class='section-divider'></div>", unsafe_allow_html=True)
+st.markdown("<div class='section-title'>🔥 Top anotadores</div>", unsafe_allow_html=True)
+
+top_scorers_df = stats.sort_values('pts', ascending=False).head(10)
+if not top_scorers_df.empty:
+    cols = st.columns(2, gap="medium")
+    for idx, (_, row) in enumerate(top_scorers_df.iterrows()):
+        with cols[idx % 2]:
+            player_name = row['player_name']
+            team = row['team_abbreviation']
+            avg_pts = row['pts']
+            
+            # CORREGIDO: Obtener logs del jugador desde el DataFrame principal
+            player_logs = df[df['player_name'] == player_name].sort_values('game_date', ascending=False).head(5)
+            
+            # Calcular desglose de puntos
+            pts_desglose = ""
+            if not player_logs.empty:
+                # Calcular medias de los últimos 5 partidos
+                avg_fgm = player_logs['fgm'].mean() if 'fgm' in player_logs.columns else 0
+                avg_fg3m = player_logs['fg3m'].mean() if 'fg3m' in player_logs.columns else 0
+                avg_ftm = player_logs['ftm'].mean() if 'ftm' in player_logs.columns else 0
+                
+                avg_2pt = (avg_fgm - avg_fg3m) * 2
+                avg_3pt = avg_fg3m * 3
+                avg_ft = avg_ftm
+                
+                pts_desglose = f"""
+                <div style='margin-top: 8px; display: flex; gap: 12px; justify-content: center; border-top: 1px solid rgba(148,163,184,0.2); padding-top: 8px;'>
+                    <div><span style='color: #9ca3af;'>2PT:</span> <span style='color: #e5e7eb; font-weight: 600;'>{avg_2pt:.1f}</span></div>
+                    <div><span style='color: #9ca3af;'>3PT:</span> <span style='color: #e5e7eb; font-weight: 600;'>{avg_3pt:.1f}</span></div>
+                    <div><span style='color: #9ca3af;'>TL:</span> <span style='color: #e5e7eb; font-weight: 600;'>{avg_ft:.1f}</span></div>
+                </div>
+                """
+            
+            # Serie de puntos
+            pts_values = player_logs['pts'].tolist() if not player_logs.empty else []
+            pts_series = " • ".join([str(int(v)) for v in pts_values]) if pts_values else "Sin datos"
+            
+            # Serie de minutos
+            min_values = player_logs['min'].tolist() if not player_logs.empty and 'min' in player_logs.columns else []
+            min_series = " • ".join([str(int(v)) for v in min_values]) if min_values else "Sin datos"
+            
+            st.markdown(f"""
+            <div class="card-elevated" style="
+                padding: 20px 20px;
+                margin-bottom: 20px;
+                background: linear-gradient(135deg, rgba(250,204,21,0.12) 0%, rgba(15,23,42,0.95) 100%);
+                border: 1px solid rgba(250,204,21,0.25);
+                border-radius: 20px;
+            ">
+                <!-- Cabecera con nombre y media -->
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <div>
+                        <div style="font-weight: 800; font-size: 22px; color: #ffffff; letter-spacing: -0.02em;">{player_name}</div>
+                        <div style="margin-top: 4px;">
+                            <span style="background: rgba(250,204,21,0.2); color: #facc15; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600;">{team}</span>
                         </div>
-                        """, unsafe_allow_html=True)
-                        
-                        # Botón oculto de Streamlit para la navegación (ya que el HTML no puede ejecutar Python)
-                        if st.button(f"Ver perfil de {player_name}", key=f"scorer_profile_{player_name}"):
-                            navegar_a_jugador(player_name)
-                            st.rerun()
+                    </div>
+                    <div style="text-align: right;">
+                        <div style="font-size: 42px; font-weight: 900; color: #facc15; line-height: 1;">{avg_pts:.1f}</div>
+                        <div style="color: #9ca3af; font-size: 12px; letter-spacing: 0.1em;">PPG</div>
+                    </div>
+                </div>
+                
+                {pts_desglose}
+                
+                <!-- Últimos puntos -->
+                <div style="margin-top: 16px; background: rgba(0,0,0,0.25); padding: 12px; border-radius: 12px;">
+                    <div style="color: #facc15; font-size: 11px; letter-spacing: 0.1em; margin-bottom: 6px;">⚡ ÚLTIMOS 5 PARTIDOS</div>
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="color: #9ca3af; font-size: 12px;">PTS</span>
+                        <span style="font-family: 'JetBrains Mono', monospace; font-size: 16px; font-weight: 600; color: #e5e7eb;">{pts_series}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px;">
+                        <span style="color: #9ca3af; font-size: 12px;">MIN</span>
+                        <span style="font-family: 'JetBrains Mono', monospace; font-size: 16px; font-weight: 600; color: #e5e7eb;">{min_series}</span>
+                    </div>
+                </div>
+                
+                <!-- Botón de acción -->
+                <div style="margin-top: 16px; display: flex; justify-content: flex-end;">
+                    <button onclick="window.location.href='#'" style="
+                        background: rgba(250,204,21,0.1);
+                        border: 1px solid rgba(250,204,21,0.4);
+                        color: #facc15;
+                        padding: 8px 20px;
+                        border-radius: 30px;
+                        font-size: 13px;
+                        font-weight: 600;
+                        cursor: pointer;
+                        transition: all 0.2s;
+                    ">VER PERFIL COMPLETO →</button>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            # Botón oculto de Streamlit
+            if st.button(f"Ver {player_name}", key=f"scorer_fixed_{player_name}"):
+                navegar_a_jugador(player_name)
+                st.rerun()
             else:
                 st.caption("Sin datos de anotadores.")
 
