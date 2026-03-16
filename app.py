@@ -1131,10 +1131,17 @@ elif st.session_state.page == "⚔️ Analizar Partido":
                     with cols[idx % 2]:
                         player_name = row['player_name']
                         team = row['team_abbreviation']
-                        avg_pts = row['pts']
+                        avg_pts_vs = row['pts']  # media vs este rival (H2H reciente)
                         
-                        # Obtener logs del jugador
-                        player_logs = df[df['player_name'] == player_name].sort_values('game_date', ascending=False).head(5)
+                        # Logs temporada completa (para media de temporada)
+                        season_logs = df[df['player_name'] == player_name].sort_values('game_date', ascending=False)
+                        season_avg_pts = season_logs['pts'].mean() if not season_logs.empty else avg_pts_vs
+
+                        # Determinar rival para el texto
+                        opponent = t2 if team == t1 else t1
+
+                        # Logs recientes (últimos 5 partidos, temporada completa)
+                        player_logs = season_logs.head(5)
                         
                         # Calcular desglose de puntos
                         if not player_logs.empty:
@@ -1182,8 +1189,11 @@ elif st.session_state.page == "⚔️ Analizar Partido":
       </div>
     </div>
     <div style="text-align:right;">
-      <div style="font-size:44px; font-weight:950; color:#facc15; line-height:1;">{avg_pts:.1f}</div>
-      <div style="color:#9ca3af; font-size:12px; letter-spacing:0.16em; text-transform:uppercase;">PPG</div>
+      <div class="num-mono num-strong num-pts" style="font-size:44px; line-height:1;">{season_avg_pts:.1f}</div>
+      <div style="color:#9ca3af; font-size:11px; letter-spacing:0.16em; text-transform:uppercase;">PPG temporada</div>
+      <div style="color:#9ca3af; font-size:11px; margin-top:4px;">
+        Vs {opponent}: <span class="num-mono num-strong" style="color:#e5e7eb;">{avg_pts_vs:.1f}</span>
+      </div>
     </div>
   </div>
 </div>
