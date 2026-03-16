@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import os
+import textwrap
 from datetime import datetime, timedelta
 import plotly.express as px
 
@@ -1128,7 +1129,7 @@ elif st.session_state.page == "⚔️ Analizar Partido":
                         min_values = player_logs['min'].tolist() if not player_logs.empty and 'min' in player_logs.columns else []
                         min_series = " • ".join([str(int(v)) for v in min_values]) if min_values else "Sin datos"
                         
-                        st.markdown(f"""
+                        st.markdown(textwrap.dedent(f"""
                         <div class="card-elevated" style="
                             padding: 20px 20px;
                             margin-bottom: 20px;
@@ -1168,7 +1169,7 @@ elif st.session_state.page == "⚔️ Analizar Partido":
                             </div>
                             
                         </div>
-                        """, unsafe_allow_html=True)
+                        """).strip(), unsafe_allow_html=True)
                         
                         if st.button(f"Ver {player_name}", key=f"scorer_fixed_{idx}"):
                             navegar_a_jugador(player_name)
@@ -1200,7 +1201,7 @@ elif st.session_state.page == "⚔️ Analizar Partido":
                         min_values = player_logs['min'].tolist() if not player_logs.empty and 'min' in player_logs.columns else []
                         min_series = " • ".join([str(int(v)) for v in min_values]) if min_values else "Sin datos"
                         
-                        st.markdown(f"""
+                        st.markdown(textwrap.dedent(f"""
                         <div class="card-elevated" style="
                             padding: 20px 20px;
                             margin-bottom: 20px;
@@ -1234,7 +1235,7 @@ elif st.session_state.page == "⚔️ Analizar Partido":
                             </div>
                             
                         </div>
-                        """, unsafe_allow_html=True)
+                        """).strip(), unsafe_allow_html=True)
                         
                         if st.button(f"Ver {player_name}", key=f"rebounder_fixed_{idx}"):
                             navegar_a_jugador(player_name)
@@ -1266,7 +1267,7 @@ elif st.session_state.page == "⚔️ Analizar Partido":
                         min_values = player_logs['min'].tolist() if not player_logs.empty and 'min' in player_logs.columns else []
                         min_series = " • ".join([str(int(v)) for v in min_values]) if min_values else "Sin datos"
                         
-                        st.markdown(f"""
+                        st.markdown(textwrap.dedent(f"""
                         <div class="card-elevated" style="
                             padding: 20px 20px;
                             margin-bottom: 20px;
@@ -1300,7 +1301,7 @@ elif st.session_state.page == "⚔️ Analizar Partido":
                             </div>
                             
                         </div>
-                        """, unsafe_allow_html=True)
+                        """).strip(), unsafe_allow_html=True)
                         
                         if st.button(f"Ver {player_name}", key=f"assister_fixed_{idx}"):
                             navegar_a_jugador(player_name)
