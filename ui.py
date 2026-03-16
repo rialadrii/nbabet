@@ -147,7 +147,7 @@ def render_clickable_player_cards(df_stats, stat_col, on_click_callback, subtitl
 
             # Botón secundario debajo para que quede alineado y no “flotando”
             st.markdown("<div class='btn-secondary'>", unsafe_allow_html=True)
-            if st.button("Ver jugador", key=f"btn_player_card_{stat_col}_{idx}_{player}"):
+            if st.button("Ver jugador", key=f"btn_player_card_{stat_col}_{idx}"):
                 on_click_callback(player)
                 st.rerun()
             st.markdown("</div>", unsafe_allow_html=True)
