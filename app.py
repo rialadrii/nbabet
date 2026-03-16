@@ -97,6 +97,23 @@ div.stButton > button:hover { border-color: #facc15; color: #facc15; transform: 
     box-shadow: none !important;
 }
 
+/* Títulos con más fuerza (mejor en móvil) */
+.section-title {
+    text-align: center !important;
+    font-family: 'Teko', sans-serif !important;
+    font-size: 34px !important;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #ffffff;
+    margin: 18px 0 10px 0;
+}
+
+.section-divider {
+    height: 1px;
+    background: linear-gradient(90deg, rgba(148,163,184,0.0), rgba(148,163,184,0.35), rgba(148,163,184,0.0));
+    margin: 8px 0 16px 0;
+}
+
 /* Leyendas / estados */
 .dnp-missing { color: #f97373; font-weight: 600; }
 .dnp-full { color: #4ade80; font-weight: 600; }
@@ -280,6 +297,14 @@ elif st.session_state.page == "👤 Jugador":
 
             means_dict = {'PTS': mean_pts, 'REB': mean_reb, 'AST': mean_ast, '3PM': mean_3pm, 'MIN': mean_min}
 
+            # Desglose de puntos: 2PT / 3PT / TL (si las columnas están disponibles)
+            if all(c in player_data.columns for c in ['fgm', 'fg3m', 'ftm']):
+                mean_pts_2 = ((player_data['fgm'] - player_data['fg3m']) * 2).mean()
+                mean_pts_3 = (player_data['fg3m'] * 3).mean()
+                mean_pts_ft = (player_data['ftm']).mean()
+            else:
+                mean_pts_2, mean_pts_3, mean_pts_ft = None, None, None
+
             # ===== PERFIL ESTILO TARJETAS (más estético, como la imagen) =====
             latest_row = player_data.iloc[0] if not player_data.empty else None
             team_for_player = latest_teams_map.get(
@@ -329,6 +354,7 @@ elif st.session_state.page == "👤 Jugador":
                         <div style="background:rgba(15,23,42,0.55); border:1px solid rgba(148,163,184,0.18); border-radius:14px; padding:10px; text-align:center;">
                             <div style="font-size:11px; letter-spacing:0.14em; text-transform:uppercase; color:#9ca3af;">PPG</div>
                             <div style="font-size:22px; font-weight:800; color:#fff; margin-top:2px;">{mean_pts:.1f}</div>
+                            {f"<div style='margin-top:6px; font-size:11px; color:#9ca3af; line-height:1.35;'>2PT {mean_pts_2:.1f} • 3PT {mean_pts_3:.1f} • TL {mean_pts_ft:.1f}</div>" if mean_pts_2 is not None else ""}
                         </div>
                         <div style="background:rgba(15,23,42,0.55); border:1px solid rgba(148,163,184,0.18); border-radius:14px; padding:10px; text-align:center;">
                             <div style="font-size:11px; letter-spacing:0.14em; text-transform:uppercase; color:#9ca3af;">RPG</div>
@@ -750,16 +776,34 @@ elif st.session_state.page == "🏟️ Equipos":
                 """, unsafe_allow_html=True)
 
             with tab_stats:
-                st.subheader("📊 Team stats (por partido)")
+                st.markdown("<div class='section-title'>📊 Team stats (por partido)</div>", unsafe_allow_html=True)
+                st.markdown("<div class='section-divider'></div>", unsafe_allow_html=True)
+
+                ppg = games['PTS'].mean() if len(games) else 0
+                rpg = games['REB'].mean() if len(games) else 0
+                apg = games['AST'].mean() if len(games) else 0
+                tpm = games['3PM'].mean() if len(games) else 0
+                mpg = games['MIN'].mean() / 5 if len(games) else 0  # min totales / 5 jugadores
+
+                # Cards con presencia (mejor en móvil)
+                k1, k2, k3, k4, k5 = st.columns(5)
+                k1.metric("PPG", f"{ppg:.1f}")
+                k2.metric("RPG", f"{rpg:.1f}")
+                k3.metric("APG", f"{apg:.1f}")
+                k4.metric("3PM", f"{tpm:.1f}")
+                k5.metric("MPG (team)", f"{mpg:.1f}")
+
+                st.markdown("<div class='card-elevated' style='padding:16px 16px;'>", unsafe_allow_html=True)
                 stats_row = pd.DataFrame([{
                     'GP': len(games),
-                    'PTS': games['PTS'].mean() if len(games) else 0,
-                    'REB': games['REB'].mean() if len(games) else 0,
-                    'AST': games['AST'].mean() if len(games) else 0,
-                    '3PM': games['3PM'].mean() if len(games) else 0,
+                    'PTS': ppg,
+                    'REB': rpg,
+                    'AST': apg,
+                    '3PM': tpm,
                     'MIN': games['MIN'].mean() if len(games) else 0
                 }]).round(1)
                 mostrar_tabla_bonita(stats_row, None, simple_mode=True)
+                st.markdown("</div>", unsafe_allow_html=True)
 
             with tab_schedule:
                 st.subheader("📅 Últimos partidos")
@@ -928,8 +972,8 @@ elif st.session_state.page == "⚔️ Analizar Partido":
             history = df[mask].sort_values('game_date', ascending=False)
             last_dates = sorted(history['game_date'].unique(), reverse=True)[:5]
 
-            st.write("---")
-            st.subheader("📅 Historial H2H")
+            st.markdown("<div class='section-divider'></div>", unsafe_allow_html=True)
+            st.markdown("<div class='section-title'>📅 Historial H2H</div>", unsafe_allow_html=True)
 
             games_summary = []
             for date in last_dates:
@@ -957,12 +1001,15 @@ elif st.session_state.page == "⚔️ Analizar Partido":
 
             df_games = pd.DataFrame(games_summary)
             if not df_games.empty:
+                st.markdown("<div class='card-elevated' style='padding:16px 16px;'>", unsafe_allow_html=True)
                 mostrar_tabla_bonita(df_games, None)
+                st.markdown("</div>", unsafe_allow_html=True)
 
             team_totals = history.groupby(['game_date', 'team_abbreviation'])[['pts', 'reb', 'ast']].sum().reset_index()
             filtered_totals = team_totals[team_totals['team_abbreviation'].isin([t1, t2])].copy()
             if not filtered_totals.empty:
-                st.subheader("📊 Comparativa H2H")
+                st.markdown("<div class='section-divider'></div>", unsafe_allow_html=True)
+                st.markdown("<div class='section-title'>📊 Comparativa H2H</div>", unsafe_allow_html=True)
                 game_stats = []
                 unique_game_dates = filtered_totals['game_date'].unique()
                 for d in sorted(unique_game_dates, reverse=True):
@@ -982,7 +1029,9 @@ elif st.session_state.page == "⚔️ Analizar Partido":
                     df_comparative = pd.DataFrame(game_stats)
                     cols_ordered = ['FECHA', f'{t1} PTS', f'{t2} PTS', f'{t1} REB', f'{t2} REB', f'{t1} AST', f'{t2} AST']
                     final_cols = [c for c in cols_ordered if c in df_comparative.columns]
+                    st.markdown("<div class='card-elevated' style='padding:16px 16px;'>", unsafe_allow_html=True)
                     mostrar_tabla_bonita(df_comparative[final_cols], None, simple_mode=True)
+                    st.markdown("</div>", unsafe_allow_html=True)
 
             recent_players = history[history['game_date'].isin(last_dates)].sort_values('game_date', ascending=False)
             target_dates_str = [d.strftime('%Y-%m-%d') for d in last_dates]
@@ -1024,20 +1073,19 @@ elif st.session_state.page == "⚔️ Analizar Partido":
             stats = base_stats.join([trend_pts, trend_reb, trend_ast, trend_min]).reset_index()
             stats = stats[stats['player_name'].apply(lambda x: latest_teams_map.get(x) in [t1, t2])]
 
-            st.write("---")
-            st.subheader("🔥 Top Anotadores")
+            st.markdown("<div class='section-divider'></div>", unsafe_allow_html=True)
+            st.markdown("<div class='section-title'>🔥 Top anotadores</div>", unsafe_allow_html=True)
             render_clickable_player_cards(
                 stats.sort_values('pts', ascending=False),
                 'PTS',
                 navegar_a_jugador,
-                subtitle="Listado no editable. Pulsa “Ver” para abrir el perfil.",
                 max_rows=10
             )
 
-            st.subheader("🔥 Top Reboteadores")
+            st.markdown("<div class='section-title'>🖐️ Top reboteadores</div>", unsafe_allow_html=True)
             render_clickable_player_cards(stats.sort_values('reb', ascending=False), 'REB', navegar_a_jugador, max_rows=10)
 
-            st.subheader("🤝 Top Asistentes")
+            st.markdown("<div class='section-title'>🎁 Top asistentes</div>", unsafe_allow_html=True)
             render_clickable_player_cards(stats.sort_values('ast', ascending=False), 'AST', navegar_a_jugador, max_rows=10)
 
             # BAJAS (DNP)
