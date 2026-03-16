@@ -7,7 +7,7 @@ import plotly.express as px
 # Importar módulos propios
 from data import load_data, download_data, get_team_roster_numbers, get_next_matchup_info, query_player_stats, get_injuries
 from odds import get_sports_odds, save_cache, load_cache, detect_value_odds
-from ui import mostrar_leyenda_colores, mostrar_tabla_bonita, render_clickable_player_table
+from ui import mostrar_leyenda_colores, mostrar_tabla_bonita, render_clickable_player_table, render_clickable_player_cards
 from utils import convertir_hora_espanol, get_basketball_date, safe_request
 
 # ==========================================
@@ -24,62 +24,109 @@ st.set_page_config(
 # ==========================================
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Teko:wght@300..700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Teko:wght@300..700&family=Inter:wght@300;400;500;600;700&display=swap');
 
+/* ============================
+   LOOK PRO (como antes)
+   ============================ */
 .main .block-container {
-    max-width: 1300px !important;
-    padding-left: 0.5rem !important;
-    padding-right: 0.5rem !important;
+    max-width: 1320px !important;
+    padding: 1.5rem 1.75rem 3rem 1.75rem !important;
     margin: 0 auto !important;
 }
 
-h1, h2, h3, h4, p {
+body {
+    background: radial-gradient(circle at top, #101624 0, #05070c 40%, #020308 100%) !important;
+    color: #e3e7f1 !important;
+    font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
+}
+
+/* Espaciado global (evitar que quede todo junto) */
+.main p, .main li, .main label, .main .stCaption {
+    line-height: 1.45 !important;
+}
+
+.main .block-container > div {
+    row-gap: 0.6rem;
+}
+
+/* H1 centrado y grande */
+h1 {
     text-align: center !important;
     width: 100% !important;
+    font-family: 'Teko', sans-serif !important;
+    font-size: 64px !important;
+    text-transform: uppercase;
+    color: white;
+    margin-bottom: 16px;
+    letter-spacing: 0.08em;
 }
 
-label, span {
-    text-align: inherit;
-}
+/* Evitar centrado agresivo global */
+h2, h3, h4, p { text-align: left !important; width: auto !important; }
+label, span { text-align: inherit; }
 
+/* Quitar iconos/anchors molestos */
 [data-testid="stHeaderAction"] { display: none !important; }
 h1 a, h2 a, h3 a, h4 a, h5 a, h6 a { display: none !important; color: transparent !important; pointer-events: none !important; }
 .css-10trblm, .css-16idsys, a.anchor-link { display: none !important; }
 
-[data-testid="stDataFrame"] { width: 100% !important; max-width: 100% !important; margin: 0 auto !important; }
-.table-responsive { display: flex !important; justify-content: center !important; width: 100% !important; overflow-x: auto; margin-bottom: 1rem; }
+/* TABLAS HTML (no redimensionables, limpias) */
+.table-responsive { display: flex !important; justify-content: center !important; width: 100% !important; overflow-x: auto; margin-bottom: 0.9rem; }
+table.custom-table { margin: 0 auto !important; border-collapse: collapse; font-size: 13px; min-width: 360px; width: 100%; background: rgba(15, 23, 42, 0.92); border-radius: 12px; overflow: hidden; }
+table.custom-table th { background: linear-gradient(90deg, #111827, #020617); color: #f9fafb; text-align: center !important; padding: 9px 8px; border-bottom: 1px solid rgba(55, 65, 81, 0.9); font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; }
+table.custom-table td { text-align: center !important; padding: 7px 6px; border-bottom: 1px solid rgba(31, 41, 55, 0.85); color: #e5e7eb; }
+table.custom-table tr:nth-child(even) td { background-color: rgba(15, 23, 42, 0.72); }
+table.custom-table tr:hover td { background-color: rgba(30, 64, 175, 0.35); }
 
-table.custom-table { margin: 0 auto !important; border-collapse: collapse; font-size: 14px; min-width: 350px; width: 100%; }
-table.custom-table th { background-color: #31333F; color: white; text-align: center !important; padding: 8px; border-bottom: 2px solid #555; }
-table.custom-table td { text-align: center !important; padding: 6px; border-bottom: 1px solid #444; color: white; }
+/* Cards de partidos */
+.game-card { background: radial-gradient(circle at top left, #1d2535 0, #080b12 45%, #05070c 100%); border: 1px solid rgba(148, 163, 184, 0.35); border-radius: 18px; padding: 15px; margin-bottom: 14px; width: 100%; text-align: center; box-shadow: 0 14px 35px rgba(15, 23, 42, 0.9); }
+.game-matchup { display: flex; justify-content: center; align-items: center; gap: 14px; margin-bottom: 6px; }
+.team-logo { width: 46px; height: 46px; object-fit: contain; filter: drop-shadow(0 0 12px rgba(15, 23, 42, 0.9)); }
+.game-time { color: #facc15; font-size: 20px; font-family: 'Teko', sans-serif; letter-spacing: 0.16em; }
+.vs-text { font-size: 18px; color: #9ca3af; letter-spacing: 0.18em; }
 
-h1 { font-family: 'Teko', sans-serif !important; font-size: 55px !important; text-transform: uppercase; color: white; margin-bottom: 20px; }
-h3 { font-family: 'Teko', sans-serif !important; font-size: 28px !important; text-transform: uppercase; color: #ffbd45; margin-top: 30px; }
+/* Botones pro */
+div.stButton > button { width: 100%; border-radius: 999px !important; font-weight: 600; background: linear-gradient(90deg, #0f172a, #1d4ed8); color: #fff; border: 1px solid rgba(129, 140, 248, 0.9); transition: all 0.18s ease-out; box-shadow: 0 10px 25px rgba(15, 23, 42, 0.9); }
+div.stButton > button:hover { border-color: #facc15; color: #facc15; transform: translateY(-1px); box-shadow: 0 14px 30px rgba(30, 64, 175, 0.9); }
 
-.game-card { background-color: #2d2d2d; border: 1px solid #444; border-radius: 8px; padding: 15px; margin-bottom: 15px; width: 100%; text-align: center; }
-.game-matchup { display: flex; justify-content: center; align-items: center; gap: 10px; margin-bottom: 5px; }
-.team-logo { width: 45px; height: 45px; object-fit: contain; }
-.game-time { color: #ffbd45; font-size: 22px; font-family: 'Teko', sans-serif; }
+/* Botón secundario (para "Ver") */
+.btn-secondary div.stButton > button {
+    background: linear-gradient(90deg, rgba(15,23,42,0.85), rgba(30,64,175,0.55)) !important;
+    border: 1px solid rgba(148,163,184,0.38) !important;
+    box-shadow: none !important;
+}
 
-div.stButton > button { width: 100%; border-radius: 8px !important; font-weight: bold; background-color: #1e1e1e; color: #fff; border: 1px solid #444; transition: all 0.2s; }
-div.stButton > button:hover { border-color: #ffbd45; color: #ffbd45; }
+/* Títulos con más fuerza (mejor en móvil) */
+.section-title {
+    text-align: center !important;
+    font-family: 'Teko', sans-serif !important;
+    font-size: 34px !important;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #ffffff;
+    margin: 18px 0 10px 0;
+}
 
-.parlay-box { background-color: #1e1e1e; border: 1px solid #444; border-radius: 10px; padding: 10px; margin-bottom: 15px; }
-.parlay-header { font-size: 18px; font-weight: bold; margin-bottom: 10px; border-bottom: 1px solid #444; padding-bottom: 5px; text-align: center !important; color: white; }
-.parlay-leg { background-color: #2d2d2d; margin: 5px 0; padding: 8px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; color: white; }
+.section-divider {
+    height: 1px;
+    background: linear-gradient(90deg, rgba(148,163,184,0.0), rgba(148,163,184,0.35), rgba(148,163,184,0.0));
+    margin: 8px 0 16px 0;
+}
 
-.dnp-missing { color: #ff5252; font-weight:bold; }
-.dnp-full { color: #4caf50; font-weight:bold; }
-.pat-stars { color: #ff5252; font-weight: bold; }
-.pat-impact { color: #4caf50; }
+/* Leyendas / estados */
+.dnp-missing { color: #f97373; font-weight: 600; }
+.dnp-full { color: #4ade80; font-weight: 600; }
+.pat-stars { color: #fb7185; font-weight: 600; }
+.pat-impact { color: #a5b4fc; }
 
-.odds-info { background-color: #263238; border: 1px solid #37474f; border-radius: 5px; padding: 10px; margin-bottom: 15px; text-align: center; color: #eceff1; }
-.odds-timestamp { color: #ffbd45; font-weight: bold; font-size: 18px; }
+/* Cuotas info */
+.odds-info { background: radial-gradient(circle at top, #0f172a 0, #020617 70%); border: 1px solid rgba(129, 140, 248, 0.55); border-radius: 14px; padding: 12px 14px; margin-bottom: 16px; text-align: left; color: #e5e7eb; }
+.odds-timestamp { color: #facc15; font-weight: 600; font-size: 16px; }
 
+/* Toolbar/footer fuera */
 [data-testid="stElementToolbar"] { display: none !important; }
 footer { display: none !important; }
-
-/* Eliminado el CSS que rompía los checkboxes */
 </style>
 """, unsafe_allow_html=True)
 
@@ -96,6 +143,8 @@ if 'selected_visitor' not in st.session_state:
     st.session_state.selected_visitor = None
 if 'selected_player' not in st.session_state:
     st.session_state.selected_player = None
+if 'selected_team' not in st.session_state:
+    st.session_state.selected_team = None
 if 'odds_api_key' not in st.session_state:
     st.session_state.odds_api_key = API_KEY_DEFAULT
 if 'selected_parlay_legs' not in st.session_state:
@@ -136,9 +185,12 @@ if not df.empty:
 # ==========================================
 # 5. MENÚ PRINCIPAL
 # ==========================================
-st.markdown("<h1>🏀 NBA PRO ANALYZER 🏀</h1>", unsafe_allow_html=True)
+st.markdown(
+    "<h1 style='text-align:center; font-size:64px;'>🏀 NBA PRO ANALYZER 🏀</h1>",
+    unsafe_allow_html=True
+)
 
-pages = ["🏠 Inicio", "👤 Jugador", "⚔️ Analizar Partido", "💰 Buscador de Cuotas", "🔄 Actualizar Datos"]
+pages = ["🏠 Inicio", "👤 Jugador", "⚔️ Analizar Partido", "🏟️ Equipos", "💰 Buscador de Cuotas", "🔄 Actualizar Datos"]
 if st.session_state.page not in pages:
     st.session_state.page = "🏠 Inicio"
 current_index = pages.index(st.session_state.page)
@@ -245,6 +297,123 @@ elif st.session_state.page == "👤 Jugador":
 
             means_dict = {'PTS': mean_pts, 'REB': mean_reb, 'AST': mean_ast, '3PM': mean_3pm, 'MIN': mean_min}
 
+            # Desglose de puntos: 2PT / 3PT / TL (si las columnas están disponibles)
+            if all(c in player_data.columns for c in ['fgm', 'fg3m', 'ftm']):
+                mean_pts_2 = ((player_data['fgm'] - player_data['fg3m']) * 2).mean()
+                mean_pts_3 = (player_data['fg3m'] * 3).mean()
+                mean_pts_ft = (player_data['ftm']).mean()
+            else:
+                mean_pts_2, mean_pts_3, mean_pts_ft = None, None, None
+
+            # ===== PERFIL ESTILO TARJETAS (más estético, como la imagen) =====
+            latest_row = player_data.iloc[0] if not player_data.empty else None
+            team_for_player = latest_teams_map.get(
+                jugador,
+                latest_row['team_abbreviation'] if latest_row is not None and 'team_abbreviation' in latest_row else ""
+            )
+            initials = "".join([p[0] for p in jugador.split() if p]).upper()[:3]
+
+            latest_match = latest_row['matchup'] if latest_row is not None and 'matchup' in latest_row else ""
+            latest_date = latest_row['game_date'].strftime('%d/%m') if latest_row is not None and 'game_date' in latest_row and pd.notnull(latest_row['game_date']) else ""
+            latest_wl = latest_row['wl'] if latest_row is not None and 'wl' in latest_row else ""
+
+            latest_pts = float(latest_row['pts']) if latest_row is not None and 'pts' in latest_row and pd.notnull(latest_row['pts']) else None
+            latest_reb = float(latest_row['reb']) if latest_row is not None and 'reb' in latest_row and pd.notnull(latest_row['reb']) else None
+            latest_ast = float(latest_row['ast']) if latest_row is not None and 'ast' in latest_row and pd.notnull(latest_row['ast']) else None
+            latest_3pm = float(latest_row['fg3m']) if latest_row is not None and 'fg3m' in latest_row and pd.notnull(latest_row['fg3m']) else None
+            latest_min = float(latest_row['min']) if latest_row is not None and 'min' in latest_row and pd.notnull(latest_row['min']) else None
+
+            left, right = st.columns([7, 5])
+            with left:
+                st.markdown(f"""
+                <div class="card-elevated" style="
+                    background: linear-gradient(135deg, rgba(30,64,175,0.45) 0%, rgba(15,23,42,0.85) 45%, rgba(2,6,23,0.95) 100%);
+                    border: 1px solid rgba(148,163,184,0.35);
+                    padding: 18px 18px;
+                ">
+                    <div style="display:flex; align-items:center; gap:16px;">
+                        <div style="
+                            width:74px; height:74px; border-radius:50%;
+                            background: rgba(15,23,42,0.85);
+                            border: 2px solid rgba(255,255,255,0.18);
+                            display:flex; align-items:center; justify-content:center;
+                            font-family:'Teko', sans-serif;
+                            font-size:34px; letter-spacing:0.08em; color:#fff;
+                        ">{initials}</div>
+                        <div style="min-width:0;">
+                            <div style="font-family:'Teko', sans-serif; font-size:40px; letter-spacing:0.06em; color:#fff; text-transform:uppercase; line-height:1;">
+                                {jugador}
+                            </div>
+                            <div style="margin-top:6px; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+                                <span class="pill-label">2025-26 Regular Season</span>
+                                {f"<span class='pill-label' style='background:rgba(250,204,21,0.95); color:#0b1220; border-color:rgba(250,204,21,0.75); font-weight:700;'>{team_for_player}</span>" if team_for_player else ""}
+                            </div>
+                        </div>
+                    </div>
+                    <div style="margin-top:14px; display:grid; grid-template-columns:repeat(5, minmax(0,1fr)); gap:10px;">
+                        <div style="background:rgba(15,23,42,0.55); border:1px solid rgba(148,163,184,0.18); border-radius:14px; padding:10px; text-align:center;">
+                            <div style="font-size:11px; letter-spacing:0.14em; text-transform:uppercase; color:#9ca3af;">PPG</div>
+                            <div style="font-size:22px; font-weight:800; color:#fff; margin-top:2px;">{mean_pts:.1f}</div>
+                            {f"<div style='margin-top:6px; font-size:11px; color:#9ca3af; line-height:1.35;'>2PT {mean_pts_2:.1f} • 3PT {mean_pts_3:.1f} • TL {mean_pts_ft:.1f}</div>" if mean_pts_2 is not None else ""}
+                        </div>
+                        <div style="background:rgba(15,23,42,0.55); border:1px solid rgba(148,163,184,0.18); border-radius:14px; padding:10px; text-align:center;">
+                            <div style="font-size:11px; letter-spacing:0.14em; text-transform:uppercase; color:#9ca3af;">RPG</div>
+                            <div style="font-size:22px; font-weight:800; color:#fff; margin-top:2px;">{mean_reb:.1f}</div>
+                        </div>
+                        <div style="background:rgba(15,23,42,0.55); border:1px solid rgba(148,163,184,0.18); border-radius:14px; padding:10px; text-align:center;">
+                            <div style="font-size:11px; letter-spacing:0.14em; text-transform:uppercase; color:#9ca3af;">APG</div>
+                            <div style="font-size:22px; font-weight:800; color:#fff; margin-top:2px;">{mean_ast:.1f}</div>
+                        </div>
+                        <div style="background:rgba(15,23,42,0.55); border:1px solid rgba(148,163,184,0.18); border-radius:14px; padding:10px; text-align:center;">
+                            <div style="font-size:11px; letter-spacing:0.14em; text-transform:uppercase; color:#9ca3af;">3PM</div>
+                            <div style="font-size:22px; font-weight:800; color:#fff; margin-top:2px;">{mean_3pm:.1f}</div>
+                        </div>
+                        <div style="background:rgba(15,23,42,0.55); border:1px solid rgba(148,163,184,0.18); border-radius:14px; padding:10px; text-align:center;">
+                            <div style="font-size:11px; letter-spacing:0.14em; text-transform:uppercase; color:#9ca3af;">MPG</div>
+                            <div style="font-size:22px; font-weight:800; color:#fff; margin-top:2px;">{mean_min:.1f}</div>
+                        </div>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+
+            with right:
+                st.markdown(f"""
+                <div class="card-elevated" style="padding:16px 16px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
+                        <div style="font-weight:800; letter-spacing:0.12em; text-transform:uppercase; color:#c5d1ff; font-size:13px;">
+                            Latest Performance
+                        </div>
+                        <div class="pill-label">{latest_date}</div>
+                    </div>
+                    <div style="margin-top:10px; font-weight:800; color:#fff; font-size:16px;">{jugador}</div>
+                    <div style="margin-top:4px; color:#9ca3af; font-size:12px;">
+                        {latest_match} &nbsp; {("• " + latest_wl) if latest_wl else ""}
+                    </div>
+                    <div style="margin-top:12px; display:grid; grid-template-columns:repeat(5, minmax(0,1fr)); gap:8px;">
+                        <div style="background:rgba(2,6,23,0.55); border:1px solid rgba(148,163,184,0.14); border-radius:12px; padding:9px 8px; text-align:center;">
+                            <div style="font-size:10px; color:#9ca3af; letter-spacing:0.14em; text-transform:uppercase;">MIN</div>
+                            <div style="font-size:16px; font-weight:800; color:#fff;">{f"{latest_min:.0f}" if latest_min is not None else "-"}</div>
+                        </div>
+                        <div style="background:rgba(2,6,23,0.55); border:1px solid rgba(148,163,184,0.14); border-radius:12px; padding:9px 8px; text-align:center;">
+                            <div style="font-size:10px; color:#9ca3af; letter-spacing:0.14em; text-transform:uppercase;">PTS</div>
+                            <div style="font-size:16px; font-weight:800; color:#fff;">{f"{latest_pts:.0f}" if latest_pts is not None else "-"}</div>
+                        </div>
+                        <div style="background:rgba(2,6,23,0.55); border:1px solid rgba(148,163,184,0.14); border-radius:12px; padding:9px 8px; text-align:center;">
+                            <div style="font-size:10px; color:#9ca3af; letter-spacing:0.14em; text-transform:uppercase;">REB</div>
+                            <div style="font-size:16px; font-weight:800; color:#fff;">{f"{latest_reb:.0f}" if latest_reb is not None else "-"}</div>
+                        </div>
+                        <div style="background:rgba(2,6,23,0.55); border:1px solid rgba(148,163,184,0.14); border-radius:12px; padding:9px 8px; text-align:center;">
+                            <div style="font-size:10px; color:#9ca3af; letter-spacing:0.14em; text-transform:uppercase;">AST</div>
+                            <div style="font-size:16px; font-weight:800; color:#fff;">{f"{latest_ast:.0f}" if latest_ast is not None else "-"}</div>
+                        </div>
+                        <div style="background:rgba(2,6,23,0.55); border:1px solid rgba(148,163,184,0.14); border-radius:12px; padding:9px 8px; text-align:center;">
+                            <div style="font-size:10px; color:#9ca3af; letter-spacing:0.14em; text-transform:uppercase;">3PM</div>
+                            <div style="font-size:16px; font-weight:800; color:#fff;">{f"{latest_3pm:.0f}" if latest_3pm is not None else "-"}</div>
+                        </div>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+
             c1, c2, c3, c4, c5 = st.columns(5)
             c1.metric("PTS", f"{mean_pts:.1f}")
             c2.metric("REB", f"{mean_reb:.1f}")
@@ -252,22 +421,75 @@ elif st.session_state.page == "👤 Jugador":
             c4.metric("3PM", f"{mean_3pm:.1f}")
             c5.metric("MIN", f"{mean_min:.1f}")
 
-            # GRÁFICO DE BARRAS - Últimos 10 partidos
-            st.subheader("📊 Comparativa últimos 10 partidos (barras)")
-            player_data_sorted = player_data.sort_values('game_date').tail(10)
-            if not player_data_sorted.empty and len(player_data_sorted) > 1:
-                # Preparar datos para gráfico de barras
-                df_chart = player_data_sorted.copy()
-                df_chart['fecha_corta'] = df_chart['game_date'].dt.strftime('%d/%m')
-                
-                fig = px.bar(df_chart, x='fecha_corta', y=['pts', 'reb', 'ast'],
-                             title=f'Estadísticas de {jugador} - Últimos 10 partidos',
-                             labels={'value': 'Valor', 'variable': 'Estadística', 'fecha_corta': 'Fecha'},
-                             barmode='group')
-                fig.update_layout(legend_title_text='Estadística')
-                st.plotly_chart(fig, use_container_width=True)
+            # GRÁFICO (BARRAS) – sin ajustes / sin edición
+            st.subheader("📊 Últimos partidos (gráfico de barras)")
+            metrica = st.radio(
+                "Métrica a mostrar",
+                ["PTS", "REB", "AST", "3PM", "MIN"],
+                horizontal=True,
+                index=0
+            )
+
+            def _metric_col(m):
+                return "fg3m" if m == "3PM" else m.lower()
+
+            metric_col = _metric_col(metrica)
+
+            # Global: últimos 10 partidos
+            base_series = player_data.sort_values('game_date').tail(10).copy()
+            base_series['FECHA'] = base_series['game_date'].dt.strftime('%d/%m')
+
+            fig_global = px.bar(
+                base_series,
+                x='FECHA',
+                y=metric_col,
+                title=f"{jugador} – {metrica} (últimos 10)",
+                labels={'FECHA': 'Fecha', metric_col: metrica},
+            )
+            fig_global.update_traces(marker_color="#60a5fa")
+            fig_global.update_layout(
+                template="plotly_dark",
+                margin=dict(l=10, r=10, t=45, b=10),
+                hovermode="x unified",
+                showlegend=False
+            )
+
+            # Vs rival: últimos 10 contra ese equipo (si existe)
+            fig_vs = None
+            if rival:
+                vs_team = player_data[player_data['matchup'].str.contains(rival, case=False)].sort_values('game_date').tail(10).copy()
+                if not vs_team.empty:
+                    vs_team['FECHA'] = vs_team['game_date'].dt.strftime('%d/%m')
+                    fig_vs = px.bar(
+                        vs_team,
+                        x='FECHA',
+                        y=metric_col,
+                        title=f"{jugador} – {metrica} vs {rival} (últimos 10)",
+                        labels={'FECHA': 'Fecha', metric_col: metrica},
+                    )
+                    fig_vs.update_traces(marker_color="#fb923c")
+                    fig_vs.update_layout(
+                        template="plotly_dark",
+                        margin=dict(l=10, r=10, t=45, b=10),
+                        hovermode="x unified",
+                        showlegend=False
+                    )
+
+            plotly_cfg = {
+                "displayModeBar": False,
+                "staticPlot": True,
+                "scrollZoom": False,
+                "responsive": True
+            }
+
+            if fig_vs is None:
+                st.plotly_chart(fig_global, use_container_width=True, config=plotly_cfg)
             else:
-                st.info("No hay suficientes datos para mostrar gráfico")
+                g1, g2 = st.columns(2)
+                with g1:
+                    st.plotly_chart(fig_global, use_container_width=True, config=plotly_cfg)
+                with g2:
+                    st.plotly_chart(fig_vs, use_container_width=True, config=plotly_cfg)
 
             st.subheader("Últimos 5 Partidos")
             cols = ['game_date', 'wl', 'matchup', 'min', 'pts', 'reb', 'ast', 'fg3m']
@@ -338,7 +560,7 @@ elif st.session_state.page == "👤 Jugador":
                         ]
                     })
                     
-                    st.dataframe(comparativa, use_container_width=True, hide_index=True)
+                    mostrar_tabla_bonita(comparativa, None, simple_mode=True)
                     
                     fig = px.bar(comparativa, x='Métrica', y=[jugador, otro_jugador], 
                                  barmode='group', title=f'Comparativa: {jugador} vs {otro_jugador}')
@@ -397,7 +619,7 @@ elif st.session_state.page == "💰 Buscador de Cuotas":
             st.subheader("🔔 Alertas de Valor (Cuotas >10% sobre la media)")
             df_alerts = pd.DataFrame(value_alerts)
             df_alerts.columns = ['Partido', 'Equipo', 'Casa', 'Cuota', 'Media', 'Sobre%']
-            st.dataframe(df_alerts, use_container_width=True)
+            mostrar_tabla_bonita(df_alerts, None, simple_mode=True)
 
     if odds_data_to_show:
         if market_key == 'h2h':
@@ -436,7 +658,7 @@ elif st.session_state.page == "💰 Buscador de Cuotas":
                 c2.success(f"✈️ {away}: Mejor {best_away['p']} ({best_away['b']})")
 
                 if st.checkbox(f"Ver lista completa {home} vs {away}"):
-                    st.dataframe(pd.DataFrame(all_odds))
+                    st.table(pd.DataFrame(all_odds))
                 st.divider()
 
         elif market_key == 'player_points':
@@ -465,11 +687,173 @@ elif st.session_state.page == "💰 Buscador de Cuotas":
                     for p_name, odds_list in player_data_dict.items():
                         with st.container():
                             st.markdown(f"**👤 {p_name}**")
-                            st.dataframe(pd.DataFrame(odds_list))
+                            st.table(pd.DataFrame(odds_list))
                     st.divider()
 
             if not found:
                 st.warning("No hay datos de jugadores disponibles en este momento. Puede que el mercado esté cerrado.")
+
+# --- PÁGINA EQUIPOS ---
+elif st.session_state.page == "🏟️ Equipos":
+    st.markdown("<h2>🏟️ Equipos</h2>", unsafe_allow_html=True)
+    st.caption("Overview, estadísticas, calendario y líderes (estilo StatMuse, usando tus datos).")
+    if df.empty:
+        st.error("Primero actualiza los datos.")
+    else:
+        equipos = sorted(df['team_abbreviation'].dropna().unique())
+        idx_team = equipos.index(st.session_state.selected_team) if st.session_state.selected_team in equipos else 0
+        team = st.selectbox("Equipo", equipos, index=idx_team)
+        st.session_state.selected_team = team
+
+        team_df = df[df['team_abbreviation'] == team].copy()
+        if team_df.empty:
+            st.info("Sin datos para este equipo.")
+        else:
+            # Header visual (más “StatMuse-like”)
+            st.markdown(f"""
+            <div class="card-elevated" style="
+                background: linear-gradient(135deg, rgba(30,64,175,0.38) 0%, rgba(15,23,42,0.88) 55%, rgba(2,6,23,0.95) 100%);
+                padding:16px 18px;
+                margin-top:10px;
+            ">
+                <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
+                    <div>
+                        <div style="font-family:'Teko', sans-serif; font-size:34px; letter-spacing:0.10em; text-transform:uppercase; color:#ffffff; line-height:1;">
+                            {team}
+                        </div>
+                        <div style="margin-top:6px; color:#9ca3af; font-size:12px; line-height:1.5;">
+                            Datos calculados desde tu base (player game logs agregados por partido).
+                        </div>
+                    </div>
+                    <div class="pill-label">TEAM HUB</div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+
+            # Agregado por partido (tipo StatMuse team game log)
+            games = team_df.groupby(['game_id', 'game_date', 'matchup', 'wl'], dropna=False).agg(
+                PTS=('pts', 'sum'),
+                REB=('reb', 'sum'),
+                AST=('ast', 'sum'),
+                **{'3PM': ('fg3m', 'sum')},
+                MIN=('min', 'sum')
+            ).reset_index()
+            games = games.sort_values('game_date', ascending=False)
+
+            wins = int((games['wl'] == 'W').sum()) if 'wl' in games.columns else 0
+            losses = int((games['wl'] == 'L').sum()) if 'wl' in games.columns else 0
+
+            # KPIs (más espaciado y limpio)
+            c1, c2, c3, c4, c5 = st.columns(5)
+            c1.metric("Record", f"{wins}-{losses}")
+            c2.metric("GP", f"{len(games)}")
+            c3.metric("PTS", f"{games['PTS'].mean():.1f}" if len(games) else "-")
+            c4.metric("REB", f"{games['REB'].mean():.1f}" if len(games) else "-")
+            c5.metric("AST", f"{games['AST'].mean():.1f}" if len(games) else "-")
+
+            # Mini gráfico de forma (últimos 10)
+            if len(games) >= 2:
+                form = games.head(10).copy()
+                form = form.sort_values('game_date')
+                form['FECHA'] = form['game_date'].dt.strftime('%d/%m')
+                fig_form = px.bar(form, x='FECHA', y='PTS', title=f"{team} – PTS últimos 10 partidos", labels={'FECHA': 'Fecha', 'PTS': 'PTS'})
+                fig_form.update_traces(marker_color="#60a5fa")
+                fig_form.update_layout(template="plotly_dark", margin=dict(l=10, r=10, t=45, b=10), showlegend=False)
+                st.plotly_chart(fig_form, use_container_width=True, config={"displayModeBar": False, "staticPlot": True, "responsive": True})
+
+            tab_overview, tab_stats, tab_schedule, tab_leaders = st.tabs(["Overview", "Stats", "Schedule", "Leaders"])
+
+            with tab_overview:
+                st.markdown(f"""
+                <div class="card-elevated" style="padding:16px 18px;">
+                    <div style="font-weight:900; letter-spacing:0.14em; text-transform:uppercase; color:#c5d1ff; font-size:13px;">
+                        Overview
+                    </div>
+                    <div style="margin-top:10px; color:#9ca3af; font-size:12px; line-height:1.6;">
+                        Aquí verás un resumen del equipo al estilo StatMuse: record, medias, racha de partidos y líderes.
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+
+            with tab_stats:
+                st.markdown("<div class='section-title'>📊 Team stats (por partido)</div>", unsafe_allow_html=True)
+                st.markdown("<div class='section-divider'></div>", unsafe_allow_html=True)
+
+                ppg = games['PTS'].mean() if len(games) else 0
+                rpg = games['REB'].mean() if len(games) else 0
+                apg = games['AST'].mean() if len(games) else 0
+                tpm = games['3PM'].mean() if len(games) else 0
+                mpg = games['MIN'].mean() / 5 if len(games) else 0  # min totales / 5 jugadores
+
+                # Cards con presencia (mejor en móvil)
+                k1, k2, k3, k4, k5 = st.columns(5)
+                k1.metric("PPG", f"{ppg:.1f}")
+                k2.metric("RPG", f"{rpg:.1f}")
+                k3.metric("APG", f"{apg:.1f}")
+                k4.metric("3PM", f"{tpm:.1f}")
+                k5.metric("MPG (team)", f"{mpg:.1f}")
+
+                st.markdown("<div class='card-elevated' style='padding:16px 16px;'>", unsafe_allow_html=True)
+                stats_row = pd.DataFrame([{
+                    'GP': len(games),
+                    'PTS': ppg,
+                    'REB': rpg,
+                    'AST': apg,
+                    '3PM': tpm,
+                    'MIN': games['MIN'].mean() if len(games) else 0
+                }]).round(1)
+                mostrar_tabla_bonita(stats_row, None, simple_mode=True)
+                st.markdown("</div>", unsafe_allow_html=True)
+
+            with tab_schedule:
+                st.subheader("📅 Últimos partidos")
+                sched = games.head(12).copy()
+                sched['FECHA'] = sched['game_date'].dt.strftime('%d/%m')
+                sched['RES'] = sched['wl'].map({'W': '✅', 'L': '❌'}).fillna('')
+                sched['PARTIDO'] = sched['matchup']
+                sched['PTS'] = sched['PTS'].fillna(0).astype(int)
+                sched['REB'] = sched['REB'].fillna(0).astype(int)
+                sched['AST'] = sched['AST'].fillna(0).astype(int)
+                sched['3PM'] = sched['3PM'].fillna(0).astype(int)
+                sched['FICHA'] = sched['game_id'].apply(lambda x: f"<a href='https://www.nba.com/game/{x}' target='_blank' class='match-link'>📊</a>" if pd.notnull(x) else "-")
+                sched_view = sched[['FECHA', 'RES', 'PARTIDO', 'FICHA', 'PTS', 'REB', 'AST', '3PM']]
+                mostrar_tabla_bonita(sched_view, None, simple_mode=True)
+
+            with tab_leaders:
+                st.subheader("🏅 Leaders")
+                current_players = [p for p, t in latest_teams_map.items() if t == team]
+                leaders_df = df[(df['team_abbreviation'] == team) & (df['player_name'].isin(current_players))].copy()
+                if leaders_df.empty:
+                    leaders_df = df[df['team_abbreviation'] == team].copy()
+
+                leaders = leaders_df.groupby('player_name').agg(
+                    GP=('game_id', 'count'),
+                    PTS=('pts', 'mean'),
+                    REB=('reb', 'mean'),
+                    AST=('ast', 'mean'),
+                    **{'3PM': ('fg3m', 'mean')},
+                    MIN=('min', 'mean')
+                ).reset_index()
+                leaders = leaders.sort_values('PTS', ascending=False).head(15)
+                leaders[['PTS', 'REB', 'AST', '3PM', 'MIN']] = leaders[['PTS', 'REB', 'AST', '3PM', 'MIN']].round(1)
+                leaders = leaders.rename(columns={'player_name': 'JUGADOR'})
+                # Leaders en tarjetas (más visual) + tabla compacta debajo
+                top5 = leaders.head(5).copy()
+                if not top5.empty:
+                    cols = st.columns(5, gap="small")
+                    for i in range(len(top5)):
+                        r = top5.iloc[i]
+                        with cols[i]:
+                            st.markdown(f"""
+                            <div class="card-elevated" style="padding:12px 12px; text-align:left;">
+                                <div style="font-weight:900; color:#ffffff; font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{r['JUGADOR']}</div>
+                                <div style="margin-top:8px; color:#9ca3af; font-size:11px; letter-spacing:0.10em; text-transform:uppercase;">PTS</div>
+                                <div style="font-size:20px; font-weight:900; color:#e5e7eb;">{r['PTS']}</div>
+                                <div style="margin-top:8px; color:#9ca3af; font-size:11px;">REB {r['REB']} • AST {r['AST']}</div>
+                            </div>
+                            """, unsafe_allow_html=True)
+                st.write("")
+                mostrar_tabla_bonita(leaders, None, simple_mode=True)
 
 # --- PÁGINA ANALIZAR PARTIDO ---
 elif st.session_state.page == "⚔️ Analizar Partido":
@@ -540,20 +924,44 @@ elif st.session_state.page == "⚔️ Analizar Partido":
                 col_i1, col_i2 = st.columns(2)
                 
                 with col_i1:
-                    st.markdown(f"### {t1}")
+                    st.markdown(f"""
+                    <div class="card-elevated" style="padding:14px 16px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <div style="font-weight:800; letter-spacing:0.14em; text-transform:uppercase; color:#c5d1ff; font-size:13px;">{t1}</div>
+                            <div class="pill-label">{len(inj_t1)} lesion{'' if len(inj_t1)==1 else 'es'}</div>
+                        </div>
+                    """, unsafe_allow_html=True)
                     if inj_t1:
-                        for i in inj_t1:
-                            st.markdown(f"- **{i['player']}**: {i['status']}")
+                        for it in inj_t1:
+                            st.markdown(f"""
+                            <div style="margin-top:10px; padding:10px 10px; border-radius:12px; border:1px solid rgba(148,163,184,0.18); background:rgba(2,6,23,0.45);">
+                                <div style="font-weight:800; color:#ffffff; font-size:13px;">{it.get('player','')}</div>
+                                <div style="margin-top:4px; color:#9ca3af; font-size:12px; line-height:1.45;">{it.get('status','')}</div>
+                            </div>
+                            """, unsafe_allow_html=True)
                     else:
-                        st.info("✅ Sin lesionados")
+                        st.markdown("<div style='margin-top:10px; color:#4ade80; font-weight:700;'>✓ Sin lesionados</div>", unsafe_allow_html=True)
+                    st.markdown("</div>", unsafe_allow_html=True)
                 
                 with col_i2:
-                    st.markdown(f"### {t2}")
+                    st.markdown(f"""
+                    <div class="card-elevated" style="padding:14px 16px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <div style="font-weight:800; letter-spacing:0.14em; text-transform:uppercase; color:#c5d1ff; font-size:13px;">{t2}</div>
+                            <div class="pill-label">{len(inj_t2)} lesion{'' if len(inj_t2)==1 else 'es'}</div>
+                        </div>
+                    """, unsafe_allow_html=True)
                     if inj_t2:
-                        for i in inj_t2:
-                            st.markdown(f"- **{i['player']}**: {i['status']}")
+                        for it in inj_t2:
+                            st.markdown(f"""
+                            <div style="margin-top:10px; padding:10px 10px; border-radius:12px; border:1px solid rgba(148,163,184,0.18); background:rgba(2,6,23,0.45);">
+                                <div style="font-weight:800; color:#ffffff; font-size:13px;">{it.get('player','')}</div>
+                                <div style="margin-top:4px; color:#9ca3af; font-size:12px; line-height:1.45;">{it.get('status','')}</div>
+                            </div>
+                            """, unsafe_allow_html=True)
                     else:
-                        st.info("✅ Sin lesionados")
+                        st.markdown("<div style='margin-top:10px; color:#4ade80; font-weight:700;'>✓ Sin lesionados</div>", unsafe_allow_html=True)
+                    st.markdown("</div>", unsafe_allow_html=True)
             else:
                 st.error("❌ No se pudo conectar con la fuente de lesiones")
 
@@ -564,8 +972,8 @@ elif st.session_state.page == "⚔️ Analizar Partido":
             history = df[mask].sort_values('game_date', ascending=False)
             last_dates = sorted(history['game_date'].unique(), reverse=True)[:5]
 
-            st.write("---")
-            st.subheader("📅 Historial H2H")
+            st.markdown("<div class='section-divider'></div>", unsafe_allow_html=True)
+            st.markdown("<div class='section-title'>📅 Historial H2H</div>", unsafe_allow_html=True)
 
             games_summary = []
             for date in last_dates:
@@ -593,12 +1001,15 @@ elif st.session_state.page == "⚔️ Analizar Partido":
 
             df_games = pd.DataFrame(games_summary)
             if not df_games.empty:
+                st.markdown("<div class='card-elevated' style='padding:16px 16px;'>", unsafe_allow_html=True)
                 mostrar_tabla_bonita(df_games, None)
+                st.markdown("</div>", unsafe_allow_html=True)
 
             team_totals = history.groupby(['game_date', 'team_abbreviation'])[['pts', 'reb', 'ast']].sum().reset_index()
             filtered_totals = team_totals[team_totals['team_abbreviation'].isin([t1, t2])].copy()
             if not filtered_totals.empty:
-                st.subheader("📊 Comparativa H2H")
+                st.markdown("<div class='section-divider'></div>", unsafe_allow_html=True)
+                st.markdown("<div class='section-title'>📊 Comparativa H2H</div>", unsafe_allow_html=True)
                 game_stats = []
                 unique_game_dates = filtered_totals['game_date'].unique()
                 for d in sorted(unique_game_dates, reverse=True):
@@ -618,7 +1029,9 @@ elif st.session_state.page == "⚔️ Analizar Partido":
                     df_comparative = pd.DataFrame(game_stats)
                     cols_ordered = ['FECHA', f'{t1} PTS', f'{t2} PTS', f'{t1} REB', f'{t2} REB', f'{t1} AST', f'{t2} AST']
                     final_cols = [c for c in cols_ordered if c in df_comparative.columns]
+                    st.markdown("<div class='card-elevated' style='padding:16px 16px;'>", unsafe_allow_html=True)
                     mostrar_tabla_bonita(df_comparative[final_cols], None, simple_mode=True)
+                    st.markdown("</div>", unsafe_allow_html=True)
 
             recent_players = history[history['game_date'].isin(last_dates)].sort_values('game_date', ascending=False)
             target_dates_str = [d.strftime('%Y-%m-%d') for d in last_dates]
@@ -660,16 +1073,263 @@ elif st.session_state.page == "⚔️ Analizar Partido":
             stats = base_stats.join([trend_pts, trend_reb, trend_ast, trend_min]).reset_index()
             stats = stats[stats['player_name'].apply(lambda x: latest_teams_map.get(x) in [t1, t2])]
 
-            st.write("---")
-            st.subheader("🔥 Top Anotadores 👇")
-            render_clickable_player_table(stats.sort_values('pts', ascending=False).head(10), 'PTS', full_roster_map, navegar_a_jugador)
+                        # ==========================================
+            # TOP ANOTADORES - CORREGIDO Y BIEN INDENTADO
+            # ==========================================
+            st.markdown("<div class='section-divider'></div>", unsafe_allow_html=True)
+            st.markdown("<div class='section-title'>🔥 Top anotadores</div>", unsafe_allow_html=True)
+            
+            top_scorers_df = stats.sort_values('pts', ascending=False).head(10)
+            if not top_scorers_df.empty:
+                cols = st.columns(2, gap="medium")
+                for idx, (_, row) in enumerate(top_scorers_df.iterrows()):
+                    with cols[idx % 2]:
+                        player_name = row['player_name']
+                        team = row['team_abbreviation']
+                        avg_pts = row['pts']
+                        
+                        # Obtener logs del jugador
+                        player_logs = df[df['player_name'] == player_name].sort_values('game_date', ascending=False).head(5)
+                        
+                        # Calcular desglose de puntos
+                        pts_desglose = ""
+                        if not player_logs.empty:
+                            avg_fgm = player_logs['fgm'].mean() if 'fgm' in player_logs.columns else 0
+                            avg_fg3m = player_logs['fg3m'].mean() if 'fg3m' in player_logs.columns else 0
+                            avg_ftm = player_logs['ftm'].mean() if 'ftm' in player_logs.columns else 0
+                            
+                            avg_2pt = (avg_fgm - avg_fg3m) * 2
+                            avg_3pt = avg_fg3m * 3
+                            avg_ft = avg_ftm
+                            
+                            pts_desglose = f"""
+                            <div style='margin-top: 8px; display: flex; gap: 12px; justify-content: center; border-top: 1px solid rgba(148,163,184,0.2); padding-top: 8px;'>
+                                <div><span style='color: #9ca3af;'>2PT:</span> <span style='color: #e5e7eb; font-weight: 600;'>{avg_2pt:.1f}</span></div>
+                                <div><span style='color: #9ca3af;'>3PT:</span> <span style='color: #e5e7eb; font-weight: 600;'>{avg_3pt:.1f}</span></div>
+                                <div><span style='color: #9ca3af;'>TL:</span> <span style='color: #e5e7eb; font-weight: 600;'>{avg_ft:.1f}</span></div>
+                            </div>
+                            """
+                        
+                        # Serie de puntos
+                        pts_values = player_logs['pts'].tolist() if not player_logs.empty else []
+                        pts_series = " • ".join([str(int(v)) for v in pts_values]) if pts_values else "Sin datos"
+                        
+                        # Serie de minutos
+                        min_values = player_logs['min'].tolist() if not player_logs.empty and 'min' in player_logs.columns else []
+                        min_series = " • ".join([str(int(v)) for v in min_values]) if min_values else "Sin datos"
+                        
+                        st.markdown(f"""
+                        <div class="card-elevated" style="
+                            padding: 20px 20px;
+                            margin-bottom: 20px;
+                            background: linear-gradient(135deg, rgba(250,204,21,0.12) 0%, rgba(15,23,42,0.95) 100%);
+                            border: 1px solid rgba(250,204,21,0.25);
+                            border-radius: 20px;
+                        ">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                                <div>
+                                    <div style="font-weight: 800; font-size: 22px; color: #ffffff; letter-spacing: -0.02em;">{player_name}</div>
+                                    <div style="margin-top: 4px;">
+                                        <span style="background: rgba(250,204,21,0.2); color: #facc15; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600;">{team}</span>
+                                    </div>
+                                </div>
+                                <div style="text-align: right;">
+                                    <div style="font-size: 42px; font-weight: 900; color: #facc15; line-height: 1;">{avg_pts:.1f}</div>
+                                    <div style="color: #9ca3af; font-size: 12px; letter-spacing: 0.1em;">PPG</div>
+                                </div>
+                            </div>
+                            
+                            {pts_desglose}
+                            
+                            <div style="margin-top: 16px; background: rgba(0,0,0,0.25); padding: 12px; border-radius: 12px;">
+                                <div style="color: #facc15; font-size: 11px; letter-spacing: 0.1em; margin-bottom: 6px;">⚡ ÚLTIMOS 5 PARTIDOS</div>
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <span style="color: #9ca3af; font-size: 12px;">PTS</span>
+                                    <span style="font-family: 'JetBrains Mono', monospace; font-size: 16px; font-weight: 600; color: #e5e7eb;">{pts_series}</span>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px;">
+                                    <span style="color: #9ca3af; font-size: 12px;">MIN</span>
+                                    <span style="font-family: 'JetBrains Mono', monospace; font-size: 16px; font-weight: 600; color: #e5e7eb;">{min_series}</span>
+                                </div>
+                            </div>
+                            
+                            <div style="margin-top: 16px; display: flex; justify-content: flex-end;">
+                                <button onclick="window.location.href='#'" style="
+                                    background: rgba(250,204,21,0.1);
+                                    border: 1px solid rgba(250,204,21,0.4);
+                                    color: #facc15;
+                                    padding: 8px 20px;
+                                    border-radius: 30px;
+                                    font-size: 13px;
+                                    font-weight: 600;
+                                    cursor: pointer;
+                                    transition: all 0.2s;
+                                ">VER PERFIL COMPLETO →</button>
+                            </div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        
+                        if st.button(f"Ver {player_name}", key=f"scorer_fixed_{idx}"):
+                            navegar_a_jugador(player_name)
+                            st.rerun()
+            else:
+                st.caption("Sin datos de anotadores.")
 
-            st.subheader("🔥 Top Reboteadores 👇")
-            render_clickable_player_table(stats.sort_values('reb', ascending=False).head(10), 'REB', full_roster_map, navegar_a_jugador)
+            # ==========================================
+            # TOP REBOTEADORES
+            # ==========================================
+            st.markdown("<div class='section-title'>🖐️ Top reboteadores</div>", unsafe_allow_html=True)
+            
+            top_rebounders_df = stats.sort_values('reb', ascending=False).head(10)
+            if not top_rebounders_df.empty:
+                cols = st.columns(2, gap="medium")
+                for idx, (_, row) in enumerate(top_rebounders_df.iterrows()):
+                    with cols[idx % 2]:
+                        player_name = row['player_name']
+                        team = row['team_abbreviation']
+                        avg_reb = row['reb']
+                        
+                        player_logs = df[df['player_name'] == player_name].sort_values('game_date', ascending=False).head(5)
+                        
+                        # Serie de rebotes
+                        reb_values = player_logs['reb'].tolist() if not player_logs.empty else []
+                        reb_series = " • ".join([str(int(v)) for v in reb_values]) if reb_values else "Sin datos"
+                        
+                        # Serie de minutos
+                        min_values = player_logs['min'].tolist() if not player_logs.empty and 'min' in player_logs.columns else []
+                        min_series = " • ".join([str(int(v)) for v in min_values]) if min_values else "Sin datos"
+                        
+                        st.markdown(f"""
+                        <div class="card-elevated" style="
+                            padding: 20px 20px;
+                            margin-bottom: 20px;
+                            background: linear-gradient(135deg, rgba(96,165,250,0.12) 0%, rgba(15,23,42,0.95) 100%);
+                            border: 1px solid rgba(96,165,250,0.25);
+                            border-radius: 20px;
+                        ">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                                <div>
+                                    <div style="font-weight: 800; font-size: 22px; color: #ffffff; letter-spacing: -0.02em;">{player_name}</div>
+                                    <div style="margin-top: 4px;">
+                                        <span style="background: rgba(96,165,250,0.2); color: #60a5fa; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600;">{team}</span>
+                                    </div>
+                                </div>
+                                <div style="text-align: right;">
+                                    <div style="font-size: 42px; font-weight: 900; color: #60a5fa; line-height: 1;">{avg_reb:.1f}</div>
+                                    <div style="color: #9ca3af; font-size: 12px; letter-spacing: 0.1em;">RPG</div>
+                                </div>
+                            </div>
+                            
+                            <div style="margin-top: 16px; background: rgba(0,0,0,0.25); padding: 12px; border-radius: 12px;">
+                                <div style="color: #60a5fa; font-size: 11px; letter-spacing: 0.1em; margin-bottom: 6px;">⚡ ÚLTIMOS 5 PARTIDOS</div>
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <span style="color: #9ca3af; font-size: 12px;">REB</span>
+                                    <span style="font-family: 'JetBrains Mono', monospace; font-size: 16px; font-weight: 600; color: #e5e7eb;">{reb_series}</span>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px;">
+                                    <span style="color: #9ca3af; font-size: 12px;">MIN</span>
+                                    <span style="font-family: 'JetBrains Mono', monospace; font-size: 16px; font-weight: 600; color: #e5e7eb;">{min_series}</span>
+                                </div>
+                            </div>
+                            
+                            <div style="margin-top: 16px; display: flex; justify-content: flex-end;">
+                                <button onclick="window.location.href='#'" style="
+                                    background: rgba(96,165,250,0.1);
+                                    border: 1px solid rgba(96,165,250,0.4);
+                                    color: #60a5fa;
+                                    padding: 8px 20px;
+                                    border-radius: 30px;
+                                    font-size: 13px;
+                                    font-weight: 600;
+                                    cursor: pointer;
+                                ">VER PERFIL COMPLETO →</button>
+                            </div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        
+                        if st.button(f"Ver {player_name}", key=f"rebounder_fixed_{idx}"):
+                            navegar_a_jugador(player_name)
+                            st.rerun()
+            else:
+                st.caption("Sin datos de reboteadores.")
 
-            st.subheader("🤝 Top Asistentes 👇")
-            render_clickable_player_table(stats.sort_values('ast', ascending=False).head(10), 'AST', full_roster_map, navegar_a_jugador)
-
+            # ==========================================
+            # TOP ASISTENTES
+            # ==========================================
+            st.markdown("<div class='section-title'>🎁 Top asistentes</div>", unsafe_allow_html=True)
+            
+            top_assisters_df = stats.sort_values('ast', ascending=False).head(10)
+            if not top_assisters_df.empty:
+                cols = st.columns(2, gap="medium")
+                for idx, (_, row) in enumerate(top_assisters_df.iterrows()):
+                    with cols[idx % 2]:
+                        player_name = row['player_name']
+                        team = row['team_abbreviation']
+                        avg_ast = row['ast']
+                        
+                        player_logs = df[df['player_name'] == player_name].sort_values('game_date', ascending=False).head(5)
+                        
+                        # Serie de asistencias
+                        ast_values = player_logs['ast'].tolist() if not player_logs.empty else []
+                        ast_series = " • ".join([str(int(v)) for v in ast_values]) if ast_values else "Sin datos"
+                        
+                        # Serie de minutos
+                        min_values = player_logs['min'].tolist() if not player_logs.empty and 'min' in player_logs.columns else []
+                        min_series = " • ".join([str(int(v)) for v in min_values]) if min_values else "Sin datos"
+                        
+                        st.markdown(f"""
+                        <div class="card-elevated" style="
+                            padding: 20px 20px;
+                            margin-bottom: 20px;
+                            background: linear-gradient(135deg, rgba(192,132,252,0.12) 0%, rgba(15,23,42,0.95) 100%);
+                            border: 1px solid rgba(192,132,252,0.25);
+                            border-radius: 20px;
+                        ">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                                <div>
+                                    <div style="font-weight: 800; font-size: 22px; color: #ffffff; letter-spacing: -0.02em;">{player_name}</div>
+                                    <div style="margin-top: 4px;">
+                                        <span style="background: rgba(192,132,252,0.2); color: #c084fc; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600;">{team}</span>
+                                    </div>
+                                </div>
+                                <div style="text-align: right;">
+                                    <div style="font-size: 42px; font-weight: 900; color: #c084fc; line-height: 1;">{avg_ast:.1f}</div>
+                                    <div style="color: #9ca3af; font-size: 12px; letter-spacing: 0.1em;">APG</div>
+                                </div>
+                            </div>
+                            
+                            <div style="margin-top: 16px; background: rgba(0,0,0,0.25); padding: 12px; border-radius: 12px;">
+                                <div style="color: #c084fc; font-size: 11px; letter-spacing: 0.1em; margin-bottom: 6px;">⚡ ÚLTIMOS 5 PARTIDOS</div>
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <span style="color: #9ca3af; font-size: 12px;">AST</span>
+                                    <span style="font-family: 'JetBrains Mono', monospace; font-size: 16px; font-weight: 600; color: #e5e7eb;">{ast_series}</span>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px;">
+                                    <span style="color: #9ca3af; font-size: 12px;">MIN</span>
+                                    <span style="font-family: 'JetBrains Mono', monospace; font-size: 16px; font-weight: 600; color: #e5e7eb;">{min_series}</span>
+                                </div>
+                            </div>
+                            
+                            <div style="margin-top: 16px; display: flex; justify-content: flex-end;">
+                                <button onclick="window.location.href='#'" style="
+                                    background: rgba(192,132,252,0.1);
+                                    border: 1px solid rgba(192,132,252,0.4);
+                                    color: #c084fc;
+                                    padding: 8px 20px;
+                                    border-radius: 30px;
+                                    font-size: 13px;
+                                    font-weight: 600;
+                                    cursor: pointer;
+                                ">VER PERFIL COMPLETO →</button>
+                            </div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        
+                        if st.button(f"Ver {player_name}", key=f"assister_fixed_{idx}"):
+                            navegar_a_jugador(player_name)
+                            st.rerun()
+            else:
+                st.caption("Sin datos de asistentes.")
             # BAJAS (DNP)
             st.write("---")
             st.subheader("🏥 Historial de Bajas (Jugadores con >12 min promedio)")

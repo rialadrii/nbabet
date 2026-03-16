@@ -94,3 +94,60 @@ def render_clickable_player_table(df_stats, stat_col, jersey_map, on_click_callb
         player_name = df_interactive.iloc[row_idx]['JUGADOR']
         on_click_callback(player_name)
         st.rerun()
+
+
+def render_clickable_player_cards(df_stats, stat_col, on_click_callback, subtitle=None, max_rows=10):
+    """
+    Renderiza un listado NO editable (tarjetas + botón) para navegar a jugador.
+    Esto evita los bugs de redimensionado de st.dataframe en secciones tipo 'Analizar Partido'.
+    """
+    if df_stats is None or df_stats.empty:
+        st.info("Sin datos.")
+        return
+
+    if subtitle:
+        st.caption(subtitle)
+
+    stat_key = stat_col.lower()
+    df_view = df_stats.copy().head(max_rows).reset_index(drop=True)
+
+    # Layout en grid compacto (2 columnas) para que no quede “vacío” ni feo
+    cols = st.columns(2, gap="large")
+    for idx in range(len(df_view)):
+        row = df_view.iloc[idx]
+        player = row.get('player_name', '')
+        team = row.get('team_abbreviation', '')
+        val = row.get(stat_key, None)
+        trend_key = f"trend_{stat_key}"
+        trend = row.get(trend_key, None)
+        mins_trend = row.get('trend_min', None)
+
+        with cols[idx % 2]:
+            st.markdown(f"""
+            <div class="card-elevated" style="padding:14px 16px; margin-bottom:14px;">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px;">
+                    <div style="min-width:0;">
+                        <div style="font-weight:800; font-size:15px; color:#ffffff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                            {player}
+                        </div>
+                        <div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+                            <span class="pill-label">{team}</span>
+                            <span style="color:#9ca3af; font-size:12px; letter-spacing:0.06em; text-transform:uppercase;">
+                                {stat_col}: <b style="color:#e5e7eb; letter-spacing:0;">{f"{float(val):.1f}" if val is not None else "-"}</b>
+                            </span>
+                        </div>
+                        <div style="margin-top:10px; color:#a5b4fc; font-size:12px; line-height:1.5;">
+                            <div><span style="color:#9ca3af; letter-spacing:0.08em; text-transform:uppercase;">Racha</span>: <span style="color:#e5e7eb;">{trend if trend is not None else "-"}</span></div>
+                            <div style="margin-top:4px;"><span style="color:#9ca3af; letter-spacing:0.08em; text-transform:uppercase;">Min</span>: <span style="color:#e5e7eb;">{mins_trend if mins_trend is not None else "-"}</span></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+
+            # Botón secundario debajo para que quede alineado y no “flotando”
+            st.markdown("<div class='btn-secondary'>", unsafe_allow_html=True)
+            if st.button("Ver jugador", key=f"btn_player_card_{stat_col}_{idx}"):
+                on_click_callback(player)
+                st.rerun()
+            st.markdown("</div>", unsafe_allow_html=True)
