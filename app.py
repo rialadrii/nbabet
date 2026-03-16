@@ -1075,18 +1075,130 @@ elif st.session_state.page == "⚔️ Analizar Partido":
 
             st.markdown("<div class='section-divider'></div>", unsafe_allow_html=True)
             st.markdown("<div class='section-title'>🔥 Top anotadores</div>", unsafe_allow_html=True)
-            render_clickable_player_cards(
-                stats.sort_values('pts', ascending=False),
-                'PTS',
-                navegar_a_jugador,
-                max_rows=10
-            )
+            # --- NUEVO: Top anotadores en cards compactas ---
+            top_scorers_df = stats.sort_values('pts', ascending=False).head(10)
+            if not top_scorers_df.empty:
+                cols = st.columns(5, gap="small")
+                for idx, (_, row) in enumerate(top_scorers_df.iterrows()):
+                    with cols[idx % 5]:
+                        player_name = row['player_name']
+                        team = row['team_abbreviation']
+                        avg_pts = row['pts']
+                        trend_pts = row.get('trend_pts', '')
+                        
+                        last_game_pts = "0"
+                        if trend_pts and isinstance(trend_pts, str):
+                            parts = trend_pts.split('/')
+                            if parts:
+                                last_val = parts[-1]
+                                if last_val and last_val != "❌":
+                                    last_game_pts = last_val
+
+                        st.markdown(f"""
+                        <div class="card-elevated" style="padding: 12px 8px; margin-bottom: 8px; text-align: center; background: rgba(15, 23, 42, 0.7);">
+                            <div style="font-weight: 800; font-size: 16px; color: #ffffff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="{player_name}">
+                                {player_name}
+                            </div>
+                            <div style="display: flex; justify-content: center; align-items: baseline; gap: 6px; margin-top: 8px;">
+                                <span style="font-size: 24px; font-weight: 900; color: #facc15;">{avg_pts:.1f}</span>
+                                <span style="color: #9ca3af; font-size: 11px;">PPG</span>
+                            </div>
+                            <div style="margin-top: 8px; color: #9ca3af; font-size: 11px; display: flex; justify-content: center; align-items: center; gap: 4px;">
+                                <span class="pill-label" style="font-size: 10px;">{team}</span>
+                                <span>Últ: <b style="color: #e5e7eb;">{last_game_pts}</b></span>
+                            </div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        
+                        if st.button("👤", key=f"top_scorer_{player_name}", help=f"Ver perfil de {player_name}"):
+                            navegar_a_jugador(player_name)
+                            st.rerun()
+            else:
+                st.caption("Sin datos de anotadores.")
 
             st.markdown("<div class='section-title'>🖐️ Top reboteadores</div>", unsafe_allow_html=True)
-            render_clickable_player_cards(stats.sort_values('reb', ascending=False), 'REB', navegar_a_jugador, max_rows=10)
+            # --- NUEVO: Top reboteadores en cards compactas ---
+            top_rebounders_df = stats.sort_values('reb', ascending=False).head(10)
+            if not top_rebounders_df.empty:
+                cols = st.columns(5, gap="small")
+                for idx, (_, row) in enumerate(top_rebounders_df.iterrows()):
+                    with cols[idx % 5]:
+                        player_name = row['player_name']
+                        team = row['team_abbreviation']
+                        avg_reb = row['reb']
+                        trend_reb = row.get('trend_reb', '')
+                        
+                        last_game_reb = "0"
+                        if trend_reb and isinstance(trend_reb, str):
+                            parts = trend_reb.split('/')
+                            if parts:
+                                last_val = parts[-1]
+                                if last_val and last_val != "❌":
+                                    last_game_reb = last_val
+
+                        st.markdown(f"""
+                        <div class="card-elevated" style="padding: 12px 8px; margin-bottom: 8px; text-align: center; background: rgba(15, 23, 42, 0.7);">
+                            <div style="font-weight: 800; font-size: 16px; color: #ffffff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="{player_name}">
+                                {player_name}
+                            </div>
+                            <div style="display: flex; justify-content: center; align-items: baseline; gap: 6px; margin-top: 8px;">
+                                <span style="font-size: 24px; font-weight: 900; color: #60a5fa;">{avg_reb:.1f}</span>
+                                <span style="color: #9ca3af; font-size: 11px;">RPG</span>
+                            </div>
+                            <div style="margin-top: 8px; color: #9ca3af; font-size: 11px; display: flex; justify-content: center; align-items: center; gap: 4px;">
+                                <span class="pill-label" style="font-size: 10px;">{team}</span>
+                                <span>Últ: <b style="color: #e5e7eb;">{last_game_reb}</b></span>
+                            </div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        
+                        if st.button("👤", key=f"top_rebounder_{player_name}", help=f"Ver perfil de {player_name}"):
+                            navegar_a_jugador(player_name)
+                            st.rerun()
+            else:
+                st.caption("Sin datos de reboteadores.")
 
             st.markdown("<div class='section-title'>🎁 Top asistentes</div>", unsafe_allow_html=True)
-            render_clickable_player_cards(stats.sort_values('ast', ascending=False), 'AST', navegar_a_jugador, max_rows=10)
+            # --- NUEVO: Top asistentes en cards compactas ---
+            top_assisters_df = stats.sort_values('ast', ascending=False).head(10)
+            if not top_assisters_df.empty:
+                cols = st.columns(5, gap="small")
+                for idx, (_, row) in enumerate(top_assisters_df.iterrows()):
+                    with cols[idx % 5]:
+                        player_name = row['player_name']
+                        team = row['team_abbreviation']
+                        avg_ast = row['ast']
+                        trend_ast = row.get('trend_ast', '')
+                        
+                        last_game_ast = "0"
+                        if trend_ast and isinstance(trend_ast, str):
+                            parts = trend_ast.split('/')
+                            if parts:
+                                last_val = parts[-1]
+                                if last_val and last_val != "❌":
+                                    last_game_ast = last_val
+
+                        st.markdown(f"""
+                        <div class="card-elevated" style="padding: 12px 8px; margin-bottom: 8px; text-align: center; background: rgba(15, 23, 42, 0.7);">
+                            <div style="font-weight: 800; font-size: 16px; color: #ffffff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="{player_name}">
+                                {player_name}
+                            </div>
+                            <div style="display: flex; justify-content: center; align-items: baseline; gap: 6px; margin-top: 8px;">
+                                <span style="font-size: 24px; font-weight: 900; color: #c084fc;">{avg_ast:.1f}</span>
+                                <span style="color: #9ca3af; font-size: 11px;">APG</span>
+                            </div>
+                            <div style="margin-top: 8px; color: #9ca3af; font-size: 11px; display: flex; justify-content: center; align-items: center; gap: 4px;">
+                                <span class="pill-label" style="font-size: 10px;">{team}</span>
+                                <span>Últ: <b style="color: #e5e7eb;">{last_game_ast}</b></span>
+                            </div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        
+                        if st.button("👤", key=f"top_assister_{player_name}", help=f"Ver perfil de {player_name}"):
+                            navegar_a_jugador(player_name)
+                            st.rerun()
+            else:
+                st.caption("Sin datos de asistentes.")
 
             # BAJAS (DNP)
             st.write("---")
