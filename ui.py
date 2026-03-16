@@ -64,7 +64,7 @@ def mostrar_tabla_bonita(df_raw, col_principal_espanol=None, simple_mode=False, 
     st.markdown(f"<div class='table-responsive'>{html}</div>", unsafe_allow_html=True)
 
 def render_clickable_player_table(df_stats, stat_col, jersey_map, on_click_callback):
-    """Renderiza una tabla de jugadores donde cada fila es clickeable."""
+    """Renderiza una tabla de jugadores donde cada fila es clickeable para navegar al perfil."""
     if df_stats.empty:
         st.info("Sin datos.")
         return
@@ -92,11 +92,10 @@ def render_clickable_player_table(df_stats, stat_col, jersey_map, on_click_callb
         on_click_callback(player_name)
         st.rerun()
 
-
-def render_clickable_player_cards(df_stats, stat_col, on_click_callback, subtitle=None, max_rows=10, breakdown=False):
+def render_clickable_player_cards(df_stats, stat_col, on_click_callback, subtitle=None, max_rows=10):
     """
-    Versión corregida: Elimina sangrías internas para evitar el error de texto plano
-    y unifica el botón con la tarjeta.
+    Renderiza tarjetas de jugadores con diseño unificado y desglose de puntos.
+    Evita el error de texto plano al eliminar sangrías en el bloque HTML.
     """
     if df_stats is None or df_stats.empty:
         st.info("Sin datos.")
@@ -109,75 +108,53 @@ def render_clickable_player_cards(df_stats, stat_col, on_click_callback, subtitl
     df_view = df_stats.copy().head(max_rows).reset_index(drop=True)
 
     cols = st.columns(2, gap="large")
-    for idx in range(len(df_view)):
-        row = df_view.iloc[idx]
+    for idx, row in df_view.iterrows():
         player = row.get('player_name', '')
         team = row.get('team_abbreviation', '')
         val = row.get(stat_key, 0)
         trend = row.get(f"trend_{stat_key}", "-")
         mins_trend = row.get('trend_min', "-")
-
-        # Colores dinámicos según la estadística
-        border_color = "rgba(250,204,21,0.4)" if stat_col == "PTS" else "rgba(96,165,250,0.4)"
-        accent_color = "#facc15" if stat_col == "PTS" else "#60a5fa"
+        
+        # Datos de desglose (deben venir calculados en el DataFrame stats)
+        p2 = row.get('p2', "-")
+        p3 = row.get('p3', "-")
+        tl = row.get('tl', "-")
 
         with cols[idx % 2]:
-            # HTML SIN SANGRÍA AL INICIO DE LÍNEA
-            html = f"""
-<div style="background:linear-gradient(135deg, {border_color.replace('0.4','0.1')} 0%, rgba(15,23,42,0.95) 100%); 
-            border:1px solid {border_color}; border-radius:20px; padding:20px; margin-bottom:10px;">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-        <div>
-            <div style="font-weight:800; font-size:18px; color:white;">{player}</div>
-            <span style="background:{border_color}; color:{accent_color}; padding:2px 10px; border-radius:10px; font-size:11px;">{team}</span>
-        </div>
-        <div style="text-align:right;">
-            <div style="font-size:32px; font-weight:900; color:{accent_color}; line-height:1;">{float(val):.1f}</div>
-            <div style="color:#9ca3af; font-size:10px;">{stat_col}</div>
-        </div>
-    </div>
-    <div style="background:rgba(0,0,0,0.2); padding:10px; border-radius:10px; font-size:12px;">
-        <div style="display:flex; justify-content:space-between;">
-            <span style="color:#9ca3af;">ÚLTIMOS {stat_col}:</span>
-            <span style="color:white; font-family:monospace;">{trend}</span>
-        </div>
-        <div style="display:flex; justify-content:space-between; margin-top:4px;">
-            <span style="color:#9ca3af;">MINUTOS:</span>
-            <span style="color:white; font-family:monospace;">{mins_trend}</span>
-        </div>
-    </div>
-</div>"""
-            st.markdown(html, unsafe_allow_html=True)
-
-            if st.button(f"VER PERFIL COMPLETO", key=f"btn_card_{player}_{stat_col}_{idx}", use_container_width=True):
-                on_click_callback(player)
-                st.rerun()
-            # RENDERIZADO VISUAL (HTML CERRADO)
-            st.markdown(f"""
-            <div class="card-elevated" style="padding:14px 16px; margin-bottom:0px; border-bottom-left-radius:0px; border-bottom-right-radius:0px;">
-                <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px;">
-                    <div style="min-width:0; width:100%;">
-                        <div style="font-weight:800; font-size:15px; color:#ffffff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
-                            {player}
-                        </div>
-                        <div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
-                            <span class="pill-label">{team}</span>
-                            <span style="color:#9ca3af; font-size:12px; letter-spacing:0.06em; text-transform:uppercase;">
-                                {stat_col}: <b style="color:#e5e7eb; letter-spacing:0;">{f"{float(val):.1f}" if val is not None else "-"}</b>
-                            </span>
-                        </div>
-                        <div style="margin-top:10px; color:#a5b4fc; font-size:12px; line-height:1.5; background: rgba(0,0,0,0.2); padding:8px; border-radius:8px;">
-                            <div><span style="color:#9ca3af; font-size:10px; text-transform:uppercase;">Racha {stat_col}:</span> <span style="color:#e5e7eb; font-family:monospace;">{trend}</span></div>
-                            <div style="margin-top:4px;"><span style="color:#9ca3af; font-size:10px; text-transform:uppercase;">Minutos:</span> <span style="color:#e5e7eb; font-family:monospace;">{mins_trend}</span></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-
-            # ACCIÓN (BOTÓN NATIVO) - Se coloca justo debajo sin abrir etiquetas nuevas
-            if st.button("VER PERFIL COMPLETO →", key=f"btn_pc_{player}_{idx}", use_container_width=True):
-                on_click_callback(player)
-                st.rerun()
+            # IMPORTANTE: No indentes las líneas dentro del f-string para que Markdown no lo tome como bloque de código
+            html_card = f"""
+<div style="background: linear-gradient(135deg, rgba(250,204,21,0.1) 0%, rgba(15,23,42,0.95) 100%); border: 1px solid rgba(250,204,21,0.25); border-radius: 20px; padding: 20px; margin-bottom: 10px;">
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+<div>
+<div style="font-weight: 800; font-size: 20px; color: white;">{player}</div>
+<span style="background: rgba(250,204,21,0.2); color: #facc15; padding: 2px 10px; border-radius: 12px; font-size: 11px; font-weight: 600;">{team}</span>
+</div>
+<div style="text-align: right;">
+<div style="font-size: 36px; font-weight: 900; color: #facc15; line-height: 1;">{float(val):.1f}</div>
+<div style="color: #9ca3af; font-size: 11px;">{stat_col}</div>
+</div>
+</div>
+<div style="display: flex; gap: 12px; justify-content: center; border-top: 1px solid rgba(148,163,184,0.2); padding-top: 10px; margin-top: 10px;">
+<div><span style="color: #9ca3af; font-size: 11px;">2PT:</span> <span style="color: #e5e7eb; font-weight: 600;">{p2}</span></div>
+<div><span style="color: #9ca3af; font-size: 11px;">3PT:</span> <span style="color: #e5e7eb; font-weight: 600;">{p3}</span></div>
+<div><span style="color: #9ca3af; font-size: 11px;">TL:</span> <span style="color: #e5e7eb; font-weight: 600;">{tl}</span></div>
+</div>
+<div style="margin-top: 16px; background: rgba(0,0,0,0.25); padding: 12px; border-radius: 12px;">
+<div style="color: #facc15; font-size: 10px; font-weight: bold; margin-bottom: 8px;">⚡ ÚLTIMOS PARTIDOS</div>
+<div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px;">
+<span style="color: #9ca3af;">{stat_col}</span>
+<span style="color: white; font-family: monospace;">{trend}</span>
+</div>
+<div style="display: flex; justify-content: space-between; font-size: 12px;">
+<span style="color: #9ca3af;">MIN</span>
+<span style="color: white; font-family: monospace;">{mins_trend}</span>
+</div>
+</div>
+</div>
+"""
+            st.markdown(html_card, unsafe_allow_html=True)
             
-            st.markdown("<div style='margin-bottom:20px;'></div>", unsafe_allow_html=True)
+            # Botón nativo de Streamlit para la navegación
+            if st.button(f"VER PERFIL COMPLETO →", key=f"btn_pc_{player}_{idx}", use_container_width=True):
+                on_click_callback(player)
+                st.rerun()
