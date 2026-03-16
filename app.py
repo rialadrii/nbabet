@@ -24,62 +24,76 @@ st.set_page_config(
 # ==========================================
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Teko:wght@300..700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Teko:wght@300..700&family=Inter:wght@300;400;500;600;700&display=swap');
 
+/* ============================
+   LOOK PRO (como antes)
+   ============================ */
 .main .block-container {
-    max-width: 1300px !important;
-    padding-left: 0.5rem !important;
-    padding-right: 0.5rem !important;
+    max-width: 1320px !important;
+    padding: 1.5rem 1.75rem 3rem 1.75rem !important;
     margin: 0 auto !important;
 }
 
-h1, h2, h3, h4, p {
+body {
+    background: radial-gradient(circle at top, #101624 0, #05070c 40%, #020308 100%) !important;
+    color: #e3e7f1 !important;
+    font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
+}
+
+/* H1 centrado y grande */
+h1 {
     text-align: center !important;
     width: 100% !important;
+    font-family: 'Teko', sans-serif !important;
+    font-size: 64px !important;
+    text-transform: uppercase;
+    color: white;
+    margin-bottom: 16px;
+    letter-spacing: 0.08em;
 }
 
-label, span {
-    text-align: inherit;
-}
+/* Evitar centrado agresivo global */
+h2, h3, h4, p { text-align: left !important; width: auto !important; }
+label, span { text-align: inherit; }
 
+/* Quitar iconos/anchors molestos */
 [data-testid="stHeaderAction"] { display: none !important; }
 h1 a, h2 a, h3 a, h4 a, h5 a, h6 a { display: none !important; color: transparent !important; pointer-events: none !important; }
 .css-10trblm, .css-16idsys, a.anchor-link { display: none !important; }
 
-[data-testid="stDataFrame"] { width: 100% !important; max-width: 100% !important; margin: 0 auto !important; }
-.table-responsive { display: flex !important; justify-content: center !important; width: 100% !important; overflow-x: auto; margin-bottom: 1rem; }
+/* TABLAS HTML (no redimensionables, limpias) */
+.table-responsive { display: flex !important; justify-content: center !important; width: 100% !important; overflow-x: auto; margin-bottom: 0.9rem; }
+table.custom-table { margin: 0 auto !important; border-collapse: collapse; font-size: 13px; min-width: 360px; width: 100%; background: rgba(15, 23, 42, 0.92); border-radius: 12px; overflow: hidden; }
+table.custom-table th { background: linear-gradient(90deg, #111827, #020617); color: #f9fafb; text-align: center !important; padding: 9px 8px; border-bottom: 1px solid rgba(55, 65, 81, 0.9); font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; }
+table.custom-table td { text-align: center !important; padding: 7px 6px; border-bottom: 1px solid rgba(31, 41, 55, 0.85); color: #e5e7eb; }
+table.custom-table tr:nth-child(even) td { background-color: rgba(15, 23, 42, 0.72); }
+table.custom-table tr:hover td { background-color: rgba(30, 64, 175, 0.35); }
 
-table.custom-table { margin: 0 auto !important; border-collapse: collapse; font-size: 14px; min-width: 350px; width: 100%; }
-table.custom-table th { background-color: #31333F; color: white; text-align: center !important; padding: 8px; border-bottom: 2px solid #555; }
-table.custom-table td { text-align: center !important; padding: 6px; border-bottom: 1px solid #444; color: white; }
+/* Cards de partidos */
+.game-card { background: radial-gradient(circle at top left, #1d2535 0, #080b12 45%, #05070c 100%); border: 1px solid rgba(148, 163, 184, 0.35); border-radius: 18px; padding: 15px; margin-bottom: 14px; width: 100%; text-align: center; box-shadow: 0 14px 35px rgba(15, 23, 42, 0.9); }
+.game-matchup { display: flex; justify-content: center; align-items: center; gap: 14px; margin-bottom: 6px; }
+.team-logo { width: 46px; height: 46px; object-fit: contain; filter: drop-shadow(0 0 12px rgba(15, 23, 42, 0.9)); }
+.game-time { color: #facc15; font-size: 20px; font-family: 'Teko', sans-serif; letter-spacing: 0.16em; }
+.vs-text { font-size: 18px; color: #9ca3af; letter-spacing: 0.18em; }
 
-h1 { font-family: 'Teko', sans-serif !important; font-size: 55px !important; text-transform: uppercase; color: white; margin-bottom: 20px; }
-h3 { font-family: 'Teko', sans-serif !important; font-size: 28px !important; text-transform: uppercase; color: #ffbd45; margin-top: 30px; }
+/* Botones pro */
+div.stButton > button { width: 100%; border-radius: 999px !important; font-weight: 600; background: linear-gradient(90deg, #0f172a, #1d4ed8); color: #fff; border: 1px solid rgba(129, 140, 248, 0.9); transition: all 0.18s ease-out; box-shadow: 0 10px 25px rgba(15, 23, 42, 0.9); }
+div.stButton > button:hover { border-color: #facc15; color: #facc15; transform: translateY(-1px); box-shadow: 0 14px 30px rgba(30, 64, 175, 0.9); }
 
-.game-card { background-color: #2d2d2d; border: 1px solid #444; border-radius: 8px; padding: 15px; margin-bottom: 15px; width: 100%; text-align: center; }
-.game-matchup { display: flex; justify-content: center; align-items: center; gap: 10px; margin-bottom: 5px; }
-.team-logo { width: 45px; height: 45px; object-fit: contain; }
-.game-time { color: #ffbd45; font-size: 22px; font-family: 'Teko', sans-serif; }
+/* Leyendas / estados */
+.dnp-missing { color: #f97373; font-weight: 600; }
+.dnp-full { color: #4ade80; font-weight: 600; }
+.pat-stars { color: #fb7185; font-weight: 600; }
+.pat-impact { color: #a5b4fc; }
 
-div.stButton > button { width: 100%; border-radius: 8px !important; font-weight: bold; background-color: #1e1e1e; color: #fff; border: 1px solid #444; transition: all 0.2s; }
-div.stButton > button:hover { border-color: #ffbd45; color: #ffbd45; }
+/* Cuotas info */
+.odds-info { background: radial-gradient(circle at top, #0f172a 0, #020617 70%); border: 1px solid rgba(129, 140, 248, 0.55); border-radius: 14px; padding: 12px 14px; margin-bottom: 16px; text-align: left; color: #e5e7eb; }
+.odds-timestamp { color: #facc15; font-weight: 600; font-size: 16px; }
 
-.parlay-box { background-color: #1e1e1e; border: 1px solid #444; border-radius: 10px; padding: 10px; margin-bottom: 15px; }
-.parlay-header { font-size: 18px; font-weight: bold; margin-bottom: 10px; border-bottom: 1px solid #444; padding-bottom: 5px; text-align: center !important; color: white; }
-.parlay-leg { background-color: #2d2d2d; margin: 5px 0; padding: 8px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; color: white; }
-
-.dnp-missing { color: #ff5252; font-weight:bold; }
-.dnp-full { color: #4caf50; font-weight:bold; }
-.pat-stars { color: #ff5252; font-weight: bold; }
-.pat-impact { color: #4caf50; }
-
-.odds-info { background-color: #263238; border: 1px solid #37474f; border-radius: 5px; padding: 10px; margin-bottom: 15px; text-align: center; color: #eceff1; }
-.odds-timestamp { color: #ffbd45; font-weight: bold; font-size: 18px; }
-
+/* Toolbar/footer fuera */
 [data-testid="stElementToolbar"] { display: none !important; }
 footer { display: none !important; }
-
-/* Eliminado el CSS que rompía los checkboxes */
 </style>
 """, unsafe_allow_html=True)
 
@@ -255,8 +269,8 @@ elif st.session_state.page == "👤 Jugador":
             c4.metric("3PM", f"{mean_3pm:.1f}")
             c5.metric("MIN", f"{mean_min:.1f}")
 
-            # GRÁFICO PROFESIONAL – Últimos partidos (global y vs rival)
-            st.subheader("📈 Evolución reciente del jugador")
+            # GRÁFICO (BARRAS) – sin ajustes / sin edición
+            st.subheader("📊 Últimos partidos (gráfico de barras)")
             metrica = st.radio(
                 "Métrica a mostrar",
                 ["PTS", "REB", "AST", "3PM", "MIN"],
@@ -264,44 +278,66 @@ elif st.session_state.page == "👤 Jugador":
                 index=0
             )
 
-            # Datos globales últimos 12 partidos
-            base_series = player_data.sort_values('game_date').tail(12).copy()
+            def _metric_col(m):
+                return "fg3m" if m == "3PM" else m.lower()
+
+            metric_col = _metric_col(metrica)
+
+            # Global: últimos 10 partidos
+            base_series = player_data.sort_values('game_date').tail(10).copy()
             base_series['FECHA'] = base_series['game_date'].dt.strftime('%d/%m')
 
-            fig = px.line(
+            fig_global = px.bar(
                 base_series,
                 x='FECHA',
-                y=metrica.lower() if metrica != "3PM" else "fg3m",
-                markers=True,
-                labels={'FECHA': 'Fecha', metrica.lower(): metrica},
-                title=f"{jugador} – {metrica} últimos partidos"
+                y=metric_col,
+                title=f"{jugador} – {metrica} (últimos 10)",
+                labels={'FECHA': 'Fecha', metric_col: metrica},
             )
-            fig.update_traces(line=dict(width=3), marker=dict(size=9))
+            fig_global.update_traces(marker_color="#60a5fa")
+            fig_global.update_layout(
+                template="plotly_dark",
+                margin=dict(l=10, r=10, t=45, b=10),
+                hovermode="x unified",
+                showlegend=False
+            )
 
-            # Si hay rival seleccionado, superponemos la serie filtrada
+            # Vs rival: últimos 10 contra ese equipo (si existe)
+            fig_vs = None
             if rival:
-                vs_team = player_data[player_data['matchup'].str.contains(rival, case=False)].sort_values('game_date').tail(12).copy()
+                vs_team = player_data[player_data['matchup'].str.contains(rival, case=False)].sort_values('game_date').tail(10).copy()
                 if not vs_team.empty:
                     vs_team['FECHA'] = vs_team['game_date'].dt.strftime('%d/%m')
-                    fig_vs = px.line(
+                    fig_vs = px.bar(
                         vs_team,
                         x='FECHA',
-                        y=metrica.lower() if metrica != "3PM" else "fg3m",
+                        y=metric_col,
+                        title=f"{jugador} – {metrica} vs {rival} (últimos 10)",
+                        labels={'FECHA': 'Fecha', metric_col: metrica},
                     )
-                    # Tomamos solo la primera traza y la añadimos con otro nombre/color
-                    if fig_vs.data:
-                        trace_vs = fig_vs.data[0]
-                        trace_vs.name = f"{metrica} vs {rival}"
-                        trace_vs.line.color = "#f97316"
-                        fig.add_trace(trace_vs)
+                    fig_vs.update_traces(marker_color="#fb923c")
+                    fig_vs.update_layout(
+                        template="plotly_dark",
+                        margin=dict(l=10, r=10, t=45, b=10),
+                        hovermode="x unified",
+                        showlegend=False
+                    )
 
-            fig.update_layout(
-                legend_title_text="Serie",
-                hovermode="x unified",
-                template="plotly_dark",
-                margin=dict(l=10, r=10, t=40, b=10)
-            )
-            st.plotly_chart(fig, use_container_width=True)
+            plotly_cfg = {
+                "displayModeBar": False,
+                "staticPlot": True,
+                "scrollZoom": False,
+                "responsive": True
+            }
+
+            if fig_vs is None:
+                st.plotly_chart(fig_global, use_container_width=True, config=plotly_cfg)
+            else:
+                g1, g2 = st.columns(2)
+                with g1:
+                    st.plotly_chart(fig_global, use_container_width=True, config=plotly_cfg)
+                with g2:
+                    st.plotly_chart(fig_vs, use_container_width=True, config=plotly_cfg)
 
             st.subheader("Últimos 5 Partidos")
             cols = ['game_date', 'wl', 'matchup', 'min', 'pts', 'reb', 'ast', 'fg3m']
