@@ -4,13 +4,14 @@ import requests
 import time
 
 def convertir_hora_espanol(hora_et):
-    """Convierte hora ET a hora española (ET+6)."""
+    """Convierte hora ET a hora española. Ajustado a ET+5 para evitar desfase de 1h."""
     if "Final" in hora_et:
         return "FINALIZADO"
     try:
         hora_clean = hora_et.replace(" ET", "").strip()
         dt = datetime.strptime(hora_clean, "%I:%M %p")
-        dt_spain = dt + timedelta(hours=6)
+        # Horario España habitual: ET+5 (corrige el desfase de 1h reportado)
+        dt_spain = dt + timedelta(hours=5)
         return dt_spain.strftime("%H:%M")
     except:
         return hora_et
