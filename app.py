@@ -114,6 +114,14 @@ div.stButton > button:hover { border-color: #facc15; color: #facc15; transform: 
     margin: 8px 0 16px 0;
 }
 
+/* Mobile: más presencia */
+@media (max-width: 768px) {
+  .section-title { font-size: 44px !important; margin: 22px 0 12px 0; }
+  .main .block-container { padding-left: 1rem !important; padding-right: 1rem !important; }
+  div[data-testid="column"] { width: 100% !important; flex: 1 1 100% !important; }
+  table.custom-table { min-width: 520px; } /* permite scroll horizontal sin “aplastar” */
+}
+
 /* Leyendas / estados */
 .dnp-missing { color: #f97373; font-weight: 600; }
 .dnp-full { color: #4ade80; font-weight: 600; }
@@ -297,13 +305,18 @@ elif st.session_state.page == "👤 Jugador":
 
             means_dict = {'PTS': mean_pts, 'REB': mean_reb, 'AST': mean_ast, '3PM': mean_3pm, 'MIN': mean_min}
 
-            # Desglose de puntos: 2PT / 3PT / TL (si las columnas están disponibles)
-            if all(c in player_data.columns for c in ['fgm', 'fg3m', 'ftm']):
-                mean_pts_2 = ((player_data['fgm'] - player_data['fg3m']) * 2).mean()
-                mean_pts_3 = (player_data['fg3m'] * 3).mean()
-                mean_pts_ft = (player_data['ftm']).mean()
-            else:
-                mean_pts_2, mean_pts_3, mean_pts_ft = None, None, None
+            # Desglose de puntos: 2PT / 3PT / TL
+            # - Preferimos calcularlo con FGM/FG3M/FTM si existen
+            # - Si no, lo calculamos desde PTS - (FG3M*3) - FTM (si FTM existe)
+            mean_pts_2 = mean_pts_3 = mean_pts_ft = None
+            if 'fg3m' in player_data.columns and 'pts' in player_data.columns:
+                pts_3 = (player_data['fg3m'] * 3).mean()
+                pts_ft = (player_data['ftm']).mean() if 'ftm' in player_data.columns else 0.0
+                if 'fgm' in player_data.columns:
+                    pts_2 = ((player_data['fgm'] - player_data['fg3m']) * 2).mean()
+                else:
+                    pts_2 = (player_data['pts'] - (player_data['fg3m'] * 3) - (player_data['ftm'] if 'ftm' in player_data.columns else 0)).mean()
+                mean_pts_2, mean_pts_3, mean_pts_ft = float(pts_2), float(pts_3), float(pts_ft)
 
             # ===== PERFIL ESTILO TARJETAS (más estético, como la imagen) =====
             latest_row = player_data.iloc[0] if not player_data.empty else None
@@ -1154,19 +1167,6 @@ elif st.session_state.page == "⚔️ Analizar Partido":
                                 </div>
                             </div>
                             
-                            <div style="margin-top: 16px; display: flex; justify-content: flex-end;">
-                                <button onclick="window.location.href='#'" style="
-                                    background: rgba(250,204,21,0.1);
-                                    border: 1px solid rgba(250,204,21,0.4);
-                                    color: #facc15;
-                                    padding: 8px 20px;
-                                    border-radius: 30px;
-                                    font-size: 13px;
-                                    font-weight: 600;
-                                    cursor: pointer;
-                                    transition: all 0.2s;
-                                ">VER PERFIL COMPLETO →</button>
-                            </div>
                         </div>
                         """, unsafe_allow_html=True)
                         
@@ -1233,18 +1233,6 @@ elif st.session_state.page == "⚔️ Analizar Partido":
                                 </div>
                             </div>
                             
-                            <div style="margin-top: 16px; display: flex; justify-content: flex-end;">
-                                <button onclick="window.location.href='#'" style="
-                                    background: rgba(96,165,250,0.1);
-                                    border: 1px solid rgba(96,165,250,0.4);
-                                    color: #60a5fa;
-                                    padding: 8px 20px;
-                                    border-radius: 30px;
-                                    font-size: 13px;
-                                    font-weight: 600;
-                                    cursor: pointer;
-                                ">VER PERFIL COMPLETO →</button>
-                            </div>
                         </div>
                         """, unsafe_allow_html=True)
                         
@@ -1311,18 +1299,6 @@ elif st.session_state.page == "⚔️ Analizar Partido":
                                 </div>
                             </div>
                             
-                            <div style="margin-top: 16px; display: flex; justify-content: flex-end;">
-                                <button onclick="window.location.href='#'" style="
-                                    background: rgba(192,132,252,0.1);
-                                    border: 1px solid rgba(192,132,252,0.4);
-                                    color: #c084fc;
-                                    padding: 8px 20px;
-                                    border-radius: 30px;
-                                    font-size: 13px;
-                                    font-weight: 600;
-                                    cursor: pointer;
-                                ">VER PERFIL COMPLETO →</button>
-                            </div>
                         </div>
                         """, unsafe_allow_html=True)
                         
