@@ -19,6 +19,11 @@ from odds import get_sports_odds, save_cache, load_cache, detect_value_odds
 from ui import mostrar_leyenda_colores, mostrar_tabla_bonita, render_clickable_player_table, render_clickable_player_cards
 from utils import convertir_hora_espanol, get_basketball_date, safe_request
 
+# Compat: en algunos despliegues `ui.py` puede no incluir `mostrar_tabla_como_tarjetas`.
+# Para evitar crashes (NameError/ImportError), definimos un fallback local.
+def mostrar_tabla_como_tarjetas(df, max_cols=2):
+    return mostrar_tabla_bonita(df, None, simple_mode=True)
+
 # ==========================================
 # 1. CONFIGURACIÓN DE PÁGINA
 # ==========================================
