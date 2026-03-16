@@ -1092,7 +1092,6 @@ elif st.session_state.page == "⚔️ Analizar Partido":
                         player_logs = df[df['player_name'] == player_name].sort_values('game_date', ascending=False).head(5)
                         
                         # Calcular desglose de puntos
-                        pts_desglose = ""
                         if not player_logs.empty:
                             avg_fgm = player_logs['fgm'].mean() if 'fgm' in player_logs.columns else 0
                             avg_fg3m = player_logs['fg3m'].mean() if 'fg3m' in player_logs.columns else 0
@@ -1101,14 +1100,12 @@ elif st.session_state.page == "⚔️ Analizar Partido":
                             avg_2pt = (avg_fgm - avg_fg3m) * 2
                             avg_3pt = avg_fg3m * 3
                             avg_ft = avg_ftm
-                            
-                            pts_desglose = f"""
-                            <div style='margin-top: 8px; display: flex; gap: 12px; justify-content: center; border-top: 1px solid rgba(148,163,184,0.2); padding-top: 8px;'>
-                                <div><span style='color: #9ca3af;'>2PT:</span> <span style='color: #e5e7eb; font-weight: 600;'>{avg_2pt:.1f}</span></div>
-                                <div><span style='color: #9ca3af;'>3PT:</span> <span style='color: #e5e7eb; font-weight: 600;'>{avg_3pt:.1f}</span></div>
-                                <div><span style='color: #9ca3af;'>TL:</span> <span style='color: #e5e7eb; font-weight: 600;'>{avg_ft:.1f}</span></div>
-                            </div>
-                            """
+                        else:
+                            avg_2pt = 0
+                            avg_3pt = 0
+                            avg_ft = 0
+                        
+                        # Construir HTML del desglose directamente en la tarjeta
                         
                         # Serie de puntos
                         pts_values = player_logs['pts'].tolist() if not player_logs.empty else []
@@ -1139,7 +1136,11 @@ elif st.session_state.page == "⚔️ Analizar Partido":
                                 </div>
                             </div>
                             
-                            {pts_desglose}
+                            <div style='margin-top: 8px; display: flex; gap: 12px; justify-content: center; border-top: 1px solid rgba(148,163,184,0.2); padding-top: 8px;'>
+                                <div><span style='color: #9ca3af;'>2PT:</span> <span style='color: #e5e7eb; font-weight: 600;'>{avg_2pt:.1f}</span></div>
+                                <div><span style='color: #9ca3af;'>3PT:</span> <span style='color: #e5e7eb; font-weight: 600;'>{avg_3pt:.1f}</span></div>
+                                <div><span style='color: #9ca3af;'>TL:</span> <span style='color: #e5e7eb; font-weight: 600;'>{avg_ft:.1f}</span></div>
+                            </div>
                             
                             <div style="margin-top: 16px; background: rgba(0,0,0,0.25); padding: 12px; border-radius: 12px;">
                                 <div style="color: #facc15; font-size: 11px; letter-spacing: 0.1em; margin-bottom: 6px;">⚡ ÚLTIMOS 5 PARTIDOS</div>
