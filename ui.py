@@ -64,10 +64,7 @@ def mostrar_tabla_bonita(df_raw, col_principal_espanol=None, simple_mode=False, 
     st.markdown(f"<div class='table-responsive'>{html}</div>", unsafe_allow_html=True)
 
 def render_clickable_player_table(df_stats, stat_col, jersey_map, on_click_callback):
-    """
-    Renderiza una tabla de jugadores donde cada fila es clickeable para navegar al perfil.
-    Requiere una función callback que reciba el nombre del jugador.
-    """
+    """Renderiza una tabla de jugadores donde cada fila es clickeable."""
     if df_stats.empty:
         st.info("Sin datos.")
         return
@@ -97,10 +94,7 @@ def render_clickable_player_table(df_stats, stat_col, jersey_map, on_click_callb
 
 
 def render_clickable_player_cards(df_stats, stat_col, on_click_callback, subtitle=None, max_rows=10):
-    """
-    Renderiza un listado NO editable (tarjetas + botón) para navegar a jugador.
-    Esto evita los bugs de redimensionado de st.dataframe en secciones tipo 'Analizar Partido'.
-    """
+    """Versión corregida: Unifica el HTML y separa el botón de Streamlit para evitar que se vea el código."""
     if df_stats is None or df_stats.empty:
         st.info("Sin datos.")
         return
@@ -111,22 +105,21 @@ def render_clickable_player_cards(df_stats, stat_col, on_click_callback, subtitl
     stat_key = stat_col.lower()
     df_view = df_stats.copy().head(max_rows).reset_index(drop=True)
 
-    # Layout en grid compacto (2 columnas) para que no quede “vacío” ni feo
     cols = st.columns(2, gap="large")
     for idx in range(len(df_view)):
         row = df_view.iloc[idx]
         player = row.get('player_name', '')
         team = row.get('team_abbreviation', '')
         val = row.get(stat_key, None)
-        trend_key = f"trend_{stat_key}"
-        trend = row.get(trend_key, None)
-        mins_trend = row.get('trend_min', None)
+        trend = row.get(f"trend_{stat_key}", "-")
+        mins_trend = row.get('trend_min', "-")
 
         with cols[idx % 2]:
+            # RENDERIZADO VISUAL (HTML CERRADO)
             st.markdown(f"""
-            <div class="card-elevated" style="padding:14px 16px; margin-bottom:14px;">
+            <div class="card-elevated" style="padding:14px 16px; margin-bottom:0px; border-bottom-left-radius:0px; border-bottom-right-radius:0px;">
                 <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px;">
-                    <div style="min-width:0;">
+                    <div style="min-width:0; width:100%;">
                         <div style="font-weight:800; font-size:15px; color:#ffffff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
                             {player}
                         </div>
@@ -136,18 +129,18 @@ def render_clickable_player_cards(df_stats, stat_col, on_click_callback, subtitl
                                 {stat_col}: <b style="color:#e5e7eb; letter-spacing:0;">{f"{float(val):.1f}" if val is not None else "-"}</b>
                             </span>
                         </div>
-                        <div style="margin-top:10px; color:#a5b4fc; font-size:12px; line-height:1.5;">
-                            <div><span style="color:#9ca3af; letter-spacing:0.08em; text-transform:uppercase;">Racha</span>: <span style="color:#e5e7eb;">{trend if trend is not None else "-"}</span></div>
-                            <div style="margin-top:4px;"><span style="color:#9ca3af; letter-spacing:0.08em; text-transform:uppercase;">Min</span>: <span style="color:#e5e7eb;">{mins_trend if mins_trend is not None else "-"}</span></div>
+                        <div style="margin-top:10px; color:#a5b4fc; font-size:12px; line-height:1.5; background: rgba(0,0,0,0.2); padding:8px; border-radius:8px;">
+                            <div><span style="color:#9ca3af; font-size:10px; text-transform:uppercase;">Racha {stat_col}:</span> <span style="color:#e5e7eb; font-family:monospace;">{trend}</span></div>
+                            <div style="margin-top:4px;"><span style="color:#9ca3af; font-size:10px; text-transform:uppercase;">Minutos:</span> <span style="color:#e5e7eb; font-family:monospace;">{mins_trend}</span></div>
                         </div>
                     </div>
                 </div>
             </div>
             """, unsafe_allow_html=True)
 
-            # Botón secundario debajo para que quede alineado y no “flotando”
-            st.markdown("<div class='btn-secondary'>", unsafe_allow_html=True)
-            if st.button("Ver jugador", key=f"btn_player_card_{stat_col}_{idx}"):
+            # ACCIÓN (BOTÓN NATIVO) - Se coloca justo debajo sin abrir etiquetas nuevas
+            if st.button("VER PERFIL COMPLETO →", key=f"btn_pc_{player}_{idx}", use_container_width=True):
                 on_click_callback(player)
                 st.rerun()
-            st.markdown("</div>", unsafe_allow_html=True)
+            
+            st.markdown("<div style='margin-bottom:20px;'></div>", unsafe_allow_html=True)
