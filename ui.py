@@ -93,8 +93,11 @@ def render_clickable_player_table(df_stats, stat_col, jersey_map, on_click_callb
         st.rerun()
 
 
-def render_clickable_player_cards(df_stats, stat_col, on_click_callback, subtitle=None, max_rows=10):
-    """Versión corregida: Unifica el HTML y separa el botón de Streamlit para evitar que se vea el código."""
+def render_clickable_player_cards(df_stats, stat_col, on_click_callback, subtitle=None, max_rows=10, breakdown=False):
+    """
+    Versión corregida: Elimina sangrías internas para evitar el error de texto plano
+    y unifica el botón con la tarjeta.
+    """
     if df_stats is None or df_stats.empty:
         st.info("Sin datos.")
         return
@@ -110,11 +113,45 @@ def render_clickable_player_cards(df_stats, stat_col, on_click_callback, subtitl
         row = df_view.iloc[idx]
         player = row.get('player_name', '')
         team = row.get('team_abbreviation', '')
-        val = row.get(stat_key, None)
+        val = row.get(stat_key, 0)
         trend = row.get(f"trend_{stat_key}", "-")
         mins_trend = row.get('trend_min', "-")
 
+        # Colores dinámicos según la estadística
+        border_color = "rgba(250,204,21,0.4)" if stat_col == "PTS" else "rgba(96,165,250,0.4)"
+        accent_color = "#facc15" if stat_col == "PTS" else "#60a5fa"
+
         with cols[idx % 2]:
+            # HTML SIN SANGRÍA AL INICIO DE LÍNEA
+            html = f"""
+<div style="background:linear-gradient(135deg, {border_color.replace('0.4','0.1')} 0%, rgba(15,23,42,0.95) 100%); 
+            border:1px solid {border_color}; border-radius:20px; padding:20px; margin-bottom:10px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+        <div>
+            <div style="font-weight:800; font-size:18px; color:white;">{player}</div>
+            <span style="background:{border_color}; color:{accent_color}; padding:2px 10px; border-radius:10px; font-size:11px;">{team}</span>
+        </div>
+        <div style="text-align:right;">
+            <div style="font-size:32px; font-weight:900; color:{accent_color}; line-height:1;">{float(val):.1f}</div>
+            <div style="color:#9ca3af; font-size:10px;">{stat_col}</div>
+        </div>
+    </div>
+    <div style="background:rgba(0,0,0,0.2); padding:10px; border-radius:10px; font-size:12px;">
+        <div style="display:flex; justify-content:space-between;">
+            <span style="color:#9ca3af;">ÚLTIMOS {stat_col}:</span>
+            <span style="color:white; font-family:monospace;">{trend}</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; margin-top:4px;">
+            <span style="color:#9ca3af;">MINUTOS:</span>
+            <span style="color:white; font-family:monospace;">{mins_trend}</span>
+        </div>
+    </div>
+</div>"""
+            st.markdown(html, unsafe_allow_html=True)
+
+            if st.button(f"VER PERFIL COMPLETO", key=f"btn_card_{player}_{stat_col}_{idx}", use_container_width=True):
+                on_click_callback(player)
+                st.rerun()
             # RENDERIZADO VISUAL (HTML CERRADO)
             st.markdown(f"""
             <div class="card-elevated" style="padding:14px 16px; margin-bottom:0px; border-bottom-left-radius:0px; border-bottom-right-radius:0px;">
