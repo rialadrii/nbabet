@@ -5,6 +5,14 @@ import textwrap
 from datetime import datetime, timedelta
 import plotly.express as px
 
+def html_clean(s: str) -> str:
+    """
+    Evita que Streamlit/Markdown interprete HTML como bloque de código por indentación.
+    Dejamos cada línea sin espacios al inicio.
+    """
+    s = textwrap.dedent(s).strip("\n")
+    return "\n".join([ln.lstrip() for ln in s.splitlines()])
+
 # Importar módulos propios
 from data import load_data, download_data, get_team_roster_numbers, get_next_matchup_info, query_player_stats, get_injuries
 from odds import get_sports_odds, save_cache, load_cache, detect_value_odds
@@ -1129,47 +1137,58 @@ elif st.session_state.page == "⚔️ Analizar Partido":
                         min_values = player_logs['min'].tolist() if not player_logs.empty and 'min' in player_logs.columns else []
                         min_series = " • ".join([str(int(v)) for v in min_values]) if min_values else "Sin datos"
                         
-                        st.markdown(textwrap.dedent(f"""
-                        <div class="card-elevated" style="
-                            padding: 20px 20px;
-                            margin-bottom: 20px;
-                            background: linear-gradient(135deg, rgba(250,204,21,0.12) 0%, rgba(15,23,42,0.95) 100%);
-                            border: 1px solid rgba(250,204,21,0.25);
-                            border-radius: 20px;
-                        ">
-                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                                <div>
-                                    <div style="font-weight: 800; font-size: 22px; color: #ffffff; letter-spacing: -0.02em;">{player_name}</div>
-                                    <div style="margin-top: 4px;">
-                                        <span style="background: rgba(250,204,21,0.2); color: #facc15; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600;">{team}</span>
-                                    </div>
-                                </div>
-                                <div style="text-align: right;">
-                                    <div style="font-size: 42px; font-weight: 900; color: #facc15; line-height: 1;">{avg_pts:.1f}</div>
-                                    <div style="color: #9ca3af; font-size: 12px; letter-spacing: 0.1em;">PPG</div>
-                                </div>
-                            </div>
-                            
-                            <div style='margin-top: 8px; display: flex; gap: 12px; justify-content: center; border-top: 1px solid rgba(148,163,184,0.2); padding-top: 8px;'>
-                                <div><span style='color: #9ca3af;'>2PT:</span> <span style='color: #e5e7eb; font-weight: 600;'>{avg_2pt:.1f}</span></div>
-                                <div><span style='color: #9ca3af;'>3PT:</span> <span style='color: #e5e7eb; font-weight: 600;'>{avg_3pt:.1f}</span></div>
-                                <div><span style='color: #9ca3af;'>TL:</span> <span style='color: #e5e7eb; font-weight: 600;'>{avg_ft:.1f}</span></div>
-                            </div>
-                            
-                            <div style="margin-top: 16px; background: rgba(0,0,0,0.25); padding: 12px; border-radius: 12px;">
-                                <div style="color: #facc15; font-size: 11px; letter-spacing: 0.1em; margin-bottom: 6px;">⚡ ÚLTIMOS 5 PARTIDOS</div>
-                                <div style="display: flex; justify-content: space-between; align-items: center;">
-                                    <span style="color: #9ca3af; font-size: 12px;">PTS</span>
-                                    <span style="font-family: 'JetBrains Mono', monospace; font-size: 16px; font-weight: 600; color: #e5e7eb;">{pts_series}</span>
-                                </div>
-                                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px;">
-                                    <span style="color: #9ca3af; font-size: 12px;">MIN</span>
-                                    <span style="font-family: 'JetBrains Mono', monospace; font-size: 16px; font-weight: 600; color: #e5e7eb;">{min_series}</span>
-                                </div>
-                            </div>
-                            
-                        </div>
-                        """).strip(), unsafe_allow_html=True)
+                        # Tarjeta 1: media (PPG)
+                        st.markdown(html_clean(f"""
+<div class="card-elevated" style="
+  padding: 18px 18px;
+  margin-bottom: 12px;
+  background: linear-gradient(135deg, rgba(250,204,21,0.12) 0%, rgba(15,23,42,0.95) 100%);
+  border: 1px solid rgba(250,204,21,0.25);
+  border-radius: 20px;
+">
+  <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
+    <div>
+      <div style="font-weight:900; font-size:20px; color:#ffffff; letter-spacing:-0.02em;">{player_name}</div>
+      <div style="margin-top:6px;">
+        <span style="background: rgba(250,204,21,0.2); color:#facc15; padding:4px 12px; border-radius:999px; font-size:12px; font-weight:700;">{team}</span>
+      </div>
+    </div>
+    <div style="text-align:right;">
+      <div style="font-size:44px; font-weight:950; color:#facc15; line-height:1;">{avg_pts:.1f}</div>
+      <div style="color:#9ca3af; font-size:12px; letter-spacing:0.16em; text-transform:uppercase;">PPG</div>
+    </div>
+  </div>
+</div>
+"""), unsafe_allow_html=True)
+
+                        # Tarjeta 2: desglose + últimos 5
+                        st.markdown(html_clean(f"""
+<div class="card-elevated" style="
+  padding: 16px 16px;
+  margin-bottom: 18px;
+  background: rgba(2,6,23,0.35);
+  border: 1px solid rgba(148,163,184,0.18);
+  border-radius: 20px;
+">
+  <div style="display:flex; gap:12px; justify-content:center; border-bottom:1px solid rgba(148,163,184,0.18); padding-bottom:10px; margin-bottom:12px;">
+    <div><span style="color:#9ca3af;">2PT:</span> <span style="color:#e5e7eb; font-weight:800;">{avg_2pt:.1f}</span></div>
+    <div><span style="color:#9ca3af;">3PT:</span> <span style="color:#e5e7eb; font-weight:800;">{avg_3pt:.1f}</span></div>
+    <div><span style="color:#9ca3af;">TL:</span> <span style="color:#e5e7eb; font-weight:800;">{avg_ft:.1f}</span></div>
+  </div>
+
+  <div style="background: rgba(0,0,0,0.22); padding: 12px; border-radius: 14px;">
+    <div style="color:#facc15; font-size:11px; letter-spacing:0.14em; margin-bottom:8px; text-transform:uppercase;">⚡ Últimos 5 partidos</div>
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <span style="color:#9ca3af; font-size:12px;">PTS</span>
+      <span style="font-family:'JetBrains Mono', monospace; font-size:16px; font-weight:700; color:#e5e7eb;">{pts_series}</span>
+    </div>
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
+      <span style="color:#9ca3af; font-size:12px;">MIN</span>
+      <span style="font-family:'JetBrains Mono', monospace; font-size:16px; font-weight:700; color:#e5e7eb;">{min_series}</span>
+    </div>
+  </div>
+</div>
+"""), unsafe_allow_html=True)
                         
                         if st.button(f"Ver {player_name}", key=f"scorer_fixed_{idx}"):
                             navegar_a_jugador(player_name)
@@ -1201,41 +1220,52 @@ elif st.session_state.page == "⚔️ Analizar Partido":
                         min_values = player_logs['min'].tolist() if not player_logs.empty and 'min' in player_logs.columns else []
                         min_series = " • ".join([str(int(v)) for v in min_values]) if min_values else "Sin datos"
                         
-                        st.markdown(textwrap.dedent(f"""
-                        <div class="card-elevated" style="
-                            padding: 20px 20px;
-                            margin-bottom: 20px;
-                            background: linear-gradient(135deg, rgba(96,165,250,0.12) 0%, rgba(15,23,42,0.95) 100%);
-                            border: 1px solid rgba(96,165,250,0.25);
-                            border-radius: 20px;
-                        ">
-                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                                <div>
-                                    <div style="font-weight: 800; font-size: 22px; color: #ffffff; letter-spacing: -0.02em;">{player_name}</div>
-                                    <div style="margin-top: 4px;">
-                                        <span style="background: rgba(96,165,250,0.2); color: #60a5fa; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600;">{team}</span>
-                                    </div>
-                                </div>
-                                <div style="text-align: right;">
-                                    <div style="font-size: 42px; font-weight: 900; color: #60a5fa; line-height: 1;">{avg_reb:.1f}</div>
-                                    <div style="color: #9ca3af; font-size: 12px; letter-spacing: 0.1em;">RPG</div>
-                                </div>
-                            </div>
-                            
-                            <div style="margin-top: 16px; background: rgba(0,0,0,0.25); padding: 12px; border-radius: 12px;">
-                                <div style="color: #60a5fa; font-size: 11px; letter-spacing: 0.1em; margin-bottom: 6px;">⚡ ÚLTIMOS 5 PARTIDOS</div>
-                                <div style="display: flex; justify-content: space-between; align-items: center;">
-                                    <span style="color: #9ca3af; font-size: 12px;">REB</span>
-                                    <span style="font-family: 'JetBrains Mono', monospace; font-size: 16px; font-weight: 600; color: #e5e7eb;">{reb_series}</span>
-                                </div>
-                                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px;">
-                                    <span style="color: #9ca3af; font-size: 12px;">MIN</span>
-                                    <span style="font-family: 'JetBrains Mono', monospace; font-size: 16px; font-weight: 600; color: #e5e7eb;">{min_series}</span>
-                                </div>
-                            </div>
-                            
-                        </div>
-                        """).strip(), unsafe_allow_html=True)
+                        # Tarjeta 1: media (RPG)
+                        st.markdown(html_clean(f"""
+<div class="card-elevated" style="
+  padding: 18px 18px;
+  margin-bottom: 12px;
+  background: linear-gradient(135deg, rgba(96,165,250,0.12) 0%, rgba(15,23,42,0.95) 100%);
+  border: 1px solid rgba(96,165,250,0.25);
+  border-radius: 20px;
+">
+  <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
+    <div>
+      <div style="font-weight:900; font-size:20px; color:#ffffff; letter-spacing:-0.02em;">{player_name}</div>
+      <div style="margin-top:6px;">
+        <span style="background: rgba(96,165,250,0.2); color:#60a5fa; padding:4px 12px; border-radius:999px; font-size:12px; font-weight:700;">{team}</span>
+      </div>
+    </div>
+    <div style="text-align:right;">
+      <div style="font-size:44px; font-weight:950; color:#60a5fa; line-height:1;">{avg_reb:.1f}</div>
+      <div style="color:#9ca3af; font-size:12px; letter-spacing:0.16em; text-transform:uppercase;">RPG</div>
+    </div>
+  </div>
+</div>
+"""), unsafe_allow_html=True)
+
+                        # Tarjeta 2: últimos 5
+                        st.markdown(html_clean(f"""
+<div class="card-elevated" style="
+  padding: 16px 16px;
+  margin-bottom: 18px;
+  background: rgba(2,6,23,0.35);
+  border: 1px solid rgba(148,163,184,0.18);
+  border-radius: 20px;
+">
+  <div style="background: rgba(0,0,0,0.22); padding: 12px; border-radius: 14px;">
+    <div style="color:#60a5fa; font-size:11px; letter-spacing:0.14em; margin-bottom:8px; text-transform:uppercase;">⚡ Últimos 5 partidos</div>
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <span style="color:#9ca3af; font-size:12px;">REB</span>
+      <span style="font-family:'JetBrains Mono', monospace; font-size:16px; font-weight:700; color:#e5e7eb;">{reb_series}</span>
+    </div>
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
+      <span style="color:#9ca3af; font-size:12px;">MIN</span>
+      <span style="font-family:'JetBrains Mono', monospace; font-size:16px; font-weight:700; color:#e5e7eb;">{min_series}</span>
+    </div>
+  </div>
+</div>
+"""), unsafe_allow_html=True)
                         
                         if st.button(f"Ver {player_name}", key=f"rebounder_fixed_{idx}"):
                             navegar_a_jugador(player_name)
@@ -1267,41 +1297,52 @@ elif st.session_state.page == "⚔️ Analizar Partido":
                         min_values = player_logs['min'].tolist() if not player_logs.empty and 'min' in player_logs.columns else []
                         min_series = " • ".join([str(int(v)) for v in min_values]) if min_values else "Sin datos"
                         
-                        st.markdown(textwrap.dedent(f"""
-                        <div class="card-elevated" style="
-                            padding: 20px 20px;
-                            margin-bottom: 20px;
-                            background: linear-gradient(135deg, rgba(192,132,252,0.12) 0%, rgba(15,23,42,0.95) 100%);
-                            border: 1px solid rgba(192,132,252,0.25);
-                            border-radius: 20px;
-                        ">
-                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                                <div>
-                                    <div style="font-weight: 800; font-size: 22px; color: #ffffff; letter-spacing: -0.02em;">{player_name}</div>
-                                    <div style="margin-top: 4px;">
-                                        <span style="background: rgba(192,132,252,0.2); color: #c084fc; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600;">{team}</span>
-                                    </div>
-                                </div>
-                                <div style="text-align: right;">
-                                    <div style="font-size: 42px; font-weight: 900; color: #c084fc; line-height: 1;">{avg_ast:.1f}</div>
-                                    <div style="color: #9ca3af; font-size: 12px; letter-spacing: 0.1em;">APG</div>
-                                </div>
-                            </div>
-                            
-                            <div style="margin-top: 16px; background: rgba(0,0,0,0.25); padding: 12px; border-radius: 12px;">
-                                <div style="color: #c084fc; font-size: 11px; letter-spacing: 0.1em; margin-bottom: 6px;">⚡ ÚLTIMOS 5 PARTIDOS</div>
-                                <div style="display: flex; justify-content: space-between; align-items: center;">
-                                    <span style="color: #9ca3af; font-size: 12px;">AST</span>
-                                    <span style="font-family: 'JetBrains Mono', monospace; font-size: 16px; font-weight: 600; color: #e5e7eb;">{ast_series}</span>
-                                </div>
-                                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px;">
-                                    <span style="color: #9ca3af; font-size: 12px;">MIN</span>
-                                    <span style="font-family: 'JetBrains Mono', monospace; font-size: 16px; font-weight: 600; color: #e5e7eb;">{min_series}</span>
-                                </div>
-                            </div>
-                            
-                        </div>
-                        """).strip(), unsafe_allow_html=True)
+                        # Tarjeta 1: media (APG)
+                        st.markdown(html_clean(f"""
+<div class="card-elevated" style="
+  padding: 18px 18px;
+  margin-bottom: 12px;
+  background: linear-gradient(135deg, rgba(192,132,252,0.12) 0%, rgba(15,23,42,0.95) 100%);
+  border: 1px solid rgba(192,132,252,0.25);
+  border-radius: 20px;
+">
+  <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
+    <div>
+      <div style="font-weight:900; font-size:20px; color:#ffffff; letter-spacing:-0.02em;">{player_name}</div>
+      <div style="margin-top:6px;">
+        <span style="background: rgba(192,132,252,0.2); color:#c084fc; padding:4px 12px; border-radius:999px; font-size:12px; font-weight:700;">{team}</span>
+      </div>
+    </div>
+    <div style="text-align:right;">
+      <div style="font-size:44px; font-weight:950; color:#c084fc; line-height:1;">{avg_ast:.1f}</div>
+      <div style="color:#9ca3af; font-size:12px; letter-spacing:0.16em; text-transform:uppercase;">APG</div>
+    </div>
+  </div>
+</div>
+"""), unsafe_allow_html=True)
+
+                        # Tarjeta 2: últimos 5
+                        st.markdown(html_clean(f"""
+<div class="card-elevated" style="
+  padding: 16px 16px;
+  margin-bottom: 18px;
+  background: rgba(2,6,23,0.35);
+  border: 1px solid rgba(148,163,184,0.18);
+  border-radius: 20px;
+">
+  <div style="background: rgba(0,0,0,0.22); padding: 12px; border-radius: 14px;">
+    <div style="color:#c084fc; font-size:11px; letter-spacing:0.14em; margin-bottom:8px; text-transform:uppercase;">⚡ Últimos 5 partidos</div>
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <span style="color:#9ca3af; font-size:12px;">AST</span>
+      <span style="font-family:'JetBrains Mono', monospace; font-size:16px; font-weight:700; color:#e5e7eb;">{ast_series}</span>
+    </div>
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
+      <span style="color:#9ca3af; font-size:12px;">MIN</span>
+      <span style="font-family:'JetBrains Mono', monospace; font-size:16px; font-weight:700; color:#e5e7eb;">{min_series}</span>
+    </div>
+  </div>
+</div>
+"""), unsafe_allow_html=True)
                         
                         if st.button(f"Ver {player_name}", key=f"assister_fixed_{idx}"):
                             navegar_a_jugador(player_name)
