@@ -1159,18 +1159,28 @@ elif st.session_state.page == "⚔️ Analizar Partido":
                         
                         # Construir HTML del desglose directamente en la tarjeta
                         
-                        # Triples (series + media)
-                        tpm_values = player_logs['fg3m'].tolist() if not player_logs.empty and 'fg3m' in player_logs.columns else []
-                        tpm_series = " • ".join([str(int(v)) for v in tpm_values]) if tpm_values else "Sin datos"
-                        avg_3pm_made = float(pd.Series(tpm_values).mean()) if tpm_values else 0.0
-
-                        # Serie de puntos
-                        pts_values = player_logs['pts'].tolist() if not player_logs.empty else []
-                        pts_series = " • ".join([str(int(v)) for v in pts_values]) if pts_values else "Sin datos"
+                        # Generar series alineadas con los últimos 5 partidos del equipo
+                        target_dates = target_dates_str[:5] # from target_dates_str defined above
+                        pts_vals = []
+                        min_vals = []
+                        tpm_vals = []
                         
-                        # Serie de minutos
-                        min_values = player_logs['min'].tolist() if not player_logs.empty and 'min' in player_logs.columns else []
-                        min_series = " • ".join([str(int(v)) for v in min_values]) if min_values else "Sin datos"
+                        for d in target_dates:
+                            match = player_logs[player_logs['game_date'].dt.strftime('%Y-%m-%d') == d]
+                            if not match.empty:
+                                pts_vals.append(str(int(match['pts'].values[0])))
+                                min_vals.append(str(int(match['min'].values[0])) if 'min' in match.columns else "X")
+                                tpm_vals.append(str(int(match['fg3m'].values[0])) if 'fg3m' in match.columns else "X")
+                            else:
+                                pts_vals.append("X")
+                                min_vals.append("X")
+                                tpm_vals.append("X")
+                                
+                        avg_3pm_made = float(player_logs['fg3m'].mean()) if not player_logs.empty and 'fg3m' in player_logs.columns else 0.0
+                        
+                        pts_series = " • ".join(pts_vals)
+                        min_series = " • ".join(min_vals)
+                        tpm_series = " • ".join(tpm_vals)
                         
                         # Tarjeta 1: media (PPG)
                         st.markdown(html_clean(f"""
@@ -1262,13 +1272,21 @@ elif st.session_state.page == "⚔️ Analizar Partido":
                         
                         player_logs = history[history['player_name'] == player_name].sort_values('game_date', ascending=False).head(5)
                         
-                        # Serie de rebotes
-                        reb_values = player_logs['reb'].tolist() if not player_logs.empty else []
-                        reb_series = " • ".join([str(int(v)) for v in reb_values]) if reb_values else "Sin datos"
+                        target_dates = target_dates_str[:5]
+                        reb_vals = []
+                        min_vals = []
                         
-                        # Serie de minutos
-                        min_values = player_logs['min'].tolist() if not player_logs.empty and 'min' in player_logs.columns else []
-                        min_series = " • ".join([str(int(v)) for v in min_values]) if min_values else "Sin datos"
+                        for d in target_dates:
+                            match = player_logs[player_logs['game_date'].dt.strftime('%Y-%m-%d') == d]
+                            if not match.empty:
+                                reb_vals.append(str(int(match['reb'].values[0])))
+                                min_vals.append(str(int(match['min'].values[0])) if 'min' in match.columns else "X")
+                            else:
+                                reb_vals.append("X")
+                                min_vals.append("X")
+                                
+                        reb_series = " • ".join(reb_vals)
+                        min_series = " • ".join(min_vals)
                         
                         # Tarjeta 1: media (RPG)
                         st.markdown(html_clean(f"""
@@ -1339,13 +1357,21 @@ elif st.session_state.page == "⚔️ Analizar Partido":
                         
                         player_logs = history[history['player_name'] == player_name].sort_values('game_date', ascending=False).head(5)
                         
-                        # Serie de asistencias
-                        ast_values = player_logs['ast'].tolist() if not player_logs.empty else []
-                        ast_series = " • ".join([str(int(v)) for v in ast_values]) if ast_values else "Sin datos"
+                        target_dates = target_dates_str[:5]
+                        ast_vals = []
+                        min_vals = []
                         
-                        # Serie de minutos
-                        min_values = player_logs['min'].tolist() if not player_logs.empty and 'min' in player_logs.columns else []
-                        min_series = " • ".join([str(int(v)) for v in min_values]) if min_values else "Sin datos"
+                        for d in target_dates:
+                            match = player_logs[player_logs['game_date'].dt.strftime('%Y-%m-%d') == d]
+                            if not match.empty:
+                                ast_vals.append(str(int(match['ast'].values[0])))
+                                min_vals.append(str(int(match['min'].values[0])) if 'min' in match.columns else "X")
+                            else:
+                                ast_vals.append("X")
+                                min_vals.append("X")
+                                
+                        ast_series = " • ".join(ast_vals)
+                        min_series = " • ".join(min_vals)
                         
                         # Tarjeta 1: media (APG)
                         st.markdown(html_clean(f"""
