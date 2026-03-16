@@ -41,6 +41,15 @@ body {
     font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
 }
 
+/* Espaciado global (evitar que quede todo junto) */
+.main p, .main li, .main label, .main .stCaption {
+    line-height: 1.45 !important;
+}
+
+.main .block-container > div {
+    row-gap: 0.6rem;
+}
+
 /* H1 centrado y grande */
 h1 {
     text-align: center !important;
@@ -80,6 +89,13 @@ table.custom-table tr:hover td { background-color: rgba(30, 64, 175, 0.35); }
 /* Botones pro */
 div.stButton > button { width: 100%; border-radius: 999px !important; font-weight: 600; background: linear-gradient(90deg, #0f172a, #1d4ed8); color: #fff; border: 1px solid rgba(129, 140, 248, 0.9); transition: all 0.18s ease-out; box-shadow: 0 10px 25px rgba(15, 23, 42, 0.9); }
 div.stButton > button:hover { border-color: #facc15; color: #facc15; transform: translateY(-1px); box-shadow: 0 14px 30px rgba(30, 64, 175, 0.9); }
+
+/* Botón secundario (para "Ver") */
+.btn-secondary div.stButton > button {
+    background: linear-gradient(90deg, rgba(15,23,42,0.85), rgba(30,64,175,0.55)) !important;
+    border: 1px solid rgba(148,163,184,0.38) !important;
+    box-shadow: none !important;
+}
 
 /* Leyendas / estados */
 .dnp-missing { color: #f97373; font-weight: 600; }
@@ -667,6 +683,27 @@ elif st.session_state.page == "🏟️ Equipos":
         if team_df.empty:
             st.info("Sin datos para este equipo.")
         else:
+            # Header visual (más “StatMuse-like”)
+            st.markdown(f"""
+            <div class="card-elevated" style="
+                background: linear-gradient(135deg, rgba(30,64,175,0.38) 0%, rgba(15,23,42,0.88) 55%, rgba(2,6,23,0.95) 100%);
+                padding:16px 18px;
+                margin-top:10px;
+            ">
+                <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
+                    <div>
+                        <div style="font-family:'Teko', sans-serif; font-size:34px; letter-spacing:0.10em; text-transform:uppercase; color:#ffffff; line-height:1;">
+                            {team}
+                        </div>
+                        <div style="margin-top:6px; color:#9ca3af; font-size:12px; line-height:1.5;">
+                            Datos calculados desde tu base (player game logs agregados por partido).
+                        </div>
+                    </div>
+                    <div class="pill-label">TEAM HUB</div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+
             # Agregado por partido (tipo StatMuse team game log)
             games = team_df.groupby(['game_id', 'game_date', 'matchup', 'wl'], dropna=False).agg(
                 PTS=('pts', 'sum'),
@@ -680,6 +717,7 @@ elif st.session_state.page == "🏟️ Equipos":
             wins = int((games['wl'] == 'W').sum()) if 'wl' in games.columns else 0
             losses = int((games['wl'] == 'L').sum()) if 'wl' in games.columns else 0
 
+            # KPIs (más espaciado y limpio)
             c1, c2, c3, c4, c5 = st.columns(5)
             c1.metric("Record", f"{wins}-{losses}")
             c2.metric("GP", f"{len(games)}")
@@ -687,16 +725,26 @@ elif st.session_state.page == "🏟️ Equipos":
             c4.metric("REB", f"{games['REB'].mean():.1f}" if len(games) else "-")
             c5.metric("AST", f"{games['AST'].mean():.1f}" if len(games) else "-")
 
+            # Mini gráfico de forma (últimos 10)
+            if len(games) >= 2:
+                form = games.head(10).copy()
+                form = form.sort_values('game_date')
+                form['FECHA'] = form['game_date'].dt.strftime('%d/%m')
+                fig_form = px.bar(form, x='FECHA', y='PTS', title=f"{team} – PTS últimos 10 partidos", labels={'FECHA': 'Fecha', 'PTS': 'PTS'})
+                fig_form.update_traces(marker_color="#60a5fa")
+                fig_form.update_layout(template="plotly_dark", margin=dict(l=10, r=10, t=45, b=10), showlegend=False)
+                st.plotly_chart(fig_form, use_container_width=True, config={"displayModeBar": False, "staticPlot": True, "responsive": True})
+
             tab_overview, tab_stats, tab_schedule, tab_leaders = st.tabs(["Overview", "Stats", "Schedule", "Leaders"])
 
             with tab_overview:
                 st.markdown(f"""
-                <div class="card-elevated">
-                    <div style="font-weight:800; letter-spacing:0.12em; text-transform:uppercase; color:#c5d1ff; font-size:13px;">
-                        {team} overview
+                <div class="card-elevated" style="padding:16px 18px;">
+                    <div style="font-weight:900; letter-spacing:0.14em; text-transform:uppercase; color:#c5d1ff; font-size:13px;">
+                        Overview
                     </div>
-                    <div style="margin-top:8px; color:#9ca3af; font-size:12px;">
-                        Métricas calculadas desde tu base (player game logs agregados por partido).
+                    <div style="margin-top:10px; color:#9ca3af; font-size:12px; line-height:1.6;">
+                        Aquí verás un resumen del equipo al estilo StatMuse: record, medias, racha de partidos y líderes.
                     </div>
                 </div>
                 """, unsafe_allow_html=True)
@@ -745,6 +793,22 @@ elif st.session_state.page == "🏟️ Equipos":
                 leaders = leaders.sort_values('PTS', ascending=False).head(15)
                 leaders[['PTS', 'REB', 'AST', '3PM', 'MIN']] = leaders[['PTS', 'REB', 'AST', '3PM', 'MIN']].round(1)
                 leaders = leaders.rename(columns={'player_name': 'JUGADOR'})
+                # Leaders en tarjetas (más visual) + tabla compacta debajo
+                top5 = leaders.head(5).copy()
+                if not top5.empty:
+                    cols = st.columns(5, gap="small")
+                    for i in range(len(top5)):
+                        r = top5.iloc[i]
+                        with cols[i]:
+                            st.markdown(f"""
+                            <div class="card-elevated" style="padding:12px 12px; text-align:left;">
+                                <div style="font-weight:900; color:#ffffff; font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{r['JUGADOR']}</div>
+                                <div style="margin-top:8px; color:#9ca3af; font-size:11px; letter-spacing:0.10em; text-transform:uppercase;">PTS</div>
+                                <div style="font-size:20px; font-weight:900; color:#e5e7eb;">{r['PTS']}</div>
+                                <div style="margin-top:8px; color:#9ca3af; font-size:11px;">REB {r['REB']} • AST {r['AST']}</div>
+                            </div>
+                            """, unsafe_allow_html=True)
+                st.write("")
                 mostrar_tabla_bonita(leaders, None, simple_mode=True)
 
 # --- PÁGINA ANALIZAR PARTIDO ---
@@ -816,20 +880,44 @@ elif st.session_state.page == "⚔️ Analizar Partido":
                 col_i1, col_i2 = st.columns(2)
                 
                 with col_i1:
-                    st.markdown(f"### {t1}")
+                    st.markdown(f"""
+                    <div class="card-elevated" style="padding:14px 16px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <div style="font-weight:800; letter-spacing:0.14em; text-transform:uppercase; color:#c5d1ff; font-size:13px;">{t1}</div>
+                            <div class="pill-label">{len(inj_t1)} lesion{'' if len(inj_t1)==1 else 'es'}</div>
+                        </div>
+                    """, unsafe_allow_html=True)
                     if inj_t1:
-                        for i in inj_t1:
-                            st.markdown(f"- **{i['player']}**: {i['status']}")
+                        for it in inj_t1:
+                            st.markdown(f"""
+                            <div style="margin-top:10px; padding:10px 10px; border-radius:12px; border:1px solid rgba(148,163,184,0.18); background:rgba(2,6,23,0.45);">
+                                <div style="font-weight:800; color:#ffffff; font-size:13px;">{it.get('player','')}</div>
+                                <div style="margin-top:4px; color:#9ca3af; font-size:12px; line-height:1.45;">{it.get('status','')}</div>
+                            </div>
+                            """, unsafe_allow_html=True)
                     else:
-                        st.info("✅ Sin lesionados")
+                        st.markdown("<div style='margin-top:10px; color:#4ade80; font-weight:700;'>✓ Sin lesionados</div>", unsafe_allow_html=True)
+                    st.markdown("</div>", unsafe_allow_html=True)
                 
                 with col_i2:
-                    st.markdown(f"### {t2}")
+                    st.markdown(f"""
+                    <div class="card-elevated" style="padding:14px 16px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <div style="font-weight:800; letter-spacing:0.14em; text-transform:uppercase; color:#c5d1ff; font-size:13px;">{t2}</div>
+                            <div class="pill-label">{len(inj_t2)} lesion{'' if len(inj_t2)==1 else 'es'}</div>
+                        </div>
+                    """, unsafe_allow_html=True)
                     if inj_t2:
-                        for i in inj_t2:
-                            st.markdown(f"- **{i['player']}**: {i['status']}")
+                        for it in inj_t2:
+                            st.markdown(f"""
+                            <div style="margin-top:10px; padding:10px 10px; border-radius:12px; border:1px solid rgba(148,163,184,0.18); background:rgba(2,6,23,0.45);">
+                                <div style="font-weight:800; color:#ffffff; font-size:13px;">{it.get('player','')}</div>
+                                <div style="margin-top:4px; color:#9ca3af; font-size:12px; line-height:1.45;">{it.get('status','')}</div>
+                            </div>
+                            """, unsafe_allow_html=True)
                     else:
-                        st.info("✅ Sin lesionados")
+                        st.markdown("<div style='margin-top:10px; color:#4ade80; font-weight:700;'>✓ Sin lesionados</div>", unsafe_allow_html=True)
+                    st.markdown("</div>", unsafe_allow_html=True)
             else:
                 st.error("❌ No se pudo conectar con la fuente de lesiones")
 
