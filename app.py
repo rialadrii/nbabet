@@ -16,7 +16,7 @@ def html_clean(s: str) -> str:
 # Importar módulos propios
 from data import load_data, download_data, get_team_roster_numbers, get_next_matchup_info, query_player_stats, get_injuries
 from odds import get_sports_odds, save_cache, load_cache, detect_value_odds
-from ui import mostrar_leyenda_colores, mostrar_tabla_bonita, render_clickable_player_table, render_clickable_player_cards
+from ui import mostrar_leyenda_colores, mostrar_tabla_bonita, mostrar_tabla_como_tarjetas, render_clickable_player_table, render_clickable_player_cards
 from utils import convertir_hora_espanol, get_basketball_date, safe_request
 
 # ==========================================
@@ -380,10 +380,10 @@ elif st.session_state.page == "👤 Jugador":
                         </div>
                     </div>
                     <div style="margin-top:14px; display:grid; grid-template-columns:repeat(5, minmax(0,1fr)); gap:10px;">
-                        <div style="background:rgba(15,23,42,0.55); border:1px solid rgba(148,163,184,0.18); border-radius:14px; padding:10px; text-align:center;">
+                        <div style="background:rgba(15,23,42,0.55); border:1px solid rgba(148,163,184,0.18); border-radius:14px; padding:12px; text-align:center;">
                             <div style="font-size:11px; letter-spacing:0.14em; text-transform:uppercase; color:#9ca3af;">PPG</div>
-                            <div style="font-size:22px; font-weight:800; color:#fff; margin-top:2px;">{mean_pts:.1f}</div>
-                            {f"<div style='margin-top:6px; font-size:11px; color:#9ca3af; line-height:1.35;'>2PT {mean_pts_2:.1f} • 3PT {mean_pts_3:.1f} • TL {mean_pts_ft:.1f}</div>" if mean_pts_2 is not None else ""}
+                            <div style="font-size:26px; font-weight:800; color:#fff; margin-top:4px;">{mean_pts:.1f}</div>
+                            {f"<div style='margin-top:8px; font-size:9px; color:#9ca3af; line-height:1.2;'>2PT {mean_pts_2:.1f} • 3PT {mean_pts_3:.1f} • TL {mean_pts_ft:.1f}</div>" if mean_pts_2 is not None else ""}
                         </div>
                         <div style="background:rgba(15,23,42,0.55); border:1px solid rgba(148,163,184,0.18); border-radius:14px; padding:10px; text-align:center;">
                             <div style="font-size:11px; letter-spacing:0.14em; text-transform:uppercase; color:#9ca3af;">RPG</div>
@@ -419,13 +419,13 @@ elif st.session_state.page == "👤 Jugador":
                         {latest_match} &nbsp; {("• " + latest_wl) if latest_wl else ""}
                     </div>
                     <div style="margin-top:12px; display:grid; grid-template-columns:repeat(5, minmax(0,1fr)); gap:8px;">
-                        <div style="background:rgba(2,6,23,0.55); border:1px solid rgba(148,163,184,0.14); border-radius:12px; padding:9px 8px; text-align:center;">
-                            <div style="font-size:10px; color:#9ca3af; letter-spacing:0.14em; text-transform:uppercase;">MIN</div>
-                            <div style="font-size:16px; font-weight:800; color:#fff;">{f"{latest_min:.0f}" if latest_min is not None else "-"}</div>
+                        <div style="background:rgba(2,6,23,0.55); border:1px solid rgba(148,163,184,0.14); border-radius:12px; padding:10px 8px; text-align:center;">
+                            <div style="font-size:9px; color:#9ca3af; letter-spacing:0.14em; text-transform:uppercase;">MIN</div>
+                            <div style="font-size:20px; font-weight:800; color:#fff;">{f"{latest_min:.0f}" if latest_min is not None else "-"}</div>
                         </div>
-                        <div style="background:rgba(2,6,23,0.55); border:1px solid rgba(148,163,184,0.14); border-radius:12px; padding:9px 8px; text-align:center;">
-                            <div style="font-size:10px; color:#9ca3af; letter-spacing:0.14em; text-transform:uppercase;">PTS</div>
-                            <div style="font-size:16px; font-weight:800; color:#fff;">{f"{latest_pts:.0f}" if latest_pts is not None else "-"}</div>
+                        <div style="background:rgba(2,6,23,0.55); border:1px solid rgba(148,163,184,0.14); border-radius:12px; padding:10px 8px; text-align:center;">
+                            <div style="font-size:9px; color:#9ca3af; letter-spacing:0.14em; text-transform:uppercase;">PTS</div>
+                            <div style="font-size:20px; font-weight:800; color:#fff;">{f"{latest_pts:.0f}" if latest_pts is not None else "-"}</div>
                         </div>
                         <div style="background:rgba(2,6,23,0.55); border:1px solid rgba(148,163,184,0.14); border-radius:12px; padding:9px 8px; text-align:center;">
                             <div style="font-size:10px; color:#9ca3af; letter-spacing:0.14em; text-transform:uppercase;">REB</div>
@@ -538,8 +538,7 @@ elif st.session_state.page == "👤 Jugador":
             view.columns = ['FECHA', 'RES', 'PARTIDO', 'FICHA', 'MIN', 'PTS', 'REB', 'AST', '3PM']
             view['FECHA'] = view['FECHA'].dt.strftime('%d/%m')
 
-            mostrar_tabla_bonita(view, None, means_dict=means_dict)
-            mostrar_leyenda_colores()
+            mostrar_tabla_como_tarjetas(view, max_cols=2)
 
             csv = view.to_csv(index=False).encode('utf-8')
             st.download_button("📥 Descargar CSV", data=csv, file_name=f"{jugador}_ultimos.csv", mime="text/csv")
@@ -557,8 +556,7 @@ elif st.session_state.page == "👤 Jugador":
                         view_h2h = view_h2h[['game_date', 'RES', 'matchup', 'FICHA', 'min', 'pts', 'reb', 'ast', 'fg3m']]
                     view_h2h.columns = ['FECHA', 'RES', 'PARTIDO', 'FICHA', 'MIN', 'PTS', 'REB', 'AST', '3PM']
                     view_h2h['FECHA'] = view_h2h['FECHA'].dt.strftime('%d/%m')
-                    mostrar_tabla_bonita(view_h2h, None, means_dict=means_dict)
-                    mostrar_leyenda_colores()
+                    mostrar_tabla_como_tarjetas(view_h2h, max_cols=2)
                 else:
                     st.info(f"No hay registros recientes contra {rival}.")
 
@@ -589,7 +587,7 @@ elif st.session_state.page == "👤 Jugador":
                         ]
                     })
                     
-                    mostrar_tabla_bonita(comparativa, None, simple_mode=True)
+                    mostrar_tabla_como_tarjetas(comparativa, max_cols=2)
                     
                     fig = px.bar(comparativa, x='Métrica', y=[jugador, otro_jugador], 
                                  barmode='group', title=f'Comparativa: {jugador} vs {otro_jugador}')
@@ -648,7 +646,7 @@ elif st.session_state.page == "💰 Buscador de Cuotas":
             st.subheader("🔔 Alertas de Valor (Cuotas >10% sobre la media)")
             df_alerts = pd.DataFrame(value_alerts)
             df_alerts.columns = ['Partido', 'Equipo', 'Casa', 'Cuota', 'Media', 'Sobre%']
-            mostrar_tabla_bonita(df_alerts, None, simple_mode=True)
+            mostrar_tabla_como_tarjetas(df_alerts, max_cols=2)
 
     if odds_data_to_show:
         if market_key == 'h2h':
@@ -831,7 +829,7 @@ elif st.session_state.page == "🏟️ Equipos":
                     '3PM': tpm,
                     'MIN': games['MIN'].mean() if len(games) else 0
                 }]).round(1)
-                mostrar_tabla_bonita(stats_row, None, simple_mode=True)
+                mostrar_tabla_como_tarjetas(stats_row, max_cols=1)
                 st.markdown("</div>", unsafe_allow_html=True)
 
             with tab_schedule:
@@ -846,7 +844,7 @@ elif st.session_state.page == "🏟️ Equipos":
                 sched['3PM'] = sched['3PM'].fillna(0).astype(int)
                 sched['FICHA'] = sched['game_id'].apply(lambda x: f"<a href='https://www.nba.com/game/{x}' target='_blank' class='match-link'>📊</a>" if pd.notnull(x) else "-")
                 sched_view = sched[['FECHA', 'RES', 'PARTIDO', 'FICHA', 'PTS', 'REB', 'AST', '3PM']]
-                mostrar_tabla_bonita(sched_view, None, simple_mode=True)
+                mostrar_tabla_como_tarjetas(sched_view, max_cols=1)
 
             with tab_leaders:
                 st.subheader("🏅 Leaders")
@@ -882,7 +880,7 @@ elif st.session_state.page == "🏟️ Equipos":
                             </div>
                             """, unsafe_allow_html=True)
                 st.write("")
-                mostrar_tabla_bonita(leaders, None, simple_mode=True)
+                mostrar_tabla_como_tarjetas(leaders, max_cols=2)
 
 # --- PÁGINA ANALIZAR PARTIDO ---
 elif st.session_state.page == "⚔️ Analizar Partido":
@@ -1047,7 +1045,7 @@ elif st.session_state.page == "⚔️ Analizar Partido":
                     </div>
                 </div>
                 """, unsafe_allow_html=True)
-                mostrar_tabla_bonita(df_games, None)
+                mostrar_tabla_como_tarjetas(df_games, max_cols=1)
                 st.markdown("</div>", unsafe_allow_html=True)
 
             team_totals = history.groupby(['game_date', 'team_abbreviation'])[['pts', 'reb', 'ast']].sum().reset_index()
@@ -1076,7 +1074,7 @@ elif st.session_state.page == "⚔️ Analizar Partido":
                     final_cols = [c for c in cols_ordered if c in df_comparative.columns]
                     st.markdown("<div class='card-elevated' style='padding:16px 16px;'>", unsafe_allow_html=True)
                     st.markdown("<div class='pill-label' style='margin-bottom:12px;'>Stats por partido (H2H)</div>", unsafe_allow_html=True)
-                    mostrar_tabla_bonita(df_comparative[final_cols], None, simple_mode=True)
+                    mostrar_tabla_como_tarjetas(df_comparative[final_cols], max_cols=2)
                     st.markdown("</div>", unsafe_allow_html=True)
 
             recent_players = history[history['game_date'].isin(last_dates)].sort_values('game_date', ascending=False)
@@ -1205,19 +1203,7 @@ elif st.session_state.page == "⚔️ Analizar Partido":
     <div><span style="color:#9ca3af;">3PT pts:</span> <span class="num-mono num-strong num-3pm">{avg_3pt:.1f}</span></div>
   </div>
 
-  <div style="margin-top:10px; background: rgba(251,146,60,0.10); border:1px solid rgba(251,146,60,0.22); padding:12px; border-radius:14px;">
-    <div style="color:#fb923c; font-size:11px; letter-spacing:0.14em; margin-bottom:8px; text-transform:uppercase;">🎯 Triples (últimos 5)</div>
-    <div style="display:flex; justify-content:space-between; align-items:center;">
-      <span style="color:#9ca3af; font-size:12px;">3PM</span>
-      <span class="num-mono num-strong num-3pm" style="font-size:20px;">{tpm_series}</span>
-    </div>
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
-      <span style="color:#9ca3af; font-size:12px;">Media</span>
-      <span class="num-mono num-strong num-3pm" style="font-size:18px;">{avg_3pm_made:.1f}</span>
-    </div>
-  </div>
-
-    <div style="background: rgba(0,0,0,0.22); padding: 14px; border-radius: 16px;">
+  <div style="background: rgba(0,0,0,0.22); padding: 14px; border-radius: 16px;">
     <div style="color:#facc15; font-size:11px; letter-spacing:0.14em; margin-bottom:8px; text-transform:uppercase;">⚡ Últimos 5 partidos</div>
     <div style="display:flex; justify-content:space-between; align-items:center;">
       <span style="color:#9ca3af; font-size:12px;">PTS</span>
@@ -1226,6 +1212,18 @@ elif st.session_state.page == "⚔️ Analizar Partido":
     <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
       <span style="color:#9ca3af; font-size:12px;">MIN</span>
       <span class="num-mono num-strong num-min" style="font-size:20px;">{min_series}</span>
+    </div>
+  </div>
+
+  <div style="margin-top:10px; background: rgba(251,146,60,0.08); border:1px solid rgba(251,146,60,0.18); padding:10px 12px; border-radius:14px;">
+    <div style="color:#fb923c; font-size:10px; letter-spacing:0.14em; margin-bottom:6px; text-transform:uppercase;">🎯 Triples (últimos 5)</div>
+    <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
+      <span style="color:#9ca3af; font-size:12px;">3PM</span>
+      <span class="num-mono num-strong num-3pm" style="font-size:18px;">{tpm_series}</span>
+    </div>
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:6px;">
+      <span style="color:#9ca3af; font-size:12px;">Media</span>
+      <span class="num-mono num-strong num-3pm" style="font-size:16px;">{avg_3pm_made:.1f}</span>
     </div>
   </div>
 </div>
@@ -1431,7 +1429,7 @@ elif st.session_state.page == "⚔️ Analizar Partido":
                 
                 if dnp_data:
                     df_dnp = pd.DataFrame(dnp_data)
-                    mostrar_tabla_bonita(df_dnp, None)
+                    mostrar_tabla_como_tarjetas(df_dnp, max_cols=1)
                 else:
                     st.success("✅ No hay bajas registradas en los últimos partidos")
             else:
@@ -1490,7 +1488,7 @@ elif st.session_state.page == "⚔️ Analizar Partido":
                             patterns_data.append({'FECHA': date_str, 'EQUIPO': team, 'FALTA': f"<span class='pat-stars'>{missing_str}</span>", 'IMPACTO': f"<span class='pat-impact'>{impact_str}</span>"})
             if patterns_data:
                 df_patterns = pd.DataFrame(patterns_data)
-                mostrar_tabla_bonita(df_patterns, None)
+                mostrar_tabla_como_tarjetas(df_patterns, max_cols=1)
             else:
                 st.write("Sin impactos.")
 
