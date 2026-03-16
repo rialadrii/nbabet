@@ -148,6 +148,7 @@ def obtener_partidos():
     fechas_us = [basket_today_us, basket_today_us + timedelta(days=1)]
 
     agenda = {}
+    seen_game_ids = set()
 
     for fecha in fechas_us:
         fecha_str = fecha.strftime('%Y-%m-%d')
@@ -159,6 +160,11 @@ def obtener_partidos():
                 for _, game in games.iterrows():
                     h_id, v_id = game['HOME_TEAM_ID'], game['VISITOR_TEAM_ID']
                     status_text = game['GAME_STATUS_TEXT']
+                    game_id = game['GAME_ID']
+
+                    # Evitar duplicados: si ya hemos añadido este GAME_ID, lo saltamos
+                    if game_id in seen_game_ids:
+                        continue
 
                     fecha_juego_dt = datetime.strptime(fecha_str, "%Y-%m-%d")
                     hora_esp = status_text
@@ -167,7 +173,8 @@ def obtener_partidos():
                         try:
                             hora_clean = status_text.replace(" ET", "").strip()
                             dt_us = datetime.strptime(f"{fecha_str} {hora_clean}", "%Y-%m-%d %I:%M %p")
-                            dt_es = dt_us + timedelta(hours=6)
+                            # Ajuste horario: ET+5 para España
+                            dt_es = dt_us + timedelta(hours=5)
                             fecha_juego_dt = dt_es
                             hora_esp = dt_es.strftime("%H:%M")
                         except:
@@ -181,13 +188,14 @@ def obtener_partidos():
                         agenda[label_real] = []
 
                     agenda[label_real].append({
-                        'game_id': game['GAME_ID'],
+                        'game_id': game_id,
                         'v_abv': team_map.get(v_id),
                         'h_abv': team_map.get(h_id),
                         'v_logo': f"https://cdn.nba.com/logos/nba/{v_id}/global/L/logo.svg",
                         'h_logo': f"https://cdn.nba.com/logos/nba/{h_id}/global/L/logo.svg",
                         'time': hora_esp
                     })
+                    seen_game_ids.add(game_id)
         except:
             pass
 
